@@ -19,14 +19,14 @@ return [
     // des cookies (préférences et session) : avec « / », ils partiraient vers
     // les espaces de tous les autres utilisateurs du serveur.
     // Il doit être identique à BASE dans front/vite.config.js.
-    'chemin' => '/~votre_login/Base/',
+    'chemin' => '/~segrestan1/SAE301-Starter/Base/',
 
     'bdd' => [
         'hote'        => 'localhost',
         'port'        => 3306,
-        'base'        => 'a_completer',
-        'utilisateur' => 'a_completer',
-        'motdepasse'  => 'a_completer',
+        'base'        => 'segrestan1', 
+        'utilisateur' => 'segrestan1',
+        'motdepasse'  => 'segrestan1',
     ],
 
     // En développement, les erreurs sont détaillées dans la réponse JSON.
