@@ -1,65 +1,62 @@
 -- ---------------------------------------------------------------------------
--- SAE301-Starter — tables et jeu de données
+-- Matira Création — click & collect : tables et jeu de données
 --
--- Ce script ne crée PAS de base de données : il ajoute ses deux tables, film
--- et genre, à une base existante, la vôtre. Depuis phpMyAdmin, sélectionnez
--- d'abord votre base dans la colonne de gauche, puis importez ce fichier depuis
--- l'onglet « Importer ».
+-- Périmètre : les deux premiers epics.
+--   - « Découvrir l'offre » (DEC-a, DEC-b, DEC-c) : categorie, produit,
+--     image_produit ;
+--   - « Commander en click & collect » (CMD-a, CMD-b, CMD-c) : variante,
+--     utilisateur, commande, ligne_commande.
+-- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
+-- sont pas créées ici.
 --
--- 60 films répartis sur 8 genres, de quoi remplir 5 pages de 12, 3 pages de 24
--- ou 2 pages de 48, et rendre le tri visible à l'œil nu.
+-- Ce script ne crée PAS de base : sélectionnez d'abord votre base dans
+-- phpMyAdmin, puis importez ce fichier depuis l'onglet « Importer ».
+-- Il ne touche pas aux tables film et genre du starter.
 --
 -- L'import est rejouable : les tables sont supprimées avant d'être recréées.
--- ATTENTION : si votre base contient déjà une table film ou genre, elle sera
--- supprimée elle aussi.
+-- Les prix sont en francs pacifiques (XPF), monnaie sans centimes : entiers.
 -- ---------------------------------------------------------------------------
 
--- Le jeu de caractères de la connexion est fixé explicitement : sans cela,
--- un client configuré en latin1 enregistrerait les accents en double encodage
--- et « Comédie » deviendrait « ComÃ©die » à la lecture par l'application.
 SET NAMES utf8mb4;
 
--- La table film est supprimée en premier : sa clé étrangère dépend de genre.
-DROP TABLE IF EXISTS film;
-DROP TABLE IF EXISTS genre;
+-- Suppression dans l'ordre inverse des dépendances (clés étrangères).
+DROP TABLE IF EXISTS ligne_commande;
+DROP TABLE IF EXISTS commande;
+DROP TABLE IF EXISTS utilisateur;
+DROP TABLE IF EXISTS variante;
+DROP TABLE IF EXISTS image_produit;
+DROP TABLE IF EXISTS produit;
+DROP TABLE IF EXISTS categorie;
 
 -- ---------------------------------------------------------------------------
--- Genres
--- ---------------------------------------------------------------------------
-CREATE TABLE genre (
-    id      TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    libelle VARCHAR(40)      NOT NULL,
-
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_genre_libelle (libelle)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
-
--- ---------------------------------------------------------------------------
--- Films
+-- Catégories et sous-catégories (DEC-a)
 --
--- Les index sur annee et note_moyenne ne sont pas décoratifs : le catalogue
--- sera trié sur ces colonnes, et un tri sans index impose à MySQL de parcourir
--- puis d'ordonner toute la table.
+-- Une catégorie sans parent est une entrée du menu principal (Colliers,
+-- Bagues…). Une catégorie avec parent_id est une entrée de son sous-menu
+-- (Colliers > Plaqué or 18 cts). Les produits sont rattachés aux
+-- sous-catégories ; une catégorie principale affiche les produits de toutes
+-- ses sous-catégories.
+--
+-- slug : identifiant lisible utilisé dans l'URL (/categorie/colliers-plaque-or),
+-- unique sur toutes les catégories.
+-- ordre : position dans le menu ou le sous-menu.
 -- ---------------------------------------------------------------------------
-CREATE TABLE film (
-    id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    titre         VARCHAR(160)      NOT NULL,
-    realisateur   VARCHAR(120)      NOT NULL,
-    annee         SMALLINT UNSIGNED NOT NULL,
-    duree_minutes SMALLINT UNSIGNED NOT NULL,
-    note_moyenne  DECIMAL(3,1)      NOT NULL,
-    genre_id      TINYINT UNSIGNED  NOT NULL,
+CREATE TABLE categorie (
+    id          TINYINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    parent_id   TINYINT UNSIGNED  NULL DEFAULT NULL,
+    nom         VARCHAR(60)       NOT NULL,
+    slug        VARCHAR(60)       NOT NULL,
+    description VARCHAR(255)      NOT NULL DEFAULT '',
+    ordre       TINYINT UNSIGNED  NOT NULL DEFAULT 0,
 
     PRIMARY KEY (id),
-    KEY idx_film_titre (titre),
-    KEY idx_film_annee (annee),
-    KEY idx_film_note  (note_moyenne),
-    KEY idx_film_genre (genre_id),
+    UNIQUE KEY uq_categorie_slug (slug),
+    KEY idx_categorie_parent (parent_id),
 
-    CONSTRAINT fk_film_genre
-        FOREIGN KEY (genre_id) REFERENCES genre (id)
+    -- RESTRICT : impossible de supprimer une catégorie qui a des
+    -- sous-catégories (la règle de suppression complète viendra avec GOF-c).
+    CONSTRAINT fk_categorie_parent
+        FOREIGN KEY (parent_id) REFERENCES categorie (id)
         ON DELETE RESTRICT
         ON UPDATE CASCADE
 ) ENGINE = InnoDB
@@ -67,77 +64,297 @@ CREATE TABLE film (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
--- Jeu de données
+-- Produits (DEC-b, DEC-c)
+-- ---------------------------------------------------------------------------
+CREATE TABLE produit (
+    id           SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    categorie_id TINYINT UNSIGNED  NOT NULL,
+    nom          VARCHAR(120)      NOT NULL,
+    slug         VARCHAR(120)      NOT NULL,
+    description  TEXT              NOT NULL,
+    prix         INT UNSIGNED      NOT NULL,
+    date_ajout   DATE              NOT NULL,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_produit_slug (slug),
+    KEY idx_produit_categorie (categorie_id),
+
+    CONSTRAINT fk_produit_categorie
+        FOREIGN KEY (categorie_id) REFERENCES categorie (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+
+    CONSTRAINT ck_produit_prix CHECK (prix > 0)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Images des produits (DEC-b : image principale, DEC-c : galerie)
+--
+-- fichier : nom de base dans front/public/images/produits/. Deux tailles
+-- existent : <fichier>.webp (800 px) et <fichier>-400.webp (400 px).
+-- L'image d'ordre 0 est l'image principale.
+-- ---------------------------------------------------------------------------
+CREATE TABLE image_produit (
+    id         SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    produit_id SMALLINT UNSIGNED NOT NULL,
+    fichier    VARCHAR(120)      NOT NULL,
+    alt        VARCHAR(255)      NOT NULL,
+    ordre      TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_image_produit_ordre (produit_id, ordre),
+
+    CONSTRAINT fk_image_produit
+        FOREIGN KEY (produit_id) REFERENCES produit (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Variantes (CMD-b, CMD-a)
+--
+-- Chaque produit a une seule variante « Modèle unique » pour l'instant : c'est
+-- elle que le panier et les lignes de commande référencent, et elle porte le
+-- stock. Quand les options arriveront (epic « Personnaliser »), un produit
+-- aura plusieurs variantes sans que le panier ni les commandes ne changent.
+-- ---------------------------------------------------------------------------
+CREATE TABLE variante (
+    id         SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    produit_id SMALLINT UNSIGNED NOT NULL,
+    libelle    VARCHAR(80)       NOT NULL DEFAULT 'Modèle unique',
+    stock      SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (id),
+    KEY idx_variante_produit (produit_id),
+
+    CONSTRAINT fk_variante_produit
+        FOREIGN KEY (produit_id) REFERENCES produit (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Clients (CMD-c)
+--
+-- mot_de_passe : empreinte bcrypt produite par password_hash(), jamais le mot
+-- de passe en clair (60 caractères, 255 prévus pour les algorithmes futurs).
+-- ---------------------------------------------------------------------------
+CREATE TABLE utilisateur (
+    id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    prenom        VARCHAR(60)   NOT NULL,
+    nom           VARCHAR(60)   NOT NULL,
+    email         VARCHAR(190)  NOT NULL,
+    mot_de_passe  VARCHAR(255)  NOT NULL,
+    date_creation DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_utilisateur_email (email)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Commandes (CMD-a)
+--
+-- numero : identifiant unique montré au client, par exemple MC-2026-00042.
+-- statut : « en cours » à la validation ; les autres valeurs serviront au
+-- suivi (SUI-c) et au back-office (PIL-b).
+-- total : somme des lignes au moment de la validation, en XPF.
+-- ---------------------------------------------------------------------------
+CREATE TABLE commande (
+    id             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    numero         VARCHAR(20)   NOT NULL,
+    utilisateur_id INT UNSIGNED  NOT NULL,
+    statut         ENUM('en cours', 'disponible', 'retirée', 'annulée')
+                                 NOT NULL DEFAULT 'en cours',
+    total          INT UNSIGNED  NOT NULL,
+    date_commande  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_commande_numero (numero),
+    KEY idx_commande_utilisateur (utilisateur_id),
+
+    CONSTRAINT fk_commande_utilisateur
+        FOREIGN KEY (utilisateur_id) REFERENCES utilisateur (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Lignes de commande (CMD-a)
+--
+-- nom_produit et prix_unitaire sont recopiés au moment de la commande : la
+-- commande reste exacte même si le produit est renommé, change de prix ou
+-- est supprimé ensuite (DoD de CMD-a : « prix au moment de la commande »).
+-- ---------------------------------------------------------------------------
+CREATE TABLE ligne_commande (
+    id            INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    commande_id   INT UNSIGNED      NOT NULL,
+    variante_id   SMALLINT UNSIGNED NULL,
+    nom_produit   VARCHAR(120)      NOT NULL,
+    prix_unitaire INT UNSIGNED      NOT NULL,
+    quantite      SMALLINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (id),
+    KEY idx_ligne_commande (commande_id),
+    KEY idx_ligne_variante (variante_id),
+
+    CONSTRAINT fk_ligne_commande
+        FOREIGN KEY (commande_id) REFERENCES commande (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    -- SET NULL : supprimer un produit ne fait pas disparaître les commandes
+    -- passées, qui gardent leur nom et leur prix recopiés.
+    CONSTRAINT fk_ligne_variante
+        FOREIGN KEY (variante_id) REFERENCES variante (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    CONSTRAINT ck_ligne_quantite CHECK (quantite > 0)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Jeu de données : menus de la maquette Figma et bijoux de matiracreation.com
 -- ---------------------------------------------------------------------------
 
-INSERT INTO genre (id, libelle) VALUES
-    (1, 'Animation'),
-    (2, 'Aventure'),
-    (3, 'Comédie'),
-    (4, 'Documentaire'),
-    (5, 'Drame'),
-    (6, 'Horreur'),
-    (7, 'Policier'),
-    (8, 'Science-fiction');
+-- Menu principal (parent_id NULL), dans l'ordre de l'en-tête de la maquette.
+INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
+    (1, NULL, 'Colliers', 'colliers',
+        'Colliers et sautoirs autour de la perle de Tahiti.', 1),
+    (2, NULL, 'Bagues', 'bagues',
+        'Bagues ouvertes et toi et moi, sublimées par la perle de Tahiti et les keishis.', 2),
+    (3, NULL, 'Bracelets', 'bracelets',
+        'Bracelets fins à porter seuls ou à accumuler.', 3),
+    (4, NULL, 'Boucles d''oreilles', 'boucles-oreilles',
+        'Boucles d''oreilles pendantes et anneaux ornés de perles de Tahiti.', 4),
+    (5, NULL, 'Homme', 'homme',
+        'Cuir, argent et pierres naturelles : des bijoux masculins autour de la perle de Tahiti.', 5);
 
-INSERT INTO film (titre, realisateur, annee, duree_minutes, note_moyenne, genre_id) VALUES
-    ('2001, l''Odyssée de l''espace',            'Stanley Kubrick',        1968, 149, 8.9, 8),
-    ('Alien',                                    'Ridley Scott',           1979, 117, 8.4, 6),
-    ('Apocalypse Now',                           'Francis Ford Coppola',   1979, 147, 8.5, 5),
-    ('Blade Runner',                             'Ridley Scott',           1982, 117, 8.3, 8),
-    ('Brazil',                                   'Terry Gilliam',          1985, 142, 7.9, 8),
-    ('Dans la peau de John Malkovich',           'Spike Jonze',            1999, 112, 7.7, 3),
-    ('Dune',                                     'Denis Villeneuve',       2021, 155, 8.0, 8),
-    ('Fargo',                                    'Joel Coen',              1996,  98, 8.1, 7),
-    ('Gravity',                                  'Alfonso Cuarón',         2013,  91, 7.7, 8),
-    ('Her',                                      'Spike Jonze',            2013, 126, 8.0, 8),
-    ('Intouchables',                             'Olivier Nakache',        2011, 112, 8.5, 3),
-    ('Jurassic Park',                            'Steven Spielberg',       1993, 127, 8.2, 2),
-    ('La Cité de Dieu',                          'Fernando Meirelles',     2002, 130, 8.6, 5),
-    ('La Haine',                                 'Mathieu Kassovitz',      1995,  98, 8.0, 5),
-    ('La Marche de l''empereur',                 'Luc Jacquet',            2005,  85, 7.5, 4),
-    ('Là-haut',                                  'Pete Docter',            2009,  96, 8.2, 1),
-    ('Le Château ambulant',                      'Hayao Miyazaki',         2004, 119, 8.2, 1),
-    ('Le Cercle rouge',                          'Jean-Pierre Melville',   1970, 140, 7.9, 7),
-    ('Le Dictateur',                             'Charlie Chaplin',        1940, 125, 8.4, 3),
-    ('Le Fabuleux Destin d''Amélie Poulain',     'Jean-Pierre Jeunet',     2001, 122, 8.3, 3),
-    ('Le Fils de Saul',                          'László Nemes',           2015, 107, 7.5, 5),
-    ('Le Grand Bleu',                            'Luc Besson',             1988, 132, 7.6, 2),
-    ('Le Labyrinthe de Pan',                     'Guillermo del Toro',     2006, 118, 8.2, 2),
-    ('Le Mépris',                                'Jean-Luc Godard',        1963, 103, 7.6, 5),
-    ('Le Parrain',                               'Francis Ford Coppola',   1972, 175, 9.2, 5),
-    ('Le Roi Lion',                              'Roger Allers',           1994,  88, 8.5, 1),
-    ('Le Silence des agneaux',                   'Jonathan Demme',         1991, 118, 8.6, 6),
-    ('Le Tombeau des lucioles',                  'Isao Takahata',          1988,  89, 8.5, 1),
-    ('Le Voyage de Chihiro',                     'Hayao Miyazaki',         2001, 125, 8.6, 1),
-    ('Les Affranchis',                           'Martin Scorsese',        1990, 145, 8.7, 7),
-    ('Les Dents de la mer',                      'Steven Spielberg',       1975, 124, 8.1, 6),
-    ('Les Quatre Cents Coups',                   'François Truffaut',      1959,  99, 8.1, 5),
-    ('Les Sept Samouraïs',                       'Akira Kurosawa',         1954, 207, 8.6, 2),
-    ('Les Temps modernes',                       'Charlie Chaplin',        1936,  87, 8.5, 3),
-    ('Mad Max : Fury Road',                      'George Miller',          2015, 120, 8.1, 2),
-    ('Matrix',                                   'Lana et Lilly Wachowski',1999, 136, 8.7, 8),
-    ('Mon oncle',                                'Jacques Tati',           1958, 117, 7.9, 3),
-    ('Mon voisin Totoro',                        'Hayao Miyazaki',         1988,  86, 8.1, 1),
-    ('Nuit et brouillard',                       'Alain Resnais',          1956,  32, 8.4, 4),
-    ('Océans',                                   'Jacques Perrin',         2009, 104, 7.8, 4),
-    ('Old Boy',                                  'Park Chan-wook',         2003, 120, 8.3, 7),
-    ('Parasite',                                 'Bong Joon-ho',           2019, 132, 8.5, 5),
-    ('Playtime',                                 'Jacques Tati',           1967, 124, 7.9, 3),
-    ('Premier Contact',                          'Denis Villeneuve',       2016, 116, 7.9, 8),
-    ('Princesse Mononoké',                       'Hayao Miyazaki',         1997, 134, 8.3, 1),
-    ('Pulp Fiction',                             'Quentin Tarantino',      1994, 154, 8.9, 7),
-    ('Ran',                                      'Akira Kurosawa',         1985, 162, 8.2, 5),
-    ('Retour vers le futur',                     'Robert Zemeckis',        1985, 116, 8.5, 8),
-    ('Roma',                                     'Alfonso Cuarón',         2018, 135, 7.7, 5),
-    ('Rosemary''s Baby',                         'Roman Polanski',         1968, 137, 8.0, 6),
-    ('Sans soleil',                              'Chris Marker',           1983, 100, 7.9, 4),
-    ('Seven',                                    'David Fincher',          1995, 127, 8.6, 7),
-    ('Shining',                                  'Stanley Kubrick',        1980, 146, 8.4, 6),
-    ('Spider-Man : New Generation',              'Bob Persichetti',        2018, 117, 8.4, 1),
-    ('Stalker',                                  'Andreï Tarkovski',       1979, 161, 8.1, 8),
-    ('Sueurs froides',                           'Alfred Hitchcock',       1958, 128, 8.3, 7),
-    ('The Thing',                                'John Carpenter',         1982, 109, 8.2, 6),
-    ('Un prophète',                              'Jacques Audiard',        2009, 155, 7.9, 7),
-    ('Wall-E',                                   'Andrew Stanton',         2008,  98, 8.4, 1),
-    ('Whiplash',                                 'Damien Chazelle',        2014, 106, 8.5, 5);
+-- Sous-menus.
+INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
+    (6,  1, 'Plaqué or 18 cts', 'colliers-plaque-or',
+        'Colliers en plaqué or 18 carats, légers et lumineux.', 1),
+    (7,  1, 'Acier inoxydable', 'colliers-acier',
+        'Colliers et sautoirs en acier inoxydable, qui ne craignent ni le sel ni le soleil.', 2),
+    (8,  2, 'Plaqué or 18 cts', 'bagues-plaque-or',
+        'Bagues ouvertes en plaqué or 18 carats, ajustables.', 1),
+    (9,  2, 'Acier inoxydable', 'bagues-acier',
+        'Bagues en acier inoxydable, pour les porter tous les jours.', 2),
+    (10, 3, 'Plaqué or 18 cts', 'bracelets-plaque-or',
+        'Bracelets en plaqué or 18 carats, chaînes fines et keishis.', 1),
+    (11, 3, 'Acier inoxydable', 'bracelets-acier',
+        'Bracelets en acier inoxydable, résistants à l''eau de mer.', 2),
+    (12, 4, 'Plaqué or 18 cts', 'boucles-oreilles-plaque-or',
+        'Boucles d''oreilles en plaqué or 18 carats.', 1),
+    (13, 4, 'Acier inoxydable', 'boucles-oreilles-acier',
+        'Boucles d''oreilles en acier inoxydable, inspirées du lagon et du tiare.', 2),
+    (14, 5, 'Bracelets', 'homme-bracelets',
+        'Bracelets homme en cuir et pierres naturelles.', 1),
+    (15, 5, 'Pendentifs', 'homme-pendentifs',
+        'Pendentifs homme en argent, symboles polynésiens et perle de Tahiti.', 2);
+
+-- 4 bijoux par catégorie principale, rattachés à leur sous-catégorie.
+INSERT INTO produit (id, categorie_id, nom, slug, description, prix, date_ajout) VALUES
+    -- Colliers
+    (1,  6,  'Collier chaîne boulette et perle', 'collier-chaine-boulette-perle',
+        'Fine chaîne boulette en plaqué or 18 carats, ponctuée d''une perle de Tahiti en pendentif.', 14900, '2026-09-28'),
+    (2,  6,  'Collier double Palms et perle', 'collier-double-palms-perle',
+        'Double rang en plaqué or 18 carats, médaille feuille de palmier et perle de Tahiti.', 14500, '2026-08-30'),
+    (3,  7,  'Sautoir Tiare minimaliste', 'sautoir-tiare-minimaliste',
+        'Long sautoir en acier inoxydable rythmé de fleurs de tiare et de perles.', 12500, '2026-09-24'),
+    (4,  7,  'Sautoir Oursin gris', 'sautoir-oursin-gris',
+        'Sautoir en acier inoxydable aux perles grises, inspiré des oursins du lagon.', 14000, '2026-09-10'),
+
+    -- Bagues
+    (5,  8,  'Bague Toi et Moi 2 perles', 'bague-toi-et-moi-2-perles',
+        'Bague ouverte en plaqué or 18 carats, deux perles de Tahiti face à face.', 16000, '2026-10-02'),
+    (6,  8,  'Bague Ginkgo et keishi', 'bague-ginkgo-keishi',
+        'Bague ouverte en plaqué or 18 carats, feuille de ginkgo et keishi.', 5900, '2026-09-20'),
+    (7,  8,  'Bague martelée Toi et Moi keishis', 'bague-martelee-toi-et-moi-keishis',
+        'Anneau martelé en plaqué or 18 carats, terminé par deux keishis.', 7900, '2026-09-14'),
+    (8,  9,  'Bague Rangiroa acier doré et perle', 'bague-rangiroa-acier-dore-perle',
+        'Bague ouverte en acier doré, deux anneaux entrelacés autour d''une perle de Tahiti.', 14900, '2026-08-20'),
+
+    -- Bracelets
+    (9,  10, 'Bracelet pastilles et keishi blanc', 'bracelet-pastilles-keishi-blanc',
+        'Bracelet en plaqué or 18 carats bordé de pastilles rondes, avec un keishi blanc en breloque.', 5900, '2026-09-26'),
+    (10, 10, 'Bracelet chaîne serpent et perle de Tahiti', 'bracelet-chaine-serpent-perle-tahiti',
+        'Chaîne serpent en plaqué or 18 carats, centrée sur une perle de Tahiti.', 9900, '2026-09-12'),
+    (11, 11, 'Bracelet Ape minimaliste', 'bracelet-ape-minimaliste-acier',
+        'Chaîne fine en acier inoxydable, feuille de ape ciselée et perle de Tahiti.', 4500, '2026-09-08'),
+    (12, 11, 'Bracelet chaîne et keishis', 'bracelet-keishis-chaine-acier',
+        'Chaîne en acier inoxydable ponctuée de keishis aux reflets argentés.', 6900, '2026-08-28'),
+
+    -- Boucles d'oreilles
+    (13, 12, 'Boucles d''oreilles chaîne serpent et perle', 'boucles-oreilles-chaine-serpent-perle',
+        'Pendantes en chaîne serpent plaquée or 18 carats, terminées par une perle de Tahiti.', 9500, '2026-09-12'),
+    (14, 13, 'Boucles d''oreilles Tiare et perle de Tahiti', 'boucles-oreilles-tiare-perle-tahiti',
+        'Fleur de tiare en acier inoxydable et perle de Tahiti, sur crochet.', 7000, '2026-09-24'),
+    (15, 13, 'Boucles d''oreilles serpent acier et perle', 'boucles-oreilles-serpent-acier-perle',
+        'Chaîne serpent en acier inoxydable terminée par une perle de Tahiti.', 7000, '2026-09-05'),
+    (16, 13, 'Boucles d''oreilles Rangiroa acier et perle', 'boucles-oreilles-rangiroa-acier-perle',
+        'Anneau en acier inoxydable habité d''une perle de Tahiti, comme un atoll.', 19900, '2026-08-20'),
+
+    -- Homme
+    (17, 14, 'Bracelet cuir tressé et perle de Tahiti', 'bracelet-cuir-tresse-perle-tahiti',
+        'Cuir fin tressé, fermoir aimanté en acier et perle de Tahiti.', 9000, '2026-09-18'),
+    (18, 14, 'Bracelet 3 tours noir et vert', 'bracelet-homme-3-tours-noir-vert',
+        'Trois tours de pierres naturelles noires et vertes autour d''une perle de Tahiti.', 10500, '2026-09-02'),
+    (19, 15, 'Pendentif hameçon argent et perle', 'pendentif-hamecon-argent-perle',
+        'Hameçon polynésien en argent, porte-bonheur des pêcheurs, avec sa perle de Tahiti.', 11900, '2026-08-25'),
+    (20, 15, 'Pendentif rame spirale argent et perle', 'pendentif-rame-spirale-argent-perle',
+        'Rame de pirogue en argent gravée d''une spirale, perle de Tahiti sertie.', 13900, '2026-08-25');
+
+-- Image principale de chaque bijou (ordre 0).
+INSERT INTO image_produit (produit_id, fichier, alt, ordre) VALUES
+    (1,  'collier-chaine-boulette-perle',         'Collier chaîne boulette plaqué or avec une perle de Tahiti', 0),
+    (2,  'collier-double-palms-perle',            'Collier double rang plaqué or, médaille Palms et perle', 0),
+    (3,  'sautoir-tiare-minimaliste',             'Sautoir en acier à fleurs de tiare et perles', 0),
+    (4,  'sautoir-oursin-gris',                   'Sautoir Oursin en acier à perles grises', 0),
+    (5,  'bague-toi-et-moi-2-perles',             'Bagues Toi et Moi plaqué or à deux perles de Tahiti', 0),
+    (6,  'bague-ginkgo-keishi',                   'Bagues plaqué or feuille de ginkgo et keishi', 0),
+    (7,  'bague-martelee-toi-et-moi-keishis',     'Bagues martelées plaqué or à deux keishis', 0),
+    (8,  'bague-rangiroa-acier-dore-perle',       'Bagues Rangiroa en acier doré et perles de Tahiti', 0),
+    (9,  'bracelet-pastilles-keishi-blanc',       'Bracelet plaqué or à pastilles rondes et keishi blanc', 0),
+    (10, 'bracelet-chaine-serpent-perle-tahiti',  'Bracelet chaîne serpent plaqué or et perle de Tahiti', 0),
+    (11, 'bracelet-ape-minimaliste-acier',        'Bracelet fin en acier, feuille de ape et perle de Tahiti', 0),
+    (12, 'bracelet-keishis-chaine-acier',         'Bracelet chaîne en acier ponctuée de keishis', 0),
+    (13, 'boucles-oreilles-chaine-serpent-perle', 'Boucles d''oreilles chaîne serpent plaqué or et perles', 0),
+    (14, 'boucles-oreilles-tiare-perle-tahiti',   'Boucles d''oreilles fleur de tiare en acier et perle', 0),
+    (15, 'boucles-oreilles-serpent-acier-perle',  'Boucles d''oreilles chaîne serpent en acier et perles', 0),
+    (16, 'boucles-oreilles-rangiroa-acier-perle', 'Boucles d''oreilles anneau Rangiroa en acier et perle', 0),
+    (17, 'bracelet-cuir-tresse-perle-tahiti',     'Bracelets homme en cuir tressé et perle de Tahiti', 0),
+    (18, 'bracelet-homme-3-tours-noir-vert',      'Bracelet homme trois tours en pierres noires et vertes', 0),
+    (19, 'pendentif-hamecon-argent-perle',        'Pendentifs hameçon en argent et perle de Tahiti', 0),
+    (20, 'pendentif-rame-spirale-argent-perle',   'Pendentif rame spirale en argent et perle', 0);
+
+-- Une variante « Modèle unique » par bijou. Stocks variés (dont un épuisé et
+-- quelques stocks faibles) pour pouvoir tester le panier et les commandes.
+INSERT INTO variante (produit_id, libelle, stock) VALUES
+    (1,  'Modèle unique', 6),  (2,  'Modèle unique', 5),
+    (3,  'Modèle unique', 3),  (4,  'Modèle unique', 0),
+    (5,  'Modèle unique', 2),  (6,  'Modèle unique', 10),
+    (7,  'Modèle unique', 7),  (8,  'Modèle unique', 1),
+    (9,  'Modèle unique', 12), (10, 'Modèle unique', 4),
+    (11, 'Modèle unique', 9),  (12, 'Modèle unique', 6),
+    (13, 'Modèle unique', 2),  (14, 'Modèle unique', 10),
+    (15, 'Modèle unique', 8),  (16, 'Modèle unique', 4),
+    (17, 'Modèle unique', 7),  (18, 'Modèle unique', 5),
+    (19, 'Modèle unique', 2),  (20, 'Modèle unique', 6);
+
+-- Compte client de test (CMD-c) : client@matira.test / Matira2026!
+-- L'empreinte a été produite par password_hash('Matira2026!', PASSWORD_BCRYPT).
+INSERT INTO utilisateur (prenom, nom, email, mot_de_passe) VALUES
+    ('Marie', 'Teriitahi', 'client@matira.test',
+        '$2y$10$G608CcdOXR16quwM1zlCIexDlh/MgzctwjKUwjqoVeiq.KRkRwxW6');
