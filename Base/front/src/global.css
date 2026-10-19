@@ -18,6 +18,8 @@
   --color-primary-text: var(--clr-primary-text);
   --color-surface-soft: var(--clr-surface-soft);
   --color-muted: var(--clr-muted);
+  --color-primary-soft: var(--clr-primary-soft);
+  --color-line: var(--clr-line);
 }
 
 /*
@@ -62,6 +64,8 @@
     --clr-primary-text: var(--clr-turquoise-700);
     --clr-surface-soft: var(--clr-nacre-50);
     --clr-muted: var(--clr-gris-600);
+    --clr-primary-soft: var(--clr-turquoise-100);
+    --clr-line: var(--clr-gris-300);
   }
 
   /* Menus déroulants et barres de défilement natifs, eux aussi en sombre. */
@@ -72,6 +76,8 @@
     --clr-primary-text: var(--clr-turquoise-500);
     --clr-surface-soft: var(--color-zinc-900);
     --clr-muted: var(--color-zinc-400);
+    --clr-primary-soft: color-mix(in oklab, var(--clr-turquoise-700) 45%, transparent);
+    --clr-line: var(--color-zinc-700);
   }
 
   /* Un seul anneau de focus pour toute l'application, visible uniquement au

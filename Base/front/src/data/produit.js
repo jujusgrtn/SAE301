@@ -15,4 +15,18 @@ ProductData.fetchAll = async function () {
   return getRequest("produits");
 };
 
+/**
+ * Les bijoux d'une catégorie : GET /api/produits?categorie=slug (US DEC-a).
+ *
+ * La réponse contient la catégorie, de quoi construire sa navigation, et ses
+ * bijoux : { categorie, parent, sousCategories, produits, total }
+ * Une catégorie inconnue lève une ErreurApi de statut 404.
+ *
+ * @param {string} slug - Slug de la catégorie, tel qu'il apparaît dans l'URL.
+ * @returns {Promise<Object>}
+ */
+ProductData.fetchByCategory = async function (slug) {
+  return getRequest(`produits?categorie=${encodeURIComponent(slug)}`);
+};
+
 export { ProductData };

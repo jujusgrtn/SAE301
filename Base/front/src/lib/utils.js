@@ -48,4 +48,19 @@ function htmlToFragment(htmlString) {
   return template.content;
 }
 
-export { genericRenderer, htmlToFragment };
+/**
+ * Adresse complète d'une route : « /categorie/bagues » devient
+ * « /~login/…/Base/categorie/bagues ».
+ *
+ * Le routeur complète lui-même les liens data-link présents au moment où il
+ * affiche une page. Un lien ajouté plus tard (après un chargement de données)
+ * doit donc porter dès le départ l'adresse complète.
+ *
+ * @param {string} path - Chemin de route, commençant par « / ».
+ * @returns {string} - L'adresse avec le chemin du projet.
+ */
+function routeUrl(path) {
+  return import.meta.env.BASE_URL.replace(/\/$/, "") + path;
+}
+
+export { genericRenderer, htmlToFragment, routeUrl };

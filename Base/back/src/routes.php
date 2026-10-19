@@ -6,6 +6,7 @@ use App\Controller\AuthController;
 use App\Controller\CatalogueController;
 use App\Controller\StatsController;
 use App\Controller\ProductController;
+use App\Controller\CategoryController;
 
 /**
  * Table des routes de l'API.
@@ -20,6 +21,7 @@ use App\Controller\ProductController;
 return [
     'GET  /api/films'       => [CatalogueController::class, 'index'],
     'GET  /api/produits'    => [ProductController::class,   'index'],
+    'GET  /api/categories'  => [CategoryController::class,  'index'],
     'POST /api/login'       => [AuthController::class,      'login'],
     'POST /api/logout'      => [AuthController::class,      'logout'],
     'GET  /api/admin/stats' => [StatsController::class,     'index'],

@@ -20,7 +20,9 @@ use App\Controller\AuthController;
 use App\Controller\CatalogueController;
 use App\Controller\StatsController;
 use App\Controller\ProductController;
+use App\Controller\CategoryController;
 use App\Model\ProductModel;
+use App\Model\CategoryModel;
 use App\Model\FilmModel;
 
 // --- Chargement automatique des classes ------------------------------------
@@ -65,7 +67,8 @@ try {
         CatalogueController::class => new CatalogueController(new FilmModel($pdo), $config['chemin']),
         AuthController::class      => new AuthController(),
         StatsController::class     => new StatsController(new FilmModel($pdo)),
-        ProductController::class   => new ProductController(new ProductModel($pdo)),
+        ProductController::class   => new ProductController(new ProductModel($pdo), new CategoryModel($pdo)),
+        CategoryController::class  => new CategoryController(new CategoryModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

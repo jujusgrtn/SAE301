@@ -14,6 +14,37 @@ use PDO;
  */
 final class ProductModel
 {
+    /**
+     * Colonnes et jointures communes aux listes de bijoux.
+     *
+     * LEFT JOIN sur l'image : un bijou sans photo reste listé, avec une image
+     * nulle. Seule l'image d'ordre 0 (principale) est retenue.
+     */
+    private const SELECT_PRODUCTS = 'SELECT produit.id,
+                       produit.nom,
+                       produit.slug,
+                       produit.prix,
+                       sous_categorie.nom  AS sous_categorie_nom,
+                       sous_categorie.slug AS sous_categorie_slug,
+                       categorie.nom       AS categorie_nom,
+                       categorie.slug      AS categorie_slug,
+                       image_produit.fichier AS image_fichier,
+                       image_produit.alt     AS image_alt
+                  FROM produit
+            INNER JOIN categorie AS sous_categorie
+                    ON sous_categorie.id = produit.categorie_id
+            INNER JOIN categorie
+                    ON categorie.id = sous_categorie.parent_id
+             LEFT JOIN image_produit
+                    ON image_produit.produit_id = produit.id
+                   AND image_produit.ordre = 0';
+
+    /** Ordre du menu (catégorie, puis sous-catégorie), puis nouveautés d'abord. */
+    private const ORDER_PRODUCTS = 'ORDER BY categorie.ordre,
+                       sous_categorie.ordre,
+                       produit.date_ajout DESC,
+                       produit.id';
+
     /** Connexion à la base, fournie à la construction. */
     private PDO $pdo;
 
@@ -36,34 +67,39 @@ final class ProductModel
      */
     public function findAll(): array
     {
-        // LEFT JOIN sur l'image : un bijou sans photo reste listé, avec une
-        // image nulle. Seule l'image d'ordre 0 (principale) est retenue.
-        $sql = 'SELECT produit.id,
-                       produit.nom,
-                       produit.slug,
-                       produit.prix,
-                       sous_categorie.nom  AS sous_categorie_nom,
-                       sous_categorie.slug AS sous_categorie_slug,
-                       categorie.nom       AS categorie_nom,
-                       categorie.slug      AS categorie_slug,
-                       image_produit.fichier AS image_fichier,
-                       image_produit.alt     AS image_alt
-                  FROM produit
-            INNER JOIN categorie AS sous_categorie
-                    ON sous_categorie.id = produit.categorie_id
-            INNER JOIN categorie
-                    ON categorie.id = sous_categorie.parent_id
-             LEFT JOIN image_produit
-                    ON image_produit.produit_id = produit.id
-                   AND image_produit.ordre = 0
-              ORDER BY categorie.ordre,
-                       sous_categorie.ordre,
-                       produit.date_ajout DESC,
-                       produit.id';
+        $sql = self::SELECT_PRODUCTS . ' ' . self::ORDER_PRODUCTS;
 
         $rows = $this->pdo->query($sql)->fetchAll();
 
         return array_map([self::class, 'formatProduct'], $rows);
+    }
+
+    /**
+     * Les bijoux d'une catégorie (US DEC-a), dans le même ordre que findAll().
+     *
+     * Une catégorie principale (Colliers) regroupe les bijoux de toutes ses
+     * sous-catégories ; une sous-catégorie (Colliers plaqué or) seulement les
+     * siens. Les produits sont rattachés aux sous-catégories : la catégorie
+     * demandée est donc soit leur sous-catégorie, soit le parent de celle-ci.
+     *
+     * @param int $categoryId Identifiant d'une catégorie existante.
+     * @return array<int, array<string, mixed>> Bijoux mis en forme par formatProduct().
+     */
+    public function findByCategory(int $categoryId): array
+    {
+        // Deux marqueurs distincts : les requêtes préparées natives
+        // (ATTR_EMULATE_PREPARES à false) refusent un même marqueur répété.
+        $sql = self::SELECT_PRODUCTS . '
+                 WHERE sous_categorie.id = :sous_categorie_id
+                    OR sous_categorie.parent_id = :categorie_id
+              ' . self::ORDER_PRODUCTS;
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->bindValue(':sous_categorie_id', $categoryId, PDO::PARAM_INT);
+        $statement->bindValue(':categorie_id', $categoryId, PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map([self::class, 'formatProduct'], $statement->fetchAll());
     }
 
     /**
