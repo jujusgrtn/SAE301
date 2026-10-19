@@ -21,6 +21,7 @@ use App\Controller\CategoryController;
 return [
     'GET  /api/films'       => [CatalogueController::class, 'index'],
     'GET  /api/produits'    => [ProductController::class,   'index'],
+    'GET  /api/produit'     => [ProductController::class,   'show'],
     'GET  /api/categories'  => [CategoryController::class,  'index'],
     'POST /api/login'       => [AuthController::class,      'login'],
     'POST /api/logout'      => [AuthController::class,      'logout'],

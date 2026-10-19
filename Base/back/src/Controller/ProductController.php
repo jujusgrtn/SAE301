@@ -20,6 +20,9 @@ final class ProductController
      */
     private const SLUG_PATTERN = '/^[a-z0-9-]{1,60}$/';
 
+    /** Même règle pour un slug de bijou, dont la colonne est plus longue. */
+    private const PRODUCT_SLUG_PATTERN = '/^[a-z0-9-]{1,120}$/';
+
     /** Le modèle qui interroge les bijoux, fourni à la construction. */
     private ProductModel $products;
 
@@ -59,6 +62,35 @@ final class ProductController
             'produits' => $products,
             'total'    => count($products),
         ]);
+    }
+
+    /**
+     * GET /api/produit?slug=… : la fiche d'un bijou (US DEC-c).
+     *
+     * Réponse : { produit: { id, nom, slug, prix, description, categorie,
+     *                        sousCategorie, images: [{ fichier, alt }] } }
+     *
+     * Erreurs : 400 si le slug est absent ou mal formé, 404 s'il n'existe pas.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function show(Request $request): void
+    {
+        $slug = $request->parametre('slug');
+
+        if ($slug === null || preg_match(self::PRODUCT_SLUG_PATTERN, $slug) !== 1) {
+            Response::erreur('Bijou invalide.', 400);
+            return;
+        }
+
+        $product = $this->products->findBySlug($slug);
+
+        if ($product === null) {
+            Response::erreur('Ce bijou n\'existe pas.', 404);
+            return;
+        }
+
+        Response::json(['produit' => $product]);
     }
 
     /**

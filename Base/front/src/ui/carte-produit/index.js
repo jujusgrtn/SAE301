@@ -1,4 +1,4 @@
-import { genericRenderer, htmlToFragment } from "../../lib/utils.js";
+import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { formatPrice } from "../../lib/format.js";
 import template from "./template.html?raw";
 import templateImage from "./image.html?raw";
@@ -41,6 +41,7 @@ let ProductCardView = {
     return genericRenderer(template, {
       categorie: product.categorie.nom,
       nom: product.nom,
+      href: routeUrl(`/produit/${encodeURIComponent(product.slug)}`),
       matiere: product.sousCategorie.nom,
       prix: formatPrice(product.prix),
     });

@@ -29,4 +29,18 @@ ProductData.fetchByCategory = async function (slug) {
   return getRequest(`produits?categorie=${encodeURIComponent(slug)}`);
 };
 
+/**
+ * La fiche d'un bijou : GET /api/produit?slug=… (US DEC-c).
+ *
+ * La réponse contient le bijou et toutes ses photos :
+ * { produit: { id, nom, slug, prix, description, categorie, sousCategorie, images } }
+ * Un bijou inconnu lève une ErreurApi de statut 404.
+ *
+ * @param {string} slug - Slug du bijou, tel qu'il apparaît dans l'URL.
+ * @returns {Promise<{produit: Object}>}
+ */
+ProductData.fetchBySlug = async function (slug) {
+  return getRequest(`produit?slug=${encodeURIComponent(slug)}`);
+};
+
 export { ProductData };

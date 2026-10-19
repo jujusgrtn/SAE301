@@ -24,6 +24,7 @@ final class ProductModel
                        produit.nom,
                        produit.slug,
                        produit.prix,
+                       produit.description,
                        sous_categorie.nom  AS sous_categorie_nom,
                        sous_categorie.slug AS sous_categorie_slug,
                        categorie.nom       AS categorie_nom,
@@ -100,6 +101,58 @@ final class ProductModel
         $statement->execute();
 
         return array_map([self::class, 'formatProduct'], $statement->fetchAll());
+    }
+
+    /**
+     * Un bijou et toutes ses photos, pour sa fiche (US DEC-c).
+     *
+     * @param string $slug Slug déjà validé par le contrôleur.
+     * @return array<string, mixed>|null
+     *         { id, nom, slug, prix, description, categorie, sousCategorie, images },
+     *         ou null si aucun bijou ne porte ce slug.
+     */
+    public function findBySlug(string $slug): ?array
+    {
+        $statement = $this->pdo->prepare(self::SELECT_PRODUCTS . ' WHERE produit.slug = :slug');
+        $statement->bindValue(':slug', $slug, PDO::PARAM_STR);
+        $statement->execute();
+
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return null;
+        }
+
+        // La fiche affiche toute la galerie : l'image principale seule, utile
+        // aux listes, est remplacée par la liste des images.
+        $product = self::formatProduct($row);
+        unset($product['image']);
+        $product['description'] = $row['description'];
+        $product['images']      = $this->findImages($product['id']);
+
+        return $product;
+    }
+
+    /**
+     * Les photos d'un bijou, de la principale (ordre 0) à la dernière.
+     *
+     * @param int $productId Identifiant du bijou.
+     * @return array<int, array{fichier: string, alt: string}>
+     */
+    private function findImages(int $productId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT fichier, alt
+               FROM image_produit
+              WHERE produit_id = :produit_id
+           ORDER BY ordre'
+        );
+        $statement->bindValue(':produit_id', $productId, PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map(function (array $row): array {
+            return ['fichier' => $row['fichier'], 'alt' => $row['alt']];
+        }, $statement->fetchAll());
     }
 
     /**
