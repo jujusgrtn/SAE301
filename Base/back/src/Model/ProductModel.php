@@ -108,7 +108,7 @@ final class ProductModel
      *
      * @param string $slug Slug déjà validé par le contrôleur.
      * @return array<string, mixed>|null
-     *         { id, nom, slug, prix, description, categorie, sousCategorie, images },
+     *         { id, nom, slug, prix, description, categorie, sousCategorie, images, variantes },
      *         ou null si aucun bijou ne porte ce slug.
      */
     public function findBySlug(string $slug): ?array
@@ -129,8 +129,32 @@ final class ProductModel
         unset($product['image']);
         $product['description'] = $row['description'];
         $product['images']      = $this->findImages($product['id']);
+        $product['variantes']   = $this->findVariants($product['id']);
 
         return $product;
+    }
+
+    /**
+     * Les variantes d'un bijou (« Modèle unique » pour un bijou sans option),
+     * que la fiche propose d'ajouter au panier (US CMD-b).
+     *
+     * @param int $productId Identifiant du bijou.
+     * @return array<int, array{id: int, libelle: string}>
+     */
+    private function findVariants(int $productId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, libelle
+               FROM variante
+              WHERE produit_id = :produit_id
+           ORDER BY id'
+        );
+        $statement->bindValue(':produit_id', $productId, PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map(function (array $row): array {
+            return ['id' => (int) $row['id'], 'libelle' => $row['libelle']];
+        }, $statement->fetchAll());
     }
 
     /**

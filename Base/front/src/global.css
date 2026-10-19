@@ -20,6 +20,10 @@
   --color-muted: var(--clr-muted);
   --color-primary-soft: var(--clr-primary-soft);
   --color-line: var(--clr-line);
+  --color-cart-badge: var(--clr-cart-badge);
+  --color-button: var(--clr-button);
+  --color-success: var(--clr-success);
+  --color-danger: var(--clr-danger);
 }
 
 /*
@@ -66,6 +70,11 @@
     --clr-muted: var(--clr-gris-600);
     --clr-primary-soft: var(--clr-turquoise-100);
     --clr-line: var(--clr-gris-300);
+    --clr-cart-badge: var(--clr-jaune-400);
+    /* Fond des boutons, texte blanc : le turquoise 700 passe AA dans les deux thèmes. */
+    --clr-button: var(--clr-turquoise-700);
+    --clr-success: var(--clr-vert-700);
+    --clr-danger: var(--clr-rouge-700);
   }
 
   /* Menus déroulants et barres de défilement natifs, eux aussi en sombre. */
@@ -78,6 +87,8 @@
     --clr-muted: var(--color-zinc-400);
     --clr-primary-soft: color-mix(in oklab, var(--clr-turquoise-700) 45%, transparent);
     --clr-line: var(--color-zinc-700);
+    --clr-success: var(--color-green-400);
+    --clr-danger: var(--color-red-400);
   }
 
   /* Un seul anneau de focus pour toute l'application, visible uniquement au
