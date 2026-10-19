@@ -366,3 +366,4 @@ Fournis un résumé clair et expliqué avec :
 3. les éventuels points d'attention et/ou étapes suivantes recommandées, en
    respectant toujours l'ordre qui doit être suivi ;
 4. les éventuels impacts sur le reste de l'application.
+5. Les commandes a exécuter pour add, commit et push les modifications.

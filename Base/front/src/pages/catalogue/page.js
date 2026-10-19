@@ -1,113 +1,154 @@
-import { FilmData } from "../../data/film.js";
+import { ProductData } from "../../data/produit.js";
 import { htmlToFragment } from "../../lib/utils.js";
-import { BarreOutilsView } from "../../ui/barre-outils/index.js";
-import { GrilleFilmsView } from "../../ui/grille-films/index.js";
 import { MessageView } from "../../ui/message/index.js";
-import { PaginationView } from "../../ui/pagination/index.js";
+import { ProductGridView } from "../../ui/grille-produits/index.js";
 import template from "./template.html?raw";
+import templateLoading from "./chargement.html?raw";
 
 /**
- * Page « Catalogue ».
+ * Page « Catalogue » (US DEC-b) : tous les bijoux de Matira Création.
  *
- * Au chargement, on ne précise aucun réglage : le serveur applique les
- * préférences qu'il a mémorisées. Ensuite, le tri et le nombre de films par
- * page accompagnent chaque requête, et le serveur les mémorise.
+ * La page s'affiche tout de suite avec un état de chargement, puis se met à
+ * jour lorsque l'API a répondu (succès, catalogue vide ou erreur).
  */
 
+// ---------------------------------------------------------------------------
+// M — Modèle : état de la page et accès aux données
+// ---------------------------------------------------------------------------
+
 let M = {
-  catalogue: null, // dernière réponse de l'API : films et réglages appliqués
+  status: "loading", // "loading" | "success" | "error"
+  products: [], // bijoux renvoyés par GET /api/produits
   message: null, // { type, texte }, ou null
 };
+
+/**
+ * Charge tous les bijoux et range le résultat dans l'état.
+ * . aucun paramètre
+ * > Promise<void>
+ *
+ * @returns {Promise<void>}
+ */
+M.fetchProducts = async function () {
+  M.status = "loading";
+  M.message = null;
+
+  try {
+    let response = await ProductData.fetchAll();
+    M.products = response.produits;
+    M.status = "success";
+  } catch (error) {
+    M.products = [];
+    M.status = "error";
+    M.message = { type: "erreur", texte: `Impossible de charger le catalogue : ${error.message}` };
+  }
+};
+
+/**
+ * Photographie de l'état, transmise à la Vue.
+ * . aucun paramètre
+ * > { status, products, message }
+ *
+ * @returns {{status: string, products: Array<Object>, message: Object|null}}
+ */
+M.getState = function () {
+  return { status: M.status, products: M.products, message: M.message };
+};
+
+// ---------------------------------------------------------------------------
+// C — Contrôleur : orchestre M et V
+// ---------------------------------------------------------------------------
 
 let C = {};
 
 /**
- * Demande une page du catalogue et range la réponse dans le modèle.
- * reglages ({ tri, parPage }) est facultatif, voir data/film.js.
+ * Charge le catalogue puis rafraîchit l'affichage.
+ * . aucun paramètre
+ * > Promise<void>
+ *
+ * @returns {Promise<void>}
  */
-C.charger = async function (page, reglages) {
-  try {
-    M.catalogue = await FilmData.fetchPage(page, reglages);
-    M.message = null;
-  } catch (erreur) {
-    M.catalogue = null;
-    M.message = { type: "erreur", texte: `Impossible de charger le catalogue : ${erreur.message}` };
-  }
+C.loadCatalogue = async function () {
+  await M.fetchProducts();
+  V.renderPage(M.getState());
 };
 
-// Changer un réglage rend la page courante sans objet : on repart de la première.
-C.handler_changerTri = async function (tri) {
-  await C.charger(1, { tri, parPage: M.catalogue.parPage });
-  V.rafraichir();
+/**
+ * Point d'entrée : construit la page en état de chargement, la rend au
+ * routeur, puis lance le chargement sans l'attendre.
+ * . aucun paramètre
+ * > DocumentFragment de la page
+ *
+ * @returns {DocumentFragment}
+ */
+C.init = function () {
+  M.status = "loading";
+  let fragment = V.init();
+  V.renderPage(M.getState());
+  C.loadCatalogue();
+  return fragment;
 };
 
-C.handler_changerParPage = async function (parPage) {
-  await C.charger(1, { tri: M.catalogue.tri, parPage });
-  V.rafraichir();
-};
-
-C.handler_changerPage = async function (page) {
-  await C.charger(page, { tri: M.catalogue.tri, parPage: M.catalogue.parPage });
-  V.rafraichir();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
-
-C.init = async function () {
-  await C.charger(1);
-  return V.init();
-};
+// ---------------------------------------------------------------------------
+// V — Vue : rendu et DOM
+// ---------------------------------------------------------------------------
 
 let V = {};
 
-V.racine = null; // élément racine de la page affichée
+V.root = null; // élément racine de la page affichée
 
+/**
+ * Crée la structure de la page et mémorise sa racine.
+ * . aucun paramètre
+ * > DocumentFragment de la page
+ *
+ * @returns {DocumentFragment}
+ */
 V.init = function () {
-  let fragment = V.createPageFragment();
-  V.racine = fragment.firstElementChild;
+  let fragment = htmlToFragment(template);
+  V.root = fragment.firstElementChild;
   return fragment;
 };
 
 /**
- * Reconstruit toute la page à partir du modèle, et remplace l'ancienne.
- * C'est le principe des frameworks : l'affichage se déduit de l'état, on ne le
- * retouche pas morceau par morceau.
+ * Construit le contenu correspondant à l'état reçu.
+ * . state : { status, products, message }
+ * > DocumentFragment (chargement, erreur, grille ou état vide)
+ *
+ * @param {{status: string, products: Array<Object>, message: Object|null}} state
+ * @returns {DocumentFragment}
  */
-V.rafraichir = function () {
-  let fragment = V.createPageFragment();
-  let nouvelleRacine = fragment.firstElementChild;
-  V.racine.replaceWith(fragment);
-  V.racine = nouvelleRacine;
-};
-
-V.createPageFragment = function () {
-  let pageFragment = htmlToFragment(template);
-
-  pageFragment.querySelector('slot[name="message"]').replaceWith(MessageView.dom(M.message));
-
-  if (M.catalogue === null) {
-    // Rien à afficher : on retire les emplacements restants.
-    for (let slot of pageFragment.querySelectorAll("slot")) {
-      slot.remove();
-    }
-    return pageFragment;
+V.createContentFragment = function (state) {
+  if (state.status === "loading") {
+    return htmlToFragment(templateLoading);
   }
 
-  pageFragment.querySelector('slot[name="barre-outils"]').replaceWith(
-    BarreOutilsView.dom(M.catalogue, {
-      surTri: C.handler_changerTri,
-      surParPage: C.handler_changerParPage,
-    })
-  );
+  if (state.status === "error") {
+    return MessageView.dom(state.message);
+  }
 
-  pageFragment.querySelector('slot[name="grille"]').replaceWith(GrilleFilmsView.dom(M.catalogue.films));
-
-  pageFragment.querySelector('slot[name="pagination"]').replaceWith(
-    PaginationView.dom(M.catalogue, { surPage: C.handler_changerPage })
-  );
-
-  return pageFragment;
+  return ProductGridView.dom(state.products);
 };
 
+/**
+ * Remplace le contenu de la page par celui qui correspond à l'état reçu.
+ * . state : { status, products, message }
+ * > aucune valeur de retour
+ *
+ * @param {{status: string, products: Array<Object>, message: Object|null}} state
+ * @returns {void}
+ */
+V.renderPage = function (state) {
+  let zone = V.root.querySelector('[data-zone="contenu"]');
+  zone.setAttribute("aria-busy", String(state.status === "loading"));
+  zone.replaceChildren(V.createContentFragment(state));
+};
+
+/**
+ * Page appelée par le routeur sur la route « / ».
+ *
+ * @returns {DocumentFragment}
+ */
 export function CataloguePage() {
   return C.init();
 }

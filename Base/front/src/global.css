@@ -9,6 +9,18 @@
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
 /*
+  Charte Matira Création. Les classes Tailwind (text-primary-text, bg-surface-soft…)
+  pointent vers des tokens sémantiques, eux-mêmes définis à partir des tokens
+  primitifs : changer de thème ne fait que réassigner les sémantiques.
+*/
+@theme inline {
+  --color-primary: var(--clr-primary);
+  --color-primary-text: var(--clr-primary-text);
+  --color-surface-soft: var(--clr-surface-soft);
+  --color-muted: var(--clr-muted);
+}
+
+/*
   Bandeau des cartes de film : un dégradé dont la teinte est calculée à partir
   du titre (voir ui/carte-film/index.js). La teinte arrive par la variable
   --teinte, posée dans le template. Aucune image n'est chargée.
@@ -30,9 +42,36 @@
 }
 
 @layer base {
+  :root {
+    /* Tokens primitifs (couleurs de la charte) */
+    --clr-turquoise-50: #f1faf9;
+    --clr-turquoise-100: #ddf3f2;
+    --clr-turquoise-500: #4dc5c1;
+    --clr-turquoise-700: #1c7c78;
+    --clr-jaune-400: #e5e337;
+    --clr-nacre-50: #faf7f2;
+    --clr-nacre-100: #f2ece3;
+    --clr-gris-900: #1c1c1c;
+    --clr-gris-600: #5b6162;
+    --clr-gris-300: #d5dcdc;
+    --clr-vert-700: #23683a;
+    --clr-rouge-700: #a3261e;
+
+    /* Tokens sémantiques (ils disent à quoi ils servent) */
+    --clr-primary: var(--clr-turquoise-500);
+    --clr-primary-text: var(--clr-turquoise-700);
+    --clr-surface-soft: var(--clr-nacre-50);
+    --clr-muted: var(--clr-gris-600);
+  }
+
   /* Menus déroulants et barres de défilement natifs, eux aussi en sombre. */
   .theme-dark {
     color-scheme: dark;
+
+    /* Sur fond sombre, le turquoise 700 manque de contraste : le 500 passe AA. */
+    --clr-primary-text: var(--clr-turquoise-500);
+    --clr-surface-soft: var(--color-zinc-900);
+    --clr-muted: var(--color-zinc-400);
   }
 
   /* Un seul anneau de focus pour toute l'application, visible uniquement au

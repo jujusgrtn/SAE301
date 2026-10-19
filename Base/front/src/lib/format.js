@@ -24,6 +24,22 @@ export function formaterNote(note) {
 }
 
 /**
+ * 14900 -> « 14 900 XPF »
+ *
+ * Le franc pacifique n'a pas de centimes. Les espaces sont insécables (U+00A0) :
+ * le prix ne se coupe jamais en fin de ligne, même dans une carte étroite.
+ *
+ * @param {number} price - Prix entier en XPF.
+ * @returns {string} - Le prix mis en forme.
+ */
+export function formatPrice(price) {
+  const digits = String(Math.round(Number(price)));
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  return `${grouped} XPF`;
+}
+
+/**
  * Calcule une teinte stable à partir d'une chaîne, pour donner à chaque film un
  * visuel qui lui est propre sans charger la moindre image.
  */
