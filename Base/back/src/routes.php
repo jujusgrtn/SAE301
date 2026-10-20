@@ -8,6 +8,7 @@ use App\Controller\StatsController;
 use App\Controller\ProductController;
 use App\Controller\CategoryController;
 use App\Controller\CartController;
+use App\Controller\AccountController;
 
 /**
  * Table des routes de l'API.
@@ -28,6 +29,10 @@ return [
     'POST /api/panier/ajouter'  => [CartController::class, 'add'],
     'POST /api/panier/modifier' => [CartController::class, 'update'],
     'POST /api/panier/retirer'  => [CartController::class, 'remove'],
+    'GET  /api/compte'              => [AccountController::class, 'show'],
+    'POST /api/compte/connexion'    => [AccountController::class, 'login'],
+    'POST /api/compte/inscription'  => [AccountController::class, 'register'],
+    'POST /api/compte/deconnexion'  => [AccountController::class, 'logout'],
     'POST /api/login'       => [AuthController::class,      'login'],
     'POST /api/logout'      => [AuthController::class,      'logout'],
     'GET  /api/admin/stats' => [StatsController::class,     'index'],
