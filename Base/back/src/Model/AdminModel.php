@@ -26,19 +26,20 @@ final class AdminModel
     }
 
     /**
-     * Un administrateur à partir de son e-mail, avec l'empreinte du mot de passe.
+     * Un administrateur à partir de son identifiant de connexion, avec
+     * l'empreinte du mot de passe.
      *
-     * @param string $email E-mail déjà normalisé (minuscules, sans espaces).
-     * @return array{id: int, nom: string, email: string, motDePasse: string}|null
+     * @param string $login Identifiant saisi, sans espaces autour.
+     * @return array{id: int, identifiant: string, motDePasse: string}|null
      */
-    public function findByEmail(string $email): ?array
+    public function findByLogin(string $login): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, nom, email, mot_de_passe
+            'SELECT id, identifiant, mot_de_passe
                FROM administrateur
-              WHERE email = :email'
+              WHERE identifiant = :identifiant'
         );
-        $statement->bindValue(':email', $email, PDO::PARAM_STR);
+        $statement->bindValue(':identifiant', $login, PDO::PARAM_STR);
         $statement->execute();
 
         $row = $statement->fetch();
@@ -54,12 +55,12 @@ final class AdminModel
      * Un administrateur à partir de son identifiant, sans l'empreinte.
      *
      * @param int $id Identifiant lu dans la session.
-     * @return array{id: int, nom: string, email: string}|null
+     * @return array{id: int, identifiant: string}|null
      */
     public function findById(int $id): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, nom, email
+            'SELECT id, identifiant
                FROM administrateur
               WHERE id = :id'
         );
@@ -75,14 +76,13 @@ final class AdminModel
      * Ligne SQL -> administrateur publiable.
      *
      * @param array<string, mixed> $row Ligne de la table administrateur.
-     * @return array{id: int, nom: string, email: string}
+     * @return array{id: int, identifiant: string}
      */
     private static function formatAdmin(array $row): array
     {
         return [
-            'id'    => (int) $row['id'],
-            'nom'   => $row['nom'],
-            'email' => $row['email'],
+            'id'          => (int) $row['id'],
+            'identifiant' => $row['identifiant'],
         ];
     }
 }

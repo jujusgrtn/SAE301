@@ -15,14 +15,14 @@ use App\Core\Response;
  * ($_SESSION['adminId']), à côté d'une éventuelle session client : les deux
  * connexions sont indépendantes.
  *
- * Réponse commune : { connecte: true, admin: { nom, email } }
+ * Réponse commune : { connecte: true, admin: { identifiant } }
  */
 final class AdminController extends AdminAreaController
 {
     /**
-     * Empreinte factice, vérifiée quand l'e-mail est inconnu : la réponse prend
-     * alors le même temps qu'avec un e-mail existant, et ne révèle pas quels
-     * e-mails ont un compte administrateur.
+     * Empreinte factice, vérifiée quand l'identifiant est inconnu : la réponse
+     * prend alors le même temps qu'avec un identifiant existant, et ne révèle
+     * pas quels identifiants existent.
      */
     private const DUMMY_HASH = '$2y$12$Cyu45dhPbzbdQZDeOfDTCObrDT27LoStZejzAikQEKCj3BwC277ry';
 
@@ -38,29 +38,29 @@ final class AdminController extends AdminAreaController
     }
 
     /**
-     * POST /api/admin/connexion : { email, motDePasse }.
+     * POST /api/admin/connexion : { identifiant, motDePasse }.
      *
-     * Erreurs : 400 si un champ manque, 401 si l'e-mail ou le mot de passe est
-     * faux (sans dire lequel).
+     * Erreurs : 400 si un champ manque, 401 si l'identifiant ou le mot de passe
+     * est faux (sans dire lequel).
      *
      * @param Request $request Requête entrante.
      */
     public function login(Request $request): void
     {
         $body     = $request->corps();
-        $email    = is_string($body['email'] ?? null) ? mb_strtolower(trim($body['email'])) : '';
+        $login    = is_string($body['identifiant'] ?? null) ? trim($body['identifiant']) : '';
         $password = $body['motDePasse'] ?? null;
 
-        if ($email === '' || !is_string($password) || $password === '') {
-            Response::erreur('Saisissez votre e-mail et votre mot de passe.', 400);
+        if ($login === '' || !is_string($password) || $password === '') {
+            Response::erreur('Saisissez votre identifiant et votre mot de passe.', 400);
             return;
         }
 
-        $admin = $this->admins->findByEmail($email);
+        $admin = $this->admins->findByLogin($login);
         $hash  = $admin === null ? self::DUMMY_HASH : $admin['motDePasse'];
 
         if (!password_verify($password, $hash) || $admin === null) {
-            Response::erreur('E-mail ou mot de passe incorrect.', 401);
+            Response::erreur('Identifiant ou mot de passe incorrect.', 401);
             return;
         }
 
@@ -95,7 +95,7 @@ final class AdminController extends AdminAreaController
     {
         Response::json([
             'connecte' => true,
-            'admin'    => ['nom' => $admin['nom'], 'email' => $admin['email']],
+            'admin'    => ['identifiant' => $admin['identifiant']],
         ]);
     }
 }

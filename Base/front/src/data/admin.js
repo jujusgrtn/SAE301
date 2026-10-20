@@ -5,7 +5,7 @@ import { getRequest, postRequest } from "../lib/api-request.js";
  *
  * L'accès est décidé par le serveur, à partir de la session : le front ne
  * stocke ni jeton ni rôle. Les réponses ont la forme
- * { connecte, admin: { nom, email } | null }
+ * { connecte, admin: { identifiant } | null }
  */
 let AdminData = {};
 
@@ -21,14 +21,14 @@ AdminData.fetch = async function () {
 
 /**
  * Connexion au back-office : POST /api/admin/connexion
- * Un e-mail ou un mot de passe faux lève une ErreurApi de statut 401.
+ * Un identifiant ou un mot de passe faux lève une ErreurApi de statut 401.
  *
- * @param {string} email - E-mail de l'administrateur.
+ * @param {string} login - Identifiant de l'administrateur.
  * @param {string} password - Mot de passe.
  * @returns {Promise<Object>}
  */
-AdminData.login = async function (email, password) {
-  return postRequest("admin/connexion", { email: email, motDePasse: password });
+AdminData.login = async function (login, password) {
+  return postRequest("admin/connexion", { identifiant: login, motDePasse: password });
 };
 
 /**

@@ -8,8 +8,8 @@
     <slot name="erreur"></slot>
 
     <div class="flex flex-col gap-1.5">
-      <label for="admin-email" class="text-sm font-medium">E-mail</label>
-      <input id="admin-email" name="email" type="email" required autocomplete="username" value="{{email}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+      <label for="admin-identifiant" class="text-sm font-medium">Identifiant</label>
+      <input id="admin-identifiant" name="identifiant" type="text" required maxlength="60" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{identifiant}}" class="h-11 rounded-md border border-line bg-transparent px-3">
     </div>
 
     <div class="flex flex-col gap-1.5">

@@ -22,12 +22,12 @@ import templateDashboard from "./tableau-de-bord.html?raw";
 
 let M = {
   status: "loading", // "loading" | "guest" | "ready" | "error"
-  admin: null, // { nom, email } de l'administrateur connecté, ou null
+  admin: null, // { identifiant } de l'administrateur connecté, ou null
   pending: null, // action en cours : "connexion" | "deconnexion"
   loadError: null, // texte si l'accès n'a pas pu être vérifié
   loginError: null, // texte de l'erreur du formulaire de connexion
   notice: null, // annonce affichée au-dessus du formulaire
-  email: "", // e-mail saisi, conservé si le serveur refuse la connexion
+  loginValue: "", // identifiant saisi, conservé si le serveur refuse la connexion
 };
 
 /**
@@ -97,18 +97,18 @@ M.startAction = function (action) {
 
 /**
  * Connexion avec les champs du formulaire.
- * . values : { email, motDePasse }
+ * . values : { identifiant, motDePasse }
  * > Promise<boolean> : vrai si l'administrateur est connecté
  *
- * @param {{email: string, motDePasse: string}} values
+ * @param {{identifiant: string, motDePasse: string}} values
  * @returns {Promise<boolean>}
  */
 M.login = async function (values) {
-  M.email = values.email.trim();
+  M.loginValue = values.identifiant.trim();
   let isDone = false;
 
   try {
-    let account = await AdminData.login(M.email, values.motDePasse);
+    let account = await AdminData.login(M.loginValue, values.motDePasse);
     M.admin = account.admin;
     M.status = "ready";
     isDone = true;
@@ -148,7 +148,7 @@ M.logout = async function () {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, admin, pending, loadError, loginError, notice, email }
+ * > { status, admin, pending, loadError, loginError, notice, loginValue }
  *
  * @returns {Object}
  */
@@ -160,7 +160,7 @@ M.getState = function () {
     loadError: M.loadError,
     loginError: M.loginError,
     notice: M.notice,
-    email: M.email,
+    loginValue: M.loginValue,
   };
 };
 
@@ -237,7 +237,7 @@ C.handler_clickOnLogout = async function (ev) {
   await M.logout();
 
   V.renderPage(M.getState());
-  V.focusEmail();
+  V.focusLogin();
 };
 
 /**
@@ -301,7 +301,7 @@ V.fillSlot = function (fragment, name, html) {
 };
 
 /**
- * Formulaire de connexion, pré-rempli avec l'e-mail conservé, et ses messages.
+ * Formulaire de connexion, pré-rempli avec l'identifiant conservé, et ses messages.
  * . state : état renvoyé par M.getState()
  * > DocumentFragment
  *
@@ -309,7 +309,7 @@ V.fillSlot = function (fragment, name, html) {
  * @returns {DocumentFragment}
  */
 V.createFormFragment = function (state) {
-  let fragment = htmlToFragment(genericRenderer(templateForm, { email: state.email }));
+  let fragment = htmlToFragment(genericRenderer(templateForm, { identifiant: state.loginValue }));
 
   V.fillSlot(fragment, "annonce", state.notice === null ? null : genericRenderer(templateNotice, { texte: state.notice }));
   V.fillSlot(
@@ -338,7 +338,7 @@ V.createContentFragment = function (state) {
     return htmlToFragment(genericRenderer(templateLoadError, { texte: state.loadError }));
   }
   if (state.status === "ready") {
-    return htmlToFragment(genericRenderer(templateDashboard, { nom: state.admin.nom, email: state.admin.email }));
+    return htmlToFragment(genericRenderer(templateDashboard, { identifiant: state.admin.identifiant }));
   }
   return V.createFormFragment(state);
 };
@@ -409,14 +409,14 @@ V.focusWelcome = function () {
 };
 
 /**
- * Place le focus sur le champ e-mail après une déconnexion.
+ * Place le focus sur le champ identifiant après une déconnexion.
  * . aucun paramètre
  * > aucune valeur de retour
  *
  * @returns {void}
  */
-V.focusEmail = function () {
-  let field = V.root.querySelector("#admin-email");
+V.focusLogin = function () {
+  let field = V.root.querySelector("#admin-identifiant");
 
   if (field !== null) {
     field.focus();

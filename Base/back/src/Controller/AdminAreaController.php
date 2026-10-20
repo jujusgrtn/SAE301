@@ -38,7 +38,7 @@ abstract class AdminAreaController
      * Relire la base à chaque requête fait qu'un compte supprimé perd l'accès
      * immédiatement, même si sa session est encore ouverte.
      *
-     * @return array{id: int, nom: string, email: string}
+     * @return array{id: int, identifiant: string}
      */
     protected function requireAdmin(): array
     {
