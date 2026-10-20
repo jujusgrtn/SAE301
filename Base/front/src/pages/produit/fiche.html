@@ -17,6 +17,8 @@
     <p class="text-[0.6875rem] font-semibold tracking-wider text-primary-text uppercase">{{categorie}} · {{sousCategorie}}</p>
     <h1 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{{nom}}</h1>
     <p class="mt-3 text-xl font-semibold">{{prix}}</p>
+    <!-- Disponibilité de la variante choisie : remplie par V.renderStock(). -->
+    <div data-zone="stock" class="mt-1.5"></div>
     <p class="mt-5 max-w-prose leading-relaxed">{{description}}</p>
 
     <div data-zone="ajout-panier" class="mt-6 flex flex-col items-stretch gap-3 sm:items-start"></div>

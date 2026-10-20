@@ -1,5 +1,6 @@
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { formatPrice } from "../../lib/format.js";
+import { StockBadgeView } from "../badge-stock/index.js";
 import template from "./template.html?raw";
 import templateImage from "./image.html?raw";
 import templateNoImage from "./sans-image.html?raw";
@@ -57,6 +58,7 @@ let ProductCardView = {
     let fragment = htmlToFragment(ProductCardView.html(product));
     let image = htmlToFragment(ProductCardView.formatOneImage(product.image));
     fragment.querySelector('slot[name="image"]').replaceWith(image);
+    fragment.querySelector('slot[name="stock"]').replaceWith(StockBadgeView.dom(product));
     return fragment;
   },
 };

@@ -19,12 +19,18 @@ final class ProductModel
      *
      * LEFT JOIN sur l'image : un bijou sans photo reste listé, avec une image
      * nulle. Seule l'image d'ordre 0 (principale) est retenue.
+     *
+     * Le stock d'un bijou est la somme de celui de ses variantes (STK-b) : une
+     * sous-requête, pour ne pas multiplier les lignes par variante.
      */
     private const SELECT_PRODUCTS = 'SELECT produit.id,
                        produit.nom,
                        produit.slug,
                        produit.prix,
                        produit.description,
+                       (SELECT COALESCE(SUM(variante.stock), 0)
+                          FROM variante
+                         WHERE variante.produit_id = produit.id) AS stock,
                        sous_categorie.nom  AS sous_categorie_nom,
                        sous_categorie.slug AS sous_categorie_slug,
                        categorie.nom       AS categorie_nom,
@@ -138,13 +144,16 @@ final class ProductModel
      * Les variantes d'un bijou (« Modèle unique » pour un bijou sans option),
      * que la fiche propose d'ajouter au panier (US CMD-b).
      *
+     * Chaque variante porte son propre stock (STK-b) : la fiche affiche la
+     * disponibilité de l'option choisie.
+     *
      * @param int $productId Identifiant du bijou.
-     * @return array<int, array{id: int, libelle: string}>
+     * @return array<int, array{id: int, libelle: string, stock: int, disponibilite: string}>
      */
     private function findVariants(int $productId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, libelle
+            'SELECT id, libelle, stock
                FROM variante
               WHERE produit_id = :produit_id
            ORDER BY id'
@@ -153,7 +162,7 @@ final class ProductModel
         $statement->execute();
 
         return array_map(function (array $row): array {
-            return ['id' => (int) $row['id'], 'libelle' => $row['libelle']];
+            return ['id' => (int) $row['id'], 'libelle' => $row['libelle']] + Stock::describe((int) $row['stock']);
         }, $statement->fetchAll());
     }
 
@@ -185,7 +194,7 @@ final class ProductModel
      * MySQL renvoie les nombres sous forme de chaînes : ils sont convertis ici.
      *
      * @param array<string, mixed> $row Ligne renvoyée par findAll().
-     * @return array<string, mixed> { id, nom, slug, prix, categorie, sousCategorie, image }
+     * @return array<string, mixed> { id, nom, slug, prix, stock, disponibilite, categorie, sousCategorie, image }
      */
     private static function formatProduct(array $row): array
     {
@@ -203,6 +212,7 @@ final class ProductModel
             'nom'           => $row['nom'],
             'slug'          => $row['slug'],
             'prix'          => (int) $row['prix'],
+        ] + Stock::describe((int) $row['stock']) + [
             'categorie'     => [
                 'nom'  => $row['categorie_nom'],
                 'slug' => $row['categorie_slug'],

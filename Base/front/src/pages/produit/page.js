@@ -1,6 +1,7 @@
 import { ProductData } from "../../data/produit.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { formatPrice } from "../../lib/format.js";
+import { StockBadgeView } from "../../ui/badge-stock/index.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
@@ -209,10 +210,28 @@ M.selectImage = function (index) {
 };
 
 /**
+ * La variante choisie, avec son stock et sa disponibilité.
+ * . aucun paramètre
+ * > { id, libelle, stock, disponibilite }, ou null
+ *
+ * @returns {Object|null}
+ */
+M.getSelectedVariant = function () {
+  if (M.product === null) {
+    return null;
+  }
+
+  let variant = M.product.variantes.find(function (candidate) {
+    return candidate.id === M.selectedVariantId;
+  });
+  return variant === undefined ? null : variant;
+};
+
+/**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
  * > { status, product, images, imageIndex, image, message, variants,
- *     selectedVariantId, cartStatus, cartError, canAddToCart }
+ *     selectedVariantId, selectedVariant, cartStatus, cartError, canAddToCart }
  *
  * @returns {Object}
  */
@@ -228,6 +247,7 @@ M.getState = function () {
     message: M.message,
     variants: M.product === null ? [] : M.product.variantes,
     selectedVariantId: M.selectedVariantId,
+    selectedVariant: M.getSelectedVariant(),
     cartStatus: M.cartStatus,
     cartError: M.cartError,
     canAddToCart: M.canAddToCart(),
@@ -317,6 +337,7 @@ C.handler_changeVariant = function (ev) {
   }
 
   if (M.selectVariant(Number(ev.target.value))) {
+    V.renderStock(M.getState());
     V.renderAddToCart(M.getState());
   }
 };
@@ -580,8 +601,27 @@ V.renderPage = function (state) {
   zone.replaceChildren(content);
 
   if (state.status === "success") {
+    V.renderStock(state);
     V.renderAddToCart(state);
   }
+};
+
+/**
+ * Affiche la disponibilité de la variante choisie (rien s'il n'y en a pas).
+ * . state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {Object} state
+ * @returns {void}
+ */
+V.renderStock = function (state) {
+  let zone = V.root.querySelector('[data-zone="stock"]');
+
+  if (state.selectedVariant === null) {
+    zone.replaceChildren();
+    return;
+  }
+  zone.replaceChildren(StockBadgeView.dom(state.selectedVariant));
 };
 
 /**
