@@ -16,20 +16,20 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
-use App\Controller\AuthController;
 use App\Controller\CatalogueController;
-use App\Controller\StatsController;
 use App\Controller\ProductController;
 use App\Controller\CategoryController;
 use App\Controller\CartController;
 use App\Controller\AccountController;
 use App\Controller\OrderController;
+use App\Controller\AdminController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
 use App\Model\UserModel;
 use App\Model\OrderModel;
 use App\Model\StockModel;
+use App\Model\AdminModel;
 use App\Model\FilmModel;
 
 // --- Chargement automatique des classes ------------------------------------
@@ -72,13 +72,12 @@ try {
     // le contrôleur reçoit le modèle. Aucune magie, tout est lisible ici.
     $controleurs = [
         CatalogueController::class => new CatalogueController(new FilmModel($pdo), $config['chemin']),
-        AuthController::class      => new AuthController(),
-        StatsController::class     => new StatsController(new FilmModel($pdo)),
         ProductController::class   => new ProductController(new ProductModel($pdo), new CategoryModel($pdo)),
         CategoryController::class  => new CategoryController(new CategoryModel($pdo)),
         CartController::class      => new CartController(new VariantModel($pdo)),
         AccountController::class   => new AccountController(new UserModel($pdo)),
         OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo)),
+        AdminController::class     => new AdminController(new AdminModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

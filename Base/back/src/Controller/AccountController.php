@@ -16,7 +16,7 @@ use App\Model\UserModel;
  * son identité est relue en base à chaque demande, et le client ne détient
  * que le cookie de session.
  *
- * Les comptes d'administration restent gérés par AuthController jusqu'à GOF-b.
+ * Les comptes d'administration sont gérés à part par AdminController (GOF-b).
  *
  * Réponse commune : { connecte: bool, utilisateur: { prenom, nom, email } | null }
  */

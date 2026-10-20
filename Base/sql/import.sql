@@ -6,7 +6,8 @@
 --     image_produit ;
 --   - « Commander en click & collect » (CMD-a, CMD-b, CMD-c) : variante,
 --     utilisateur, commande, ligne_commande ;
---   - « Gérer les stocks » (STK-a) : mouvement_stock.
+--   - « Gérer les stocks » (STK-a) : mouvement_stock ;
+--   - « Gérer l'offre » (GOF-b) : administrateur.
 -- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
 -- sont pas créées ici.
 --
@@ -21,6 +22,7 @@
 SET NAMES utf8mb4;
 
 -- Suppression dans l'ordre inverse des dépendances (clés étrangères).
+DROP TABLE IF EXISTS administrateur;
 DROP TABLE IF EXISTS mouvement_stock;
 DROP TABLE IF EXISTS ligne_commande;
 DROP TABLE IF EXISTS commande;
@@ -157,6 +159,26 @@ CREATE TABLE utilisateur (
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_utilisateur_email (email)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Administrateurs du back-office (GOF-b)
+--
+-- Table distincte de utilisateur : un compte client ne peut jamais devenir
+-- administrateur, et la connexion au back-office a son propre formulaire.
+-- mot_de_passe : empreinte bcrypt produite par password_hash().
+-- ---------------------------------------------------------------------------
+CREATE TABLE administrateur (
+    id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    nom           VARCHAR(60)   NOT NULL,
+    email         VARCHAR(190)  NOT NULL,
+    mot_de_passe  VARCHAR(255)  NOT NULL,
+    date_creation DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_administrateur_email (email)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -400,3 +422,9 @@ INSERT INTO variante (produit_id, libelle, stock) VALUES
 INSERT INTO utilisateur (prenom, nom, email, mot_de_passe) VALUES
     ('Marie', 'Teriitahi', 'client@matira.test',
         '$2y$10$G608CcdOXR16quwM1zlCIexDlh/MgzctwjKUwjqoVeiq.KRkRwxW6');
+
+-- Compte administrateur de test (GOF-b) : admin@matira.test / MatiraAdmin2026!
+-- L'empreinte a été produite par password_hash('MatiraAdmin2026!', PASSWORD_BCRYPT).
+INSERT INTO administrateur (nom, email, mot_de_passe) VALUES
+    ('Équipe Matira', 'admin@matira.test',
+        '$2y$12$jP6BwWf.MbRIGa9Qjtz77.ERPaZzEb6c1cUQ8QaFrIj6Az51pWwRK');
