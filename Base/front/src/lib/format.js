@@ -40,6 +40,21 @@ export function formatPrice(price) {
 }
 
 /**
+ * Alerte d'une ligne de panier dont la quantité dépasse le stock (US STK-c).
+ * 0 -> « Épuisé : retirez ce bijou pour valider. »
+ * 2 -> « Plus que 2 disponibles : réduisez la quantité. »
+ *
+ * @param {number} stock - Exemplaires en stock.
+ * @returns {string}
+ */
+export function formatStockWarning(stock) {
+  if (stock <= 0) {
+    return "Épuisé : retirez ce bijou pour valider.";
+  }
+  return `Plus que ${stock} ${stock > 1 ? "disponibles" : "disponible"} : réduisez la quantité.`;
+}
+
+/**
  * « 2026-10-20 08:47:34 » (DATETIME MySQL) -> « 20 octobre 2026 à 08:47 »
  *
  * @param {string} dateTime - Date renvoyée par l'API, heure locale du serveur.

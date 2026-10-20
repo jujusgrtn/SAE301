@@ -26,18 +26,20 @@ final class VariantModel
     }
 
     /**
-     * Indique si une variante existe.
+     * Stock d'une variante (US STK-c).
      *
      * @param int $variantId Identifiant de la variante.
-     * @return bool
+     * @return int|null Exemplaires en stock, ou null si la variante n'existe pas.
      */
-    public function exists(int $variantId): bool
+    public function findStock(int $variantId): ?int
     {
-        $statement = $this->pdo->prepare('SELECT 1 FROM variante WHERE id = :id');
+        $statement = $this->pdo->prepare('SELECT stock FROM variante WHERE id = :id');
         $statement->bindValue(':id', $variantId, PDO::PARAM_INT);
         $statement->execute();
 
-        return $statement->fetchColumn() !== false;
+        $stock = $statement->fetchColumn();
+
+        return $stock === false ? null : (int) $stock;
     }
 
     /**
@@ -45,7 +47,7 @@ final class VariantModel
      *
      * @param array<int, int> $variantIds Identifiants lus dans le panier.
      * @return array<int, array<string, mixed>> Lignes indexées par identifiant de variante :
-     *         { variantId, libelle, prixUnitaire, produit: { nom, slug, image } }
+     *         { variantId, libelle, prixUnitaire, stock, disponibilite, produit: { nom, slug, image } }
      */
     public function findForCart(array $variantIds): array
     {
@@ -60,6 +62,7 @@ final class VariantModel
         $statement = $this->pdo->prepare(
             "SELECT variante.id,
                     variante.libelle,
+                    variante.stock,
                     produit.nom,
                     produit.slug,
                     produit.prix,
@@ -94,7 +97,7 @@ final class VariantModel
      * Ligne SQL -> variante prête pour le panier.
      *
      * @param array<string, mixed> $row Ligne renvoyée par findForCart().
-     * @return array<string, mixed> { variantId, libelle, prixUnitaire, produit }
+     * @return array<string, mixed> { variantId, libelle, prixUnitaire, stock, disponibilite, produit }
      */
     private static function formatCartLine(array $row): array
     {
@@ -111,6 +114,7 @@ final class VariantModel
             'variantId'    => (int) $row['id'],
             'libelle'      => $row['libelle'],
             'prixUnitaire' => (int) $row['prix'],
+        ] + Stock::describe((int) $row['stock']) + [
             'produit'      => [
                 'nom'   => $row['nom'],
                 'slug'  => $row['slug'],

@@ -52,27 +52,35 @@ final class Cart
      *
      * @param int $variantId Variante existante (vérifiée par le contrôleur).
      * @param int $quantity  Nombre d'exemplaires à ajouter, au moins 1.
+     * @param int $stock     Exemplaires en stock pour cette variante (STK-c).
      * @return self
      * @throws InvalidArgumentException Si la quantité est invalide ou dépasse le maximum.
+     * @throws StockException           Si le total dépasse le stock.
      */
-    public function add(int $variantId, int $quantity): self
+    public function add(int $variantId, int $quantity, int $stock): self
     {
         if ($quantity < 1) {
             throw new InvalidArgumentException('La quantité doit être d\'au moins 1.');
         }
 
-        return $this->setQuantity($variantId, $this->quantityOf($variantId) + $quantity);
+        return $this->setQuantity($variantId, $this->quantityOf($variantId) + $quantity, $stock);
     }
 
     /**
      * Fixe la quantité d'une variante ; 0 la retire du panier.
      *
+     * Une hausse au-delà du stock est refusée. Une baisse est toujours
+     * acceptée : un client dont la ligne dépasse un stock qui a diminué doit
+     * pouvoir la corriger pas à pas.
+     *
      * @param int $variantId Identifiant de la variante.
      * @param int $quantity  Nouvelle quantité, de 0 à MAX_QUANTITY.
+     * @param int $stock     Exemplaires en stock pour cette variante (STK-c).
      * @return self
      * @throws InvalidArgumentException Si la quantité est négative ou dépasse le maximum.
+     * @throws StockException           Si la hausse dépasse le stock.
      */
-    public function setQuantity(int $variantId, int $quantity): self
+    public function setQuantity(int $variantId, int $quantity, int $stock): self
     {
         if ($quantity < 0) {
             throw new InvalidArgumentException('La quantité ne peut pas être négative.');
@@ -82,6 +90,9 @@ final class Cart
                 'Vous ne pouvez pas réserver plus de ' . self::MAX_QUANTITY . ' exemplaires d\'un même bijou.'
             );
         }
+        if ($quantity > $this->quantityOf($variantId) && $quantity > $stock) {
+            throw new StockException(self::stockMessage($stock));
+        }
 
         if ($quantity === 0) {
             return $this->remove($variantId);
@@ -89,6 +100,23 @@ final class Cart
 
         $this->items[$variantId] = $quantity;
         return $this;
+    }
+
+    /**
+     * Message affiché quand une quantité dépasse le stock.
+     *
+     * @param int $stock Exemplaires en stock.
+     * @return string
+     */
+    public static function stockMessage(int $stock): string
+    {
+        if ($stock <= 0) {
+            return 'Ce bijou est épuisé.';
+        }
+
+        return $stock === 1
+            ? 'Il ne reste qu\'un exemplaire de ce bijou.'
+            : 'Il ne reste que ' . $stock . ' exemplaires de ce bijou.';
     }
 
     /**
@@ -150,15 +178,20 @@ final class Cart
     /**
      * Lignes, nombre d'articles et total, calculés à partir des prix en base.
      *
+     * Chaque ligne indique si sa quantité dépasse le stock actuel
+     * (depasseStock) ; le panier n'est réservable que si aucune ne le dépasse
+     * (STK-c).
+     *
      * @param array<int, array<string, mixed>> $variants Variantes du panier,
      *        indexées par identifiant (voir VariantModel::findForCart()).
-     * @return array{lignes: array<int, array<string, mixed>>, nombreArticles: int, total: int}
+     * @return array{lignes: array<int, array<string, mixed>>, nombreArticles: int, total: int, estReservable: bool}
      */
     public function summarize(array $variants): array
     {
         $lines      = [];
         $itemCount  = 0;
         $total      = 0;
+        $isBookable = true;
         $variantIds = $this->variantIds();
 
         for ($i = 0; $i < count($variantIds); $i++) {
@@ -172,19 +205,24 @@ final class Cart
             $quantity = $this->items[$variantId];
             $subtotal = $variant['prixUnitaire'] * $quantity;
 
+            $exceedsStock = $quantity > $variant['stock'];
+
             $lines[] = $variant + [
-                'quantite'  => $quantity,
-                'sousTotal' => $subtotal,
+                'quantite'     => $quantity,
+                'sousTotal'    => $subtotal,
+                'depasseStock' => $exceedsStock,
             ];
 
             $itemCount += $quantity;
             $total     += $subtotal;
+            $isBookable = $isBookable && !$exceedsStock;
         }
 
         return [
             'lignes'         => $lines,
             'nombreArticles' => $itemCount,
             'total'          => $total,
+            'estReservable'  => $isBookable && count($lines) > 0,
         ];
     }
 }

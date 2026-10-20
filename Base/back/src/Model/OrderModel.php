@@ -41,9 +41,10 @@ final class OrderModel
      * transaction : soit la réservation et toutes ses lignes sont
      * enregistrées, soit rien ne l'est.
      *
-     * Les prix sont relus en base dans la transaction ; les variantes sont
-     * verrouillées (FOR UPDATE) pour que le contrôle et le décrément du stock
-     * (STK-c, STK-a) puissent s'ajouter ici sans risque de survente.
+     * Les prix et les stocks sont relus en base dans la transaction ; les
+     * variantes sont verrouillées (FOR UPDATE) : entre le contrôle du stock
+     * (STK-c) et la fin de la transaction, aucune autre validation ne peut
+     * utiliser les mêmes exemplaires. Le décrément (STK-a) s'ajoutera ici.
      *
      * Le numéro (MC-2026-00042) est déduit de l'identifiant auto-incrémenté,
      * unique par construction : deux validations simultanées ne peuvent pas
@@ -53,6 +54,7 @@ final class OrderModel
      * @param array<int, int> $items  Quantités indexées par identifiant de variante.
      * @return array{numero: string, statut: string, total: int, nombreArticles: int}|null
      *         La réservation créée, ou null si aucune variante du panier n'existe plus.
+     * @throws StockException Si une ligne dépasse le stock : rien n'est enregistré.
      */
     public function createFromItems(int $userId, array $items): ?array
     {
@@ -65,6 +67,8 @@ final class OrderModel
                 $this->pdo->rollBack();
                 return null;
             }
+
+            self::checkStock($lines);
 
             $total     = array_sum(array_column($lines, 'sousTotal'));
             $itemCount = array_sum(array_column($lines, 'quantite'));
@@ -166,7 +170,7 @@ final class OrderModel
         $placeholders = implode(', ', array_fill(0, count($variantIds), '?'));
 
         $statement = $this->pdo->prepare(
-            "SELECT variante.id, variante.libelle, produit.nom, produit.prix
+            "SELECT variante.id, variante.libelle, variante.stock, produit.nom, produit.prix
                FROM variante
          INNER JOIN produit ON produit.id = variante.produit_id
               WHERE variante.id IN ({$placeholders})
@@ -193,10 +197,37 @@ final class OrderModel
                 'prixUnitaire' => $price,
                 'quantite'     => $quantity,
                 'sousTotal'    => $price * $quantity,
+                'stock'        => (int) $rows[$i]['stock'],
             ];
         }
 
         return $lines;
+    }
+
+    /**
+     * Vérifie qu'aucune ligne ne dépasse le stock verrouillé (US STK-c).
+     *
+     * Toutes les lignes en défaut sont citées dans le message, pour que le
+     * client corrige son panier en une fois.
+     *
+     * @param array<int, array<string, mixed>> $lines Lignes calculées par lockLines().
+     * @throws StockException Si au moins une ligne dépasse le stock.
+     */
+    private static function checkStock(array $lines): void
+    {
+        $shortages = array_filter($lines, function (array $line): bool {
+            return $line['quantite'] > $line['stock'];
+        });
+
+        if (count($shortages) === 0) {
+            return;
+        }
+
+        $details = array_map(function (array $line): string {
+            return $line['nomProduit'] . ' (' . ($line['stock'] === 0 ? 'épuisé' : $line['stock'] . ' disponible(s)') . ')';
+        }, array_values($shortages));
+
+        throw new StockException('Stock insuffisant pour : ' . implode(', ', $details) . '. Ajustez votre panier.');
     }
 
     /**

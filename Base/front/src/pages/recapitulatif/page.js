@@ -1,7 +1,7 @@
 import { AccountData } from "../../data/compte.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { OrderData } from "../../data/commande.js";
-import { formatPrice } from "../../lib/format.js";
+import { formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
@@ -10,6 +10,8 @@ import templateContent from "./contenu.html?raw";
 import templateLine from "./ligne.html?raw";
 import templateImage from "./image.html?raw";
 import templateError from "./erreur.html?raw";
+import templateStockWarning from "./alerte-stock.html?raw";
+import templateBlocked from "./bloque.html?raw";
 
 // Les miniatures utilisent la version 400 px des photos.
 const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
@@ -72,15 +74,35 @@ M.fetchSummary = async function () {
 };
 
 /**
- * Indique si la validation peut partir : client connecté, panier non vide,
- * aucune validation déjà en cours (un double clic n'envoie qu'une requête).
+ * Indique si la validation peut partir : client connecté, panier non vide et
+ * réservable (aucune ligne au-delà du stock, US STK-c), aucune validation
+ * déjà en cours (un double clic n'envoie qu'une requête).
  * . aucun paramètre
  * > booléen
  *
  * @returns {boolean}
  */
 M.canSubmit = function () {
-  return M.status === "ready" && M.user !== null && M.cart !== null && M.cart.lignes.length > 0 && !M.isSubmitting;
+  return (
+    M.status === "ready" &&
+    M.user !== null &&
+    M.cart !== null &&
+    M.cart.lignes.length > 0 &&
+    M.cart.estReservable &&
+    !M.isSubmitting
+  );
+};
+
+/**
+ * Alerte d'une ligne dont la quantité dépasse le stock actuel.
+ * . line : ligne du panier
+ * > texte de l'alerte, ou null si la ligne est correcte
+ *
+ * @param {Object} line
+ * @returns {string|null}
+ */
+M.getStockWarning = function (line) {
+  return line.depasseStock ? formatStockWarning(line.stock) : null;
 };
 
 /**
@@ -99,7 +121,9 @@ M.startSubmit = function () {
  * Valide la réservation auprès du serveur.
  *
  * Un 401 signifie que la session a expiré : la page repasse en « connexion
- * requise ». Un 400 signifie que le panier a changé : on le recharge.
+ * requise ». Un 400 (panier changé) ou un 409 (stock insuffisant, STK-c)
+ * signifie que le panier doit être relu : on le recharge pour afficher les
+ * lignes à corriger.
  * . aucun paramètre
  * > Promise<string|null> : le numéro de réservation, ou null en cas d'échec
  *
@@ -117,7 +141,7 @@ M.submitOrder = async function () {
     if (error.statut === 401) {
       M.user = null;
     }
-    if (error.statut === 400) {
+    if (error.statut === 400 || error.statut === 409) {
       await M.reloadCart();
     }
   }
@@ -158,7 +182,7 @@ M.formatItemCount = function (count) {
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
  * > { status, loadError, needsLogin, isEmpty, user, lines, itemCountLabel,
- *     total, isSubmitting, submitError }
+ *     total, isBookable, isSubmitting, submitError }
  *
  * @returns {Object}
  */
@@ -171,7 +195,10 @@ M.getState = function () {
     needsLogin: M.user === null,
     isEmpty: lines.length === 0,
     user: M.user,
-    lines: lines,
+    lines: lines.map(function (line) {
+      return { ...line, stockWarning: M.getStockWarning(line) };
+    }),
+    isBookable: M.cart !== null && M.cart.estReservable,
     itemCountLabel: M.formatItemCount(M.cart === null ? 0 : M.cart.nombreArticles),
     total: M.cart === null ? 0 : M.cart.total,
     isSubmitting: M.isSubmitting,
@@ -282,6 +309,13 @@ V.createLineFragment = function (line) {
     })
   );
 
+  let warningSlot = fragment.querySelector('slot[name="alerte"]');
+  if (line.stockWarning === null) {
+    warningSlot.remove();
+  } else {
+    warningSlot.replaceWith(htmlToFragment(genericRenderer(templateStockWarning, { texte: line.stockWarning })));
+  }
+
   let imageSlot = fragment.querySelector('slot[name="image"]');
   if (line.produit.image === null) {
     imageSlot.remove();
@@ -322,6 +356,16 @@ V.createSummaryFragment = function (state) {
     return V.createLineFragment(line);
   });
   fragment.querySelector('slot[name="lignes"]').replaceWith(...lines);
+
+  // Panier non réservable : le bouton reste visible mais inactif, avec
+  // l'explication juste au-dessus.
+  let blockedSlot = fragment.querySelector('slot[name="blocage"]');
+  if (state.isBookable) {
+    blockedSlot.remove();
+  } else {
+    blockedSlot.replaceWith(htmlToFragment(genericRenderer(templateBlocked, { urlPanier: routeUrl("/panier") })));
+    fragment.querySelector('[data-action="valider"]').setAttribute("aria-disabled", "true");
+  }
 
   let errorSlot = fragment.querySelector('slot[name="erreur"]');
   if (state.submitError === null) {

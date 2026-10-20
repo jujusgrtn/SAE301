@@ -1,5 +1,5 @@
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
-import { formatPrice } from "../../lib/format.js";
+import { formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { MessageView } from "../../ui/message/index.js";
 import template from "./template.html?raw";
@@ -9,6 +9,9 @@ import templateError from "./erreur.html?raw";
 import templateContent from "./contenu.html?raw";
 import templateLine from "./ligne.html?raw";
 import templateImage from "./image.html?raw";
+import templateStockWarning from "./alerte-stock.html?raw";
+import templateValidate from "./valider.html?raw";
+import templateValidateBlocked from "./valider-bloque.html?raw";
 
 // Les miniatures du panier utilisent la version 400 px des photos.
 const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
@@ -111,10 +114,35 @@ M.getTargetQuantity = function (action, variantId) {
   if (action === "diminuer" && line.quantite > 1) {
     return line.quantite - 1;
   }
-  if (action === "augmenter" && line.quantite < M.MAX_QUANTITY) {
+  if (action === "augmenter" && line.quantite < M.getMaxQuantity(line)) {
     return line.quantite + 1;
   }
   return null;
+};
+
+/**
+ * Quantité maximale d'une ligne : la limite par bijou, ou le stock s'il est
+ * plus bas (US STK-c). Le serveur reste seul juge.
+ * . line : ligne du panier
+ * > entier
+ *
+ * @param {Object} line
+ * @returns {number}
+ */
+M.getMaxQuantity = function (line) {
+  return Math.min(M.MAX_QUANTITY, line.stock);
+};
+
+/**
+ * Alerte d'une ligne dont la quantité dépasse le stock actuel.
+ * . line : ligne du panier
+ * > texte de l'alerte, ou null si la ligne est correcte
+ *
+ * @param {Object} line
+ * @returns {string|null}
+ */
+M.getStockWarning = function (line) {
+  return line.depasseStock ? formatStockWarning(line.stock) : null;
 };
 
 /**
@@ -197,7 +225,7 @@ M.getItemCount = function () {
  * Photographie de l'état, transmise à la Vue. Chaque ligne indique quelles
  * actions sont possibles.
  * . aucun paramètre
- * > { status, message, actionError, isEmpty, itemCountLabel, total, lines }
+ * > { status, message, actionError, isEmpty, itemCountLabel, total, lines, isBookable }
  *
  * @returns {Object}
  */
@@ -217,9 +245,11 @@ M.getState = function () {
         ...line,
         isBusy: isBusy,
         canDecrease: !isBusy && line.quantite > 1,
-        canIncrease: !isBusy && line.quantite < M.MAX_QUANTITY,
+        canIncrease: !isBusy && line.quantite < M.getMaxQuantity(line),
+        stockWarning: M.getStockWarning(line),
       };
     }),
+    isBookable: M.cart !== null && M.cart.estReservable,
   };
 };
 
@@ -346,6 +376,13 @@ V.createLineFragment = function (line) {
     );
   }
 
+  let warningSlot = fragment.querySelector('slot[name="alerte"]');
+  if (line.stockWarning === null) {
+    warningSlot.remove();
+  } else {
+    warningSlot.replaceWith(htmlToFragment(genericRenderer(templateStockWarning, { texte: line.stockWarning })));
+  }
+
   // aria-disabled plutôt que disabled : le bouton garde le focus clavier.
   let flags = { diminuer: line.canDecrease, augmenter: line.canIncrease, retirer: !line.isBusy };
   let buttons = fragment.querySelectorAll("[data-action]");
@@ -371,9 +408,20 @@ V.createCartFragment = function (state) {
     genericRenderer(templateContent, {
       nombreArticles: state.itemCountLabel,
       total: formatPrice(state.total),
-      urlRecapitulatif: routeUrl("/commande/recapitulatif"),
     })
   );
+
+  // Panier non réservable (stock dépassé) : pas de lien de validation, mais
+  // l'explication de ce qu'il faut corriger.
+  fragment
+    .querySelector('slot[name="validation"]')
+    .replaceWith(
+      htmlToFragment(
+        state.isBookable
+          ? genericRenderer(templateValidate, { urlRecapitulatif: routeUrl("/commande/recapitulatif") })
+          : templateValidateBlocked
+      )
+    );
 
   let message = state.actionError === null ? null : { type: "erreur", texte: state.actionError };
   fragment.querySelector('slot[name="message"]').replaceWith(MessageView.dom(message));

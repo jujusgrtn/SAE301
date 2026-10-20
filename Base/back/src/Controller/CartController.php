@@ -7,17 +7,18 @@ namespace App\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Cart;
+use App\Model\StockException;
 use App\Model\VariantModel;
 use InvalidArgumentException;
 
 /**
- * Panier d'achat (US CMD-b).
+ * Panier d'achat (US CMD-b), limité par le stock (US STK-c).
  *
  * Le panier vit dans la session PHP, sous la clé « panier ». Chaque route
  * renvoie le panier complet, recalculé à partir de la base :
- * { lignes: [{ variantId, libelle, prixUnitaire, quantite, sousTotal,
- *              produit: { nom, slug, image } }],
- *   nombreArticles, total }
+ * { lignes: [{ variantId, libelle, prixUnitaire, stock, disponibilite,
+ *              quantite, sousTotal, depasseStock, produit: { nom, slug, image } }],
+ *   nombreArticles, total, estReservable }
  */
 final class CartController
 {
@@ -47,7 +48,7 @@ final class CartController
      * POST /api/panier/ajouter : { variantId, quantite? } (quantite vaut 1 par défaut).
      *
      * Erreurs : 400 si les données sont invalides ou dépassent le maximum,
-     * 404 si la variante n'existe pas.
+     * 404 si la variante n'existe pas, 409 si le stock ne suffit pas.
      *
      * @param Request $request Requête entrante.
      */
@@ -62,14 +63,16 @@ final class CartController
             return;
         }
 
-        if (!$this->variants->exists($variantId)) {
+        $stock = $this->variants->findStock($variantId);
+
+        if ($stock === null) {
             Response::erreur('Ce bijou n\'est plus proposé.', 404);
             return;
         }
 
         $cart = $this->loadCart();
-        $this->apply(function () use ($cart, $variantId, $quantity): void {
-            $cart->add($variantId, $quantity);
+        $this->apply(function () use ($cart, $variantId, $quantity, $stock): void {
+            $cart->add($variantId, $quantity, $stock);
         });
 
         $this->respond($cart);
@@ -79,7 +82,8 @@ final class CartController
      * POST /api/panier/modifier : { variantId, quantite } (0 retire la ligne).
      *
      * Erreurs : 400 si les données sont invalides, 404 si la variante n'est
-     * pas dans le panier.
+     * pas dans le panier, 409 si une hausse dépasse le stock (une baisse est
+     * toujours acceptée).
      *
      * @param Request $request Requête entrante.
      */
@@ -101,8 +105,12 @@ final class CartController
             return;
         }
 
-        $this->apply(function () use ($cart, $variantId, $quantity): void {
-            $cart->setQuantity($variantId, $quantity);
+        // Une variante supprimée entre-temps compte comme épuisée : on peut
+        // encore baisser sa quantité, pas l'augmenter.
+        $stock = $this->variants->findStock($variantId) ?? 0;
+
+        $this->apply(function () use ($cart, $variantId, $quantity, $stock): void {
+            $cart->setQuantity($variantId, $quantity, $stock);
         });
 
         $this->respond($cart);
@@ -145,7 +153,8 @@ final class CartController
 
     /**
      * Exécute une modification du panier ; une règle non respectée devient
-     * une erreur 400, avec le message prévu pour l'utilisateur.
+     * une erreur, avec le message prévu pour l'utilisateur : 400 pour une
+     * requête invalide, 409 pour un stock insuffisant.
      *
      * @param callable $change Modification à appliquer.
      */
@@ -155,6 +164,8 @@ final class CartController
             $change();
         } catch (InvalidArgumentException $e) {
             Response::erreur($e->getMessage(), 400);
+        } catch (StockException $e) {
+            Response::erreur($e->getMessage(), 409);
         }
     }
 

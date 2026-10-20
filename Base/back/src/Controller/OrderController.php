@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Model\Cart;
 use App\Model\OrderModel;
+use App\Model\StockException;
 use App\Model\UserModel;
 
 /**
@@ -46,7 +47,8 @@ final class OrderController
      * traite les requêtes d'une même session l'une après l'autre.
      *
      * Réponse 201 : { commande: { numero, statut, total, nombreArticles } }
-     * Erreurs : 401 si le client n'est pas connecté, 400 si le panier est vide.
+     * Erreurs : 401 si le client n'est pas connecté, 400 si le panier est vide,
+     * 409 si une ligne dépasse le stock (STK-c).
      */
     public function create(): void
     {
@@ -60,7 +62,13 @@ final class OrderController
             return;
         }
 
-        $order = $this->orders->createFromItems($userId, $cart->toArray());
+        try {
+            $order = $this->orders->createFromItems($userId, $cart->toArray());
+        } catch (StockException $e) {
+            // Le panier est conservé : le client l'ajuste puis revalide.
+            Response::erreur($e->getMessage(), 409);
+            return;
+        }
 
         if ($order === null) {
             unset($_SESSION[CartController::SESSION_KEY]);

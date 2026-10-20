@@ -142,7 +142,21 @@ M.selectVariant = function (variantId) {
  * @returns {boolean}
  */
 M.canAddToCart = function () {
-  return M.selectedVariantId !== null && M.cartStatus !== "adding";
+  return M.selectedVariantId !== null && M.cartStatus !== "adding" && !M.isSoldOut();
+};
+
+/**
+ * Indique si la variante choisie est épuisée (US STK-c). Le serveur refuse de
+ * toute façon l'ajout ; le front l'évite pour ne pas proposer une action vouée
+ * à l'échec.
+ * . aucun paramètre
+ * > booléen
+ *
+ * @returns {boolean}
+ */
+M.isSoldOut = function () {
+  let variant = M.getSelectedVariant();
+  return variant !== null && variant.stock <= 0;
 };
 
 /**
@@ -248,6 +262,7 @@ M.getState = function () {
     variants: M.product === null ? [] : M.product.variantes,
     selectedVariantId: M.selectedVariantId,
     selectedVariant: M.getSelectedVariant(),
+    isSoldOut: M.isSoldOut(),
     cartStatus: M.cartStatus,
     cartError: M.cartError,
     canAddToCart: M.canAddToCart(),
@@ -427,7 +442,9 @@ V.renderAddToCart = function (state) {
   let button = V.root.querySelector('[data-action="ajouter"]');
   let feedback = V.root.querySelector('[data-zone="retour-panier"]');
 
-  button.textContent = state.cartStatus === "adding" ? "Ajout en cours…" : "Ajouter au panier";
+  let labels = { adding: "Ajout en cours…", soldOut: "Épuisé", ready: "Ajouter au panier" };
+  let labelKey = state.cartStatus === "adding" ? "adding" : state.isSoldOut ? "soldOut" : "ready";
+  button.textContent = labels[labelKey];
   if (state.canAddToCart) {
     button.removeAttribute("aria-disabled");
   } else {
