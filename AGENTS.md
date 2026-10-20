@@ -1,177 +1,365 @@
 # AGENTS.md — SAE301 Matira Création Click & Collect
 
-## 0. Mission
+## 0. Mission du projet
 
-Prototype full-stack et responsive de click & collect pour **Matira Création**
-(bijouterie en perle de Tahiti, Papeete) : le client réserve en ligne, essaie et
-règle au retrait en boutique. Le code part d'un starter de catalogue de films ;
-le domaine film est remplacé progressivement par le domaine bijou (catégories,
-produits, variantes, stock, commandes).
+Ce dépôt est un prototype full-stack de site web responsive de click & collect
+pour **Matira Création**, bijouterie en perle de Tahiti installée au centre
+Vaima, à Papeete ([matiracreation.com](https://www.matiracreation.com/)).
+L'enseigne a un catalogue en ligne mais ni panier ni retrait en boutique : le
+client réserve ses bijoux en ligne, les essaie et les règle au retrait.
 
-Le site doit fonctionner sur mobile, tablette et desktop, en conservant la
-navigation, l'accessibilité, la sécurité et la séparation front/back existantes.
+Le code actuel est encore le catalogue de films pédagogique du starter : il
+sert de base technique, mais le produit cible est une boutique de bijoux
+(catégories, produits, variantes, stock, commandes).
 
-Liens (production, développement, GitHub, Figma, site de l'enseigne) : voir
-`README.md`. Architecture, installation et analyse des user stories : voir
-`README.md`.
+Le résultat attendu doit fonctionner sur mobile, tablette et desktop. Il doit
+conserver les principes de navigation, d'accessibilité, de sécurité et de
+séparation front/back existants, tout en remplaçant progressivement le domaine
+film par le domaine bijou.
 
-## 1. Règles impératives
+Liens du projet :
 
-- Ne committe ni ne pousse jamais sans demande explicite (Git distant inclus).
-- N'ajoute aucune dépendance ou outil de build sans justification et accord si
-  l'impact est significatif.
-- Ne versionne jamais de secret : seul `back/config/config.example.php` est
-  commité, les identifiants réels restent sur le serveur.
-- Ne renomme, ne déplace ni ne réorganise aucun fichier existant sans demande
-  explicite. Respecte l'architecture en place.
-- Avant une modification structurante, parcours le dépôt concerné (`front/`,
-  `back/`, `sql/`, configurations) et les appelants ; après, valide avec les
-  commandes adaptées.
-- Si deux architectures raisonnables changent fortement le code, arrête-toi et
-  demande.
-- Ne code pas sans mon accord : je demande des fonctions ou fonctionnalités
-  ponctuelles, pas de tout faire à ma place.
-- **JAMAIS de `foreach`** (PHP comme JS).
-- **JAMAIS de `fn` en PHP** : `function` classique.
-- **JAMAIS de fonction fléchée en JavaScript** : `function` classique.
-- JSDoc / PHPDoc sur toute fonction, méthode ou classe publique. Les
-  commentaires n'expliquent que l'intention d'un choix non évident.
-- Noms de méthodes et variables en anglais ; données métier et commentaires
-  pédagogiques peuvent rester en français.
-- HTML et CSS valides au validateur W3C.
-- Test : `cd front/`, `npm run dev`, puis ouverture de l'URL affichée par Vite
-  (config dans `front/vite.config.js`). `/api/...` est relayé vers l'API
-  déployée.
+| Ressource           | Lien                                                         |
+| ------------------- | ------------------------------------------------------------ |
+| Site en production  | https://mmi.unilim.fr/~segrestan1/SAE301-Starter/       |
+| Site en développement | http://localhost:5173/~segrestan1/SAE301-Starter/     |
+| Dépôt GitHub        | https://github.com/jujusgrtn/SAE301                          |
+| Maquettes Figma     | https://www.figma.com/design/BF6DnP4noqun61O6jHr4MJ          |
+| Site de l'enseigne  | https://www.matiracreation.com/                              |
 
-## 2. Architecture
+Ne réorganise, ne renomme et ne déplace jamais un fichier existant sans demande
+explicite. Respecte l'architecture présente avant de proposer une évolution.
+Parcours l'intégralité du dépôt, y compris `front/`, `back/`, `sql/`, les
+configurations et les sous-dossiers, avant une modification structurante.
 
-| Zone        | Rôle                                                   | Emplacement |
-| ----------- | ------------------------------------------------------ | ----------- |
-| Front       | SPA Vite, Tailwind CSS 4, routeur client               | `front/`    |
-| Back        | API JSON PHP (`Core/`, `Controller/`, `Model/`, `routes.php`) | `back/` |
-| Données     | Schéma et seeds SQL                                    | `sql/`      |
-| Entrée HTTP | Réécriture `/api/...` vers PHP, le reste vers le front | `.htaccess` |
+## 1. Règles d'exécution impératives
 
-- Front : conserve le découpage `layouts/`, `pages/`, `ui/`, `data/`, `lib/`.
-- Back : `back/index.php` reste le point d'entrée unique.
-- Ne crée ni couche ni framework pour contourner cette structure.
-- Le chemin de déploiement ne doit être défini qu'à deux endroits, identiques :
-  `BASE` dans `front/vite.config.js` et `chemin` dans `back/config/config.php`.
+- Ne committe et ne pousse jamais automatiquement. Le commit, le push et toute
+  action Git distante ne sont effectués que si l'utilisateur le demande
+  explicitement.
+- Ne crée pas de dépendance, bibliothèque ou outil de build supplémentaire sans
+  justification et accord lorsque l'impact est significatif.
+- Ne modifie pas des secrets ou identifiants réels. Les valeurs sensibles
+  (identifiants MySQL de `back/config/config.php`) restent sur le serveur et ne
+  doivent jamais être ajoutées au dépôt : seul `config.example.php` est versionné.
+- Avant une modification importante, lis les fichiers concernés et leurs
+  appelants. Après modification, valide le comportement avec les commandes
+  adaptées.
+- Si deux architectures sont raisonnables et que le choix change fortement le
+  code, arrête-toi et demande une décision.
+- Les commentaires expliquent uniquement l'intention d'un choix non évident.
+  Toute fonction, méthode ou classe publique doit être documentée en JSDoc ou
+  PHPDoc.
+- JAMAIS DE `foreach`.
+- JAMAIS DE `fn` en PHP : toujours des `function` classiques simples.
+- JAMAIS de fonctions fléchées (`=>`) en JavaScript : toujours des `function` classiques.
+- Les noms de méthodes et variables sont en anglais dans le code ; les données
+  métier et commentaires pédagogiques peuvent rester en français comme dans
+  l'existant.
+- Pour chaque test ou vérification : `cd front/`, puis `npm run dev`, puis
+  ouverture de http://localhost:5173/~segrestan1/SAE301-Starter/ grâce à
+  la config `vite.config.js` (si le port 5173 est pris, Vite affiche le port
+  utilisé). Les requêtes `/api/...` sont relayées vers l'API déployée sur
+  mmi.unilim.fr.
+- Le HTML et le CSS doivent être valides au validateur du W3C.
+
+## 2. Architecture actuelle à respecter
+
+Le dépôt est un full-stack sans framework applicatif. Les chemins sont donnés
+depuis la racine du dépôt (`~/public_html/SAE301-Starter/`, racine déployée sur
+le serveur) :
+
+| Zone        | Rôle                                                                          | Emplacement  |
+| ----------- | ----------------------------------------------------------------------------- | ------------ |
+| Front       | SPA Vite, Tailwind CSS 4, routeur client, pages et composants                 | `front/`     |
+| Back        | API JSON PHP, routage, contrôleurs et accès PDO/MySQL                         | `back/`      |
+| Données     | Schéma et seeds SQL, à faire évoluer vers catégories/produits/variantes/stock/commandes | `sql/` |
+| Entrée HTTP | Réécriture `/api/...` vers PHP et du reste vers `front/dist/`                 | `.htaccess`  |
+
+Le front conserve le découpage `layouts/`, `pages/`, `ui/`, `data/` et `lib/`.
+Le back conserve `Core/`, `Controller/`, `Model/`, `routes.php` et son point
+d'entrée `back/index.php`. Ne crée pas une nouvelle couche ou un nouveau
+framework seulement pour contourner cette structure.
+
+Le chemin du projet `/~segrestan1/SAE301-Starter/` apparaît à deux
+endroits seulement et doit y rester identique : `BASE` dans
+`front/vite.config.js` et `chemin` dans `back/config/config.php`.
+
+Voir README.md
 
 ## 3. MVC strict
 
-Chaque page dynamique respecte le découpage, sans exception. En cas de doute
-sur l'emplacement d'une fonction, demande plutôt que de mélanger les rôles.
+Pour chaque page dynamique, respecter strictement :
 
-| Rôle | Responsabilité | Interdit |
-| ---- | -------------- | -------- |
-| **M** Modèle | Données, appels, filtres et calculs ; reçoit des valeurs simples et **retourne des données**, jamais du HTML | Référencer `V`, toucher au DOM |
-| **V** Vue | Templates, rendu, DOM, déclaration des événements ; reçoit les données en paramètre | Référencer `M`, logique métier, handler hors `C` |
-| **C** Contrôleur | Orchestre M et V, charge les données, valide les actions, contient les handlers ; seul à référencer M et V | Accéder au DOM autrement que via `ev`, stocker les données |
+- **M — Modèle** : état de la page, données reçues, appels et transformations
+  métier. Il ne référence jamais la Vue et ne touche jamais au DOM.
+- **V — Vue** : templates, rendu, accès DOM et déclaration des événements. Elle
+  reçoit les données en paramètre et ne référence jamais le Modèle.
+- **C — Contrôleur** : orchestre M et V, charge les données, valide les actions
+  et contient les handlers. C est le seul objet qui référence M et V.
 
-- Un nouveau besoin se découpe ainsi : donnée ou calcul → M ; affichage ou
+En JavaScript vanilla, `C.init()` est appelé après toutes les déclarations
+comme point d'entrée de la page. Dans le front modulaire actuel, la fonction de
+page peut retourner `C.init()` au routeur, mais la séparation M/C/V reste
+obligatoire.
+
+Lorsqu'une fonctionnalité est ajoutée, la découper ainsi :
+
+1. donnée, règle ou calcul → M ;
+2. affichage, template ou écouteur → V ;
+3. réaction à l'action → C.
+
+Un composant UI ne décide pas de la donnée à afficher : il reçoit ses données
+et signale l'action via des callbacks. Une page est reconstruite depuis son
+état après une mutation importante ; évite les modifications DOM dispersées.
+
+**Toute modification ou ajout respecte strictement ce découpage.** En cas de doute
+sur l'emplacement d'une fonction, s'arrêter et demander plutôt que de mélanger les rôles.
+
+```
+data (M) ----get----
+                    |
+                 C (Contrôleur) ------> page web
+                    |
+template (V) --get--
+```
+
+### M — le Modèle : les données et leur manipulation
+
+- Contient les données de l'application (`M.products`) et les fonctions qui les lisent,
+  filtrent ou transforment (`M.filterProducts(byCategory)`).
+- Ses fonctions reçoivent des valeurs simples en paramètre et **retournent des données**
+  (tableaux, objets), jamais du HTML.
+- **Interdit :** toute référence à `V`, tout accès au DOM (`document`, `window`, éléments HTML,
+  événements).
+- Autorisé : appeler `C` si besoin.
+
+### V — la Vue : la page web
+
+- Seul endroit où l'on touche au DOM : `document.querySelector`, lecture des `<template>`,
+  `innerHTML`, `addEventListener`.
+- `V.formatOne...(valeur)` remplit un template (`{{nom}}` → valeur) et retourne une chaîne.
+- `V.render...(data)` reçoit les données **en paramètre** et les affiche ; elle ne décide
+  pas quelles données afficher.
+- `V.init()` enregistre les événements à surveiller et leur associe un gestionnaire de `C`.
+- **Interdit :** toute référence à `M`, toute logique métier (filtrer, trier, calculer sur les
+  données), tout gestionnaire d'événement qui ne soit pas une méthode de `C`.
+
+### C — le Contrôleur : le lien entre M et V
+
+- `C.init()` lance l'application : initialise la Vue (et le Modèle s'il en a besoin), puis fait
+  le premier affichage. L'appel `C.init();` en dernière ligne est l'unique point d'entrée.
+- `C.handler_<action>(ev)` gère un événement : lit l'information utile dans `ev`
+  (ex. `ev.target.dataset.category`), interroge ou met à jour `M`, puis appelle `V` pour
+  rafraîchir l'affichage.
+- C est le seul objet autorisé à référencer à la fois `M` et `V`.
+- **Interdit :** accéder au DOM autrement que par l'objet `ev` reçu ; stocker les données de
+  l'application (elles vont dans `M`).
+
+### Conventions à suivre
+
+- Une fonction par propriété : `M.xxx = function(...) { ... }`, précédée d'un commentaire
+  qui donne ses paramètres (`. paramètre ...`) et sa valeur de retour (`> valeur de retour ...`),
+  comme dans le code existant.
+- Noms : `M.filter...`, `V.formatOne...`, `V.render...`, `V.init`, `C.init`, `C.handler_clickOn...`.
+- Un nouveau besoin se découpe toujours ainsi : donnée ou calcul → M ; affichage ou
   événement → V ; réaction à l'événement → C.
-- `C.init()` est le point d'entrée de la page (retourné au routeur dans le
-  front modulaire).
-- Conventions : `M.filter...`, `V.formatOne...`, `V.render...`, `V.init`,
-  `C.init`, `C.handler_<action>(ev)`. Une fonction par propriété,
-  précédée d'un commentaire `. paramètre` / `> valeur de retour` comme dans
-  l'existant.
-- Un composant UI reçoit ses données et signale l'action par callback. Une page
-  se reconstruit depuis son état après une mutation importante.
 
-## 4. Front-end
+## 4. Front-end JavaScript
 
-- ES modules et conventions existantes de `front/src/`.
-- Délégation d'événements sur un ancêtre commun pour les éléments recréés.
-- Toute donnée injectée dans un template est échappée ; `innerHTML` brut
-  uniquement via les helpers existants.
-- Appels réseau via `front/src/data/` et `front/src/lib/api-request.js`, en
-  `async/await`, avec gestion explicite des erreurs et statuts HTTP.
-- Le routeur garde les liens `data-link`, le `basename` Vite et la page 404.
-- États visibles et accessibles : chargement, vide, erreur, succès,
-  authentification, indisponibilité du stock.
-- URL propres imposées par les user stories (catégorie, produit, admin).
-- Prix en XPF, sans centimes, avec espaces insécables.
+- Utilise ES modules et les conventions déjà présentes dans `front/src/`.
+- Privilégie la délégation d'événements sur un ancêtre commun lorsque des
+  éléments sont recréés dynamiquement.
+- Toutes les données injectées dans un placeholder doivent être échappées.
+  N'utilise `innerHTML` brut que via les helpers existants et jamais avec une
+  valeur utilisateur non échappée.
+- Les appels réseau passent par `front/src/data/` et
+  `front/src/lib/api-request.js`, avec `async/await`, gestion explicite des
+  erreurs et des statuts HTTP.
+- Le routeur doit conserver les liens `data-link`, le `basename` Vite et la
+  page 404.
+- Les états loading, vide, erreur, succès, authentification et indisponibilité
+  du stock doivent être visibles et accessibles.
+- URL propres imposées par les user stories : `/categorie/nom-categorie`
+  (DEC-a), `/produit/nom-produit` (DEC-c), `/admin` (GOF-b).
+- Les prix sont en francs pacifiques (XPF), sans centimes : affichage
+  `14 900 XPF`, avec espaces insécables.
 
-## 5. Design et responsive
+## 5. Design responsive et direction artistique
 
-- Respecte la charte Matira et les maquettes Figma (lien dans `README.md`) :
-  interface claire, orientée produit, qui valorise les photos de bijoux.
-- Les tokens (couleurs, typographie) viennent de la charte et sont définis dans
-  le CSS du front : ne duplique pas de valeurs en dur, réutilise les tokens.
-- Contraste AA obligatoire : n'utilise pas la couleur de marque claire comme
-  couleur de texte sur fond blanc, prends le token de texte dédié.
-- Mobile First, aucune casse entre 320 px et desktop. Vérifie au minimum
-  320/375 px, 768 px et 1440 px quand l'UI change.
-- Images : `alt`, ratio, lazy-loading si pertinent, état de chargement.
-- Animations discrètes et utiles.
+Le site respecte la charte graphique de Matira Création et les maquettes Figma
+du projet (voir le lien en section 0) :
 
-### Tailwind CSS 4
+- interface claire et lumineuse, orientée produit, qui met en valeur les
+  photos de bijoux et la perle de Tahiti ;
+- logo Matira Création (feuille de palmier, MATIRA / CRÉATION) en turquoise
+  sur fond clair, en blanc sur fond turquoise ;
+- bandeau supérieur turquoise rappelant le retrait gratuit au centre Vaima,
+  navigation par catégories (Plaqué or, Acier, Homme…) utilisable au clavier ;
+- typographie **Raleway** ;
+- palette de la charte :
 
-- Reste sur Tailwind v4 (`@tailwindcss/vite`) ; pas de Sass ni de CSS séparé.
-- Tokens dans `@theme inline`, en séparant primitifs et sémantiques.
-- Variables privées de composant (`--_bg`, `--_fg`…) ; les modifiers ne font
-  que les réassigner.
-- Classes écrites en entier pour la détection par le compilateur.
+| Token                | Valeur    | Usage                                              |
+| -------------------- | --------- | -------------------------------------------------- |
+| Turquoise 500        | `#4DC5C1` | couleur de marque, accents, bordures actives       |
+| Turquoise 700        | `#1C7C78` | textes et liens turquoise, boutons (contraste AA)  |
+| Turquoise 50 / 100   | `#F1FAF9` / `#DDF3F2` | fonds doux                             |
+| Jaune 400            | `#E5E337` | accent ponctuel (compteur du panier)               |
+| Nacre 50 / 100       | `#FAF7F2` / `#F2ECE3` | fonds chauds                           |
+| Gris 900 / 600 / 300 | `#1C1C1C` / `#5B6162` / `#D5DCDC` | texte, texte secondaire, bordures |
+| Vert 700 / Rouge 700 | `#23683A` / `#A3261E` | états succès / erreur, stock           |
+
+- le turquoise `#4DC5C1` ne sert jamais de couleur de texte sur fond blanc
+  (contraste insuffisant) : utiliser `#1C7C78` ;
+- cartes produit : photo carrée, catégorie en petites capitales turquoise,
+  nom, prix, badge de stock ;
+- contrastes conformes à l'accessibilité, animations discrètes et utiles ;
+- grilles et composants Mobile First : deux colonnes de produits sur mobile,
+  composition intermédiaire tablette, grille et navigation étendues desktop ;
+- aucune largeur, image ou interaction ne doit casser entre 320 px et desktop ;
+- les images doivent prévoir `alt`, ratio, lazy-loading lorsque pertinent et
+  état de chargement.
+
+Le responsive est une contrainte fonctionnelle, pas une finition. Vérifie au
+minimum les vues à 320/375 px, 768 px et 1440 px lorsque l'UI est modifiée.
+Utilise Tailwind en Mobile First et garde les classes écrites en entier pour
+que le compilateur les détecte.
+
+### CSS, Tailwind et Sass
+
+- Le projet actuel utilise Tailwind CSS 4 via `@tailwindcss/vite`.
+- Configure les tokens dans `@theme inline`, en séparant tokens primitifs et
+  tokens sémantiques.
+- Utilise des variables CSS privées de composant (`--_bg`, `--_fg`, etc.) ;
+  les modifiers ne font que réassigner les variables.
+- Ne pas introduire Sass ni de CSS classique séparé : on reste sur Tailwind v4.
+- Architecture Tailwind v4 à respecter (exemple avec la charte Matira) :
+
+```css
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: var(--clr-primary);
+  --color-primary-text: var(--clr-primary-text);
+}
+
+@layer base {
+  :root {
+    /* Tokens primitifs (couleurs de base) */
+    --clr-turquoise-500: #4dc5c1;
+    --clr-turquoise-700: #1c7c78;
+    --clr-jaune-400: #e5e337;
+
+    /* Tokens sémantiques (ils disent à quoi ils servent) */
+    --clr-primary: var(--clr-turquoise-500);
+    --clr-primary-text: var(--clr-turquoise-700);
+    --clr-cart-badge: var(--clr-jaune-400);
+  }
+}
+
+.bouton--white {
+  --clr-text-btn: var(--clr-turquoise-700);
+}
+```
 
 ## 6. Back-end PHP
 
-- `declare(strict_types=1)` dans chaque fichier ; tout est typé.
-- Contrôleurs : valident et orchestrent. Modèles : interrogent la base.
-  `Core/` : abstractions HTTP, DB, routage.
-- Encapsulation `private`/`protected` ; abstraction et polymorphisme pour les
-  comportements réellement partagés.
-- Jamais de `foreach` : `for`, `while`, `array_map` ou équivalent explicite.
-- Jamais de HTML renvoyé : JSON via `Response::json()` / `Response::erreur()`,
-  avec code HTTP explicite et `exit`.
+- `declare(strict_types=1)` dans chaque fichier PHP.
+- Conserve `back/index.php` comme point d'entrée unique : autoload,
+  configuration, connexion, session, contrôleurs et routeur.
+- Les contrôleurs valident la requête et orchestrent ; les modèles interrogent
+  la base ; `Core/` contient les abstractions HTTP, DB et routage.
+- Type toutes les propriétés, paramètres et valeurs de retour.
+- Encapsule l'état avec `private`/`protected`, getters/setters validants et
+  fluent setters uniquement lorsqu'ils correspondent au besoin.
+- Préfère abstraction et polymorphisme pour les comportements réellement
+  partagés.
+- N'utilise jamais `foreach` ; utilise `for`, `while`, `array_map` ou un autre
+  itérateur explicite.
+- Ne renvoie jamais de HTML depuis l'API : les réponses restent JSON via
+  `Response::json()` ou `Response::erreur()`.
 
-## 7. Données et sécurité
+## 7. Données, commandes et sécurité
 
-Respecte les décisions de l'analyse des user stories (`README.md`) :
+Le futur modèle métier doit préserver les décisions documentées dans
+l'analyse des user stories (README.md) :
 
-- prix en entiers (XPF) ; stock porté par la variante (au moins une variante par
-  produit) ;
-- panier et lignes de commande identifiés par `variantId`, option choisie et
-  prix unitaire figé ;
-- commande validée dans une transaction SQL, numéro unique, décrément et
-  journal du stock, recrédit à l'annulation ;
+- tables `categorie`, `produit`, `variante`, `image_produit`, puis commandes ;
+- au moins 3 catégories de 4 bijoux, tirés du catalogue de matiracreation.com ;
+- prix stockés en entiers (XPF, sans centimes) ;
+- une variante par produit au minimum (« Modèle unique » pour un bijou sans
+  option), avec stock porté par la variante ; les options des bijoux sont par
+  exemple le coloris de la perle ou la taille de bague ;
+- panier et lignes de commande identifiés par `variantId`, avec option choisie
+  et prix unitaire figé ;
+- validation de commande dans une transaction SQL dès la première version ;
+- numéro de commande unique (ex. `MC-2026-00042`), statut initial « en cours » ;
+- décrément et journal du stock à la validation, recrédit lors de l'annulation ;
+- authentification par session serveur et rôle non fiable côté client ;
 - seeds disponibles dès le début pour débloquer les écrans de lecture.
 
-Obligatoire :
+Règles obligatoires :
 
-- requêtes PDO préparées ; liste blanche serveur pour tout identifiant SQL
-  dynamique (`ORDER BY`, colonnes, filtres) ;
+- requêtes PDO préparées pour les valeurs ;
+- liste blanche serveur pour tout identifiant SQL dynamique (`ORDER BY`,
+  colonnes, filtres structurants) ;
 - `session_start()` une seule fois, après configuration du cookie (`Path`,
   `HttpOnly`, `Secure`, `SameSite`) et avant toute sortie ;
-- `session_regenerate_id(true)` après connexion ou élévation de privilège ;
-- mots de passe via `password_hash()` ;
-- aucun rôle, droit, prix ou état de commande de confiance côté client ;
-- validation serveur de quantité, variante, disponibilité, prix et état de
-  commande ;
-- écritures de commande et de stock atomiques, idempotentes si nécessaire,
-  protégées contre la survente.
+- `session_regenerate_id(true)` après connexion réussie ou élévation de
+  privilège ;
+- mots de passe hachés avec `password_hash()` (bcrypt) ;
+- aucun rôle, droit, prix ou état de commande de confiance dans un cookie ;
+- réponses JSON centralisées avec code HTTP explicite et terminaison via `exit` ;
+- validation serveur de toute quantité, variante, disponibilité, prix et état
+  de commande ; le front ne fait jamais foi ;
+- les écritures de commande et de stock sont atomiques, idempotentes lorsque
+  nécessaire et protégées contre la survente.
 
-## 8. Ordre de réalisation
+## 8. Ordre de réalisation métier
 
-Suis l'ordre et le graphe de dépendances des user stories du `README.md`, sauf
-décision explicite : ne commence pas une US dont les dépendances ne sont pas
-terminées. Conserve la traçabilité interface ↔ API ↔ modèle SQL ↔ critères
-d'acceptation ↔ validation. Une branche Git par user story
-(`feature/<ID>-<nom>`), fusionnée dans `main` uniquement à ma demande.
+Respecte l'ordre défini dans l'analyse des user stories (README.md) sauf
+décision explicite :
+
+1. Fondations : dépôt, schéma (catégories, produits, variantes, images),
+   seeds Matira, layout et tokens de la charte ;
+2. `DEC-b` catalogue de produits ;
+3. `DEC-a` navigation par catégories ;
+4. `DEC-c` détail d'un produit — epic « Découvrir l'offre » terminé ;
+5. `CMD-b` panier d'achat ;
+6. `CMD-c` authentification ;
+7. `CMD-a` validation de commande — jalon 1, parcours d'achat complet ;
+8. `STK-b` affichage des stocks ;
+9. `STK-c` contraintes de stock ;
+10. `STK-a` décrément et journal du stock ;
+11. `GOF-b` back-office ;
+12. `GOF-a` gestion des produits, puis `GOF-c` gestion des catégories — jalon 2 ;
+13. `PIL-b` gestion des commandes, avec `STK-a` recrédit à l'annulation ;
+14. `SUI-b`, `SUI-c`, puis `SUI-a` ;
+15. `OPT-c`, puis `OPT-b`, puis `OPT-a` — jalon 3 ;
+16. `PIL-a` statistiques ;
+17. `PRO-a/b/c` uniquement en bonus, après stabilisation.
+
+Ne commence pas une US si ses dépendances du graphe ne sont pas terminées,
+sauf demande explicite. Pour chaque US, conserve la traçabilité entre
+interface, API, modèle SQL, critères d'acceptation et validation. Une branche
+Git par user story (`feature/DEC-b-catalogue`…), fusionnée dans `main` une
+fois terminée, uniquement à ma demande.
+
+Ne code pas sans mon accord et mes demandes. Je te demande de coder des
+fonctions ou fonctionnalités par-ci par-là, pas de tout faire à ma place.
 
 ## 9. Vérification obligatoire
 
-À la fin de chaque requête : `node .agents/skills/verifier-mvc/scripts/check-mvc.js .`
+Toujours à la fin de chaque requête, vérifier le découpage :
+`node .agents/skills/verifier-mvc/scripts/check-mvc.js .`
 
-## 10. Documentation
+## 10. Documentation et compte rendu
 
-Toute documentation générée est pédagogique : sections numérotées, tableaux
-récapitulatifs, check-lists et diagnostic.
+Toute documentation générée doit être pédagogique : sections numérotées,
+tableaux récapitulatifs, check-lists et diagnostic.
 
-## 11. Compte rendu après modification
+## 11. Après chaque modification
 
-<<<<<<< Updated upstream
 Fournis un résumé clair et expliqué avec :
 
 1. la liste des fichiers modifiés, créés ou supprimés avec leur chemin d'accès ;
@@ -179,10 +367,4 @@ Fournis un résumé clair et expliqué avec :
 3. les éventuels points d'attention et/ou étapes suivantes recommandées, en
    respectant toujours l'ordre qui doit être suivi ;
 4. les éventuels impacts sur le reste de l'application.
-=======
-1. Fichiers modifiés, créés ou supprimés (avec chemin).
-2. Détail des modifications (avec lignes).
-3. Points d'attention et prochaines étapes, dans l'ordre de la section 8.
-4. Impacts sur le reste de l'application.
-5. Commandes `git add`, `commit` et `push` à exécuter.
->>>>>>> Stashed changes
+5. Les commandes a exécuter pour add, commit et push les modifications.

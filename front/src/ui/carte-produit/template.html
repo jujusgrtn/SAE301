@@ -1,0 +1,13 @@
+<!-- Le lien du nom s'étend à toute la carte (after:inset-0) : une seule cible
+     cliquable, et un seul lien annoncé par les lecteurs d'écran. -->
+<article class="group relative flex flex-col">
+  <div class="aspect-square overflow-hidden rounded-md bg-surface-soft">
+    <slot name="image"></slot>
+  </div>
+
+  <p class="mt-3 text-[0.6875rem] font-semibold tracking-wider text-primary-text uppercase">{{categorie}}</p>
+  <h2 class="mt-0.5 text-sm leading-snug font-medium sm:text-[0.9375rem]"><a href="{{href}}" data-link class="transition-colors group-hover:text-primary-text after:absolute after:inset-0 after:content-['']">{{nom}}</a></h2>
+  <p class="text-[0.8125rem] text-muted">{{matiere}}</p>
+  <p class="mt-1.5 text-sm font-semibold">{{prix}}</p>
+  <div class="mt-1"><slot name="stock"></slot></div>
+</article>

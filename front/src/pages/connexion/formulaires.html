@@ -1,0 +1,56 @@
+<slot name="annonce"></slot>
+
+<div class="grid gap-6 md:grid-cols-2 md:gap-8">
+  <section aria-labelledby="titre-connexion" class="rounded-md border border-line p-5 sm:p-6">
+    <h2 id="titre-connexion" class="text-lg font-semibold">J'ai déjà un compte</h2>
+
+    <form data-form="connexion" class="mt-4 flex flex-col gap-4">
+      <slot name="erreur-connexion"></slot>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="connexion-email" class="text-sm font-medium">E-mail</label>
+        <input id="connexion-email" name="email" type="email" required autocomplete="email" value="{{emailConnexion}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="connexion-mot-de-passe" class="text-sm font-medium">Mot de passe</label>
+        <input id="connexion-mot-de-passe" name="motDePasse" type="password" required autocomplete="current-password" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60 sm:self-start">Se connecter</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="titre-inscription" class="rounded-md border border-line p-5 sm:p-6">
+    <h2 id="titre-inscription" class="text-lg font-semibold">Je crée mon compte</h2>
+    <p class="mt-1 text-sm text-muted">Pour réserver vos bijoux et les retirer au centre Vaima.</p>
+
+    <form data-form="inscription" class="mt-4 flex flex-col gap-4">
+      <slot name="erreur-inscription"></slot>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-1.5">
+          <label for="inscription-prenom" class="text-sm font-medium">Prénom</label>
+          <input id="inscription-prenom" name="prenom" type="text" required maxlength="60" autocomplete="given-name" value="{{prenom}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="inscription-nom" class="text-sm font-medium">Nom</label>
+          <input id="inscription-nom" name="nom" type="text" required maxlength="60" autocomplete="family-name" value="{{nom}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="inscription-email" class="text-sm font-medium">E-mail</label>
+        <input id="inscription-email" name="email" type="email" required maxlength="190" autocomplete="email" value="{{emailInscription}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="inscription-mot-de-passe" class="text-sm font-medium">Mot de passe</label>
+        <input id="inscription-mot-de-passe" name="motDePasse" type="password" required minlength="8" autocomplete="new-password" aria-describedby="aide-mot-de-passe" class="h-11 rounded-md border border-line bg-transparent px-3">
+        <p id="aide-mot-de-passe" class="text-[0.8125rem] text-muted">8 caractères minimum.</p>
+      </div>
+
+      <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60 sm:self-start">Créer mon compte</button>
+    </form>
+  </section>
+</div>

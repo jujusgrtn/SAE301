@@ -38,7 +38,7 @@ front/               sources du front (Vite + Tailwind)
    tables `film` et `genre` ; une table existante de même nom serait
    remplacée).
 2. Dans `back/config/config.php`, renseignez les identifiants de la base et
-   le chemin du projet (`/~votre_login/Base/`).
+   le chemin du projet (`/~votre_login/SAE301-Starter/`).
 3. Dans `front/vite.config.js`, donnez à `BASE` **exactement** le même chemin.
 4. Dans `front/`, installez les dépendances :
 
@@ -56,8 +56,8 @@ Le chemin du projet apparaît donc à deux endroits, et seulement là :
 npm run dev
 ```
 
-Le front est servi par Vite à `http://localhost:5173/~votre_login/Base/`, avec
-rechargement à chaque modification. Les requêtes `/~votre_login/Base/api/...`
+Le front est servi par Vite à `http://localhost:5173/~votre_login/SAE301-Starter/`, avec
+rechargement à chaque modification. Les requêtes `/~votre_login/SAE301-Starter/api/...`
 sont relayées par Vite vers l'API déployée sur `mmi.unilim.fr` : le back doit
 donc être en place sur le serveur (voir Déployer).
 
@@ -78,10 +78,10 @@ npm run build
 ```
 
 Le front compilé est produit dans `front/dist/`. Déposez ensuite dans votre
-espace web, dans le dossier `Base/` : `.htaccess`, `back/` et `front/dist/`
+espace web, dans le dossier `SAE301-Starter/` : `.htaccess`, `back/` et `front/dist/`
 (en gardant ce chemin). Inutile de déposer `front/node_modules/`.
 
-L'application est alors à `https://mmi.unilim.fr/~votre_login/Base/`. Le
+L'application est alors à `https://mmi.unilim.fr/~votre_login/SAE301-Starter/`. Le
 `.htaccess` sert les fichiers de `front/dist/`, et répond par
 `front/dist/index.html` à toute autre adresse (`/admin`…) : c'est le routeur
 du front qui affiche la bonne page, ou la page 404.

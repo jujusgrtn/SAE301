@@ -1,0 +1,18 @@
+<div class="grid gap-8 lg:grid-cols-[1fr_18rem] lg:items-start">
+  <div>
+    <slot name="message"></slot>
+    <ul class="divide-y divide-line border-y border-line">
+      <slot name="lignes"></slot>
+    </ul>
+  </div>
+
+  <aside aria-labelledby="titre-recapitulatif" class="rounded-md bg-surface-soft p-5">
+    <h2 id="titre-recapitulatif" class="text-base font-semibold">Récapitulatif</h2>
+    <dl class="mt-4 flex items-baseline justify-between gap-4">
+      <dt class="text-sm">Total ({{nombreArticles}})</dt>
+      <dd class="text-lg font-semibold">{{total}}</dd>
+    </dl>
+    <p class="mt-4 text-[0.8125rem] text-muted">Rien à payer en ligne : vous essayez et réglez vos bijoux au retrait, au centre Vaima à Papeete.</p>
+    <slot name="validation"></slot>
+  </aside>
+</div>

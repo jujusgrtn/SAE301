@@ -1,0 +1,19 @@
+<div class="rounded-md bg-surface-soft p-5 sm:p-6">
+  <p class="text-sm font-semibold text-success">Réservation confirmée</p>
+  <h2 class="mt-1 text-xl font-semibold tracking-tight">N° {{numero}}</h2>
+  <p class="mt-1 text-sm text-muted">Validée le {{date}} · {{statut}}</p>
+  <p class="mt-4 text-sm">Présentez ce numéro au centre Vaima, à Papeete : vous essayez vos bijoux et vous les réglez sur place.</p>
+</div>
+
+<section aria-labelledby="titre-detail" class="mt-8">
+  <h2 id="titre-detail" class="text-lg font-semibold">Détail</h2>
+  <ul class="mt-3 divide-y divide-line border-y border-line">
+    <slot name="lignes"></slot>
+  </ul>
+  <dl class="mt-4 flex items-baseline justify-between gap-4">
+    <dt class="text-sm">Total à régler en boutique</dt>
+    <dd class="text-lg font-semibold">{{total}}</dd>
+  </dl>
+</section>
+
+<a href="{{urlCatalogue}}" data-link class="mt-8 inline-flex h-11 items-center justify-center rounded-md border border-line px-6 text-sm font-semibold transition-colors hover:border-primary">Continuer mes achats</a>

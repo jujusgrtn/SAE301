@@ -1,0 +1,11 @@
+<li class="flex items-center gap-4 py-3">
+  <div class="size-16 shrink-0 overflow-hidden rounded-md bg-surface-soft">
+    <slot name="image"></slot>
+  </div>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm font-medium">{{nom}}</p>
+    <p class="text-[0.8125rem] text-muted">{{libelle}} · {{quantite}} × {{prixUnitaire}}</p>
+    <slot name="alerte"></slot>
+  </div>
+  <p class="text-sm font-semibold whitespace-nowrap">{{sousTotal}}</p>
+</li>

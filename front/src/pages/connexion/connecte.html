@@ -1,0 +1,11 @@
+<div class="rounded-md bg-surface-soft p-5 sm:p-6">
+  <p data-zone="bienvenue" tabindex="-1" class="text-lg font-semibold focus:outline-none">Bonjour, {{prenom}} !</p>
+  <p class="mt-1 text-sm text-muted">Vous êtes connecté avec {{email}}.</p>
+
+  <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <a href="{{urlPanier}}" data-link class="inline-flex h-11 items-center justify-center rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90">Voir mon panier</a>
+    <a href="{{urlCatalogue}}" data-link class="inline-flex h-11 items-center justify-center rounded-md border border-line px-6 text-sm font-semibold transition-colors hover:border-primary">Continuer mes achats</a>
+    <button type="button" data-action="deconnexion" class="h-11 px-2 text-sm text-muted underline underline-offset-2 hover:text-danger aria-disabled:cursor-wait sm:ml-auto">Se déconnecter</button>
+  </div>
+  <p class="mt-3 text-[0.8125rem] text-muted">La déconnexion vide votre panier.</p>
+</div>

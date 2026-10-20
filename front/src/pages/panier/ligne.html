@@ -1,0 +1,23 @@
+<li class="flex gap-4 py-4">
+  <div class="size-20 shrink-0 overflow-hidden rounded-md bg-surface-soft sm:size-24">
+    <slot name="image"></slot>
+  </div>
+
+  <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h2 class="text-sm font-medium sm:text-[0.9375rem]"><a href="{{href}}" data-link class="underline-offset-2 hover:text-primary-text hover:underline">{{nom}}</a></h2>
+      <p class="mt-0.5 text-[0.8125rem] text-muted">{{libelle}} · {{prixUnitaire}} l'unité</p>
+      <slot name="alerte"></slot>
+      <button type="button" data-action="retirer" data-variant-id="{{variantId}}" class="mt-2 text-[0.8125rem] text-muted underline underline-offset-2 hover:text-danger aria-disabled:cursor-wait">Retirer<span class="sr-only"> {{nom}} du panier</span></button>
+    </div>
+
+    <div class="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
+      <div role="group" aria-label="Quantité de {{nom}}" class="inline-flex items-center rounded-md border border-line">
+        <button type="button" data-action="diminuer" data-variant-id="{{variantId}}" aria-label="Retirer un exemplaire" class="size-9 text-lg aria-disabled:cursor-not-allowed aria-disabled:opacity-40">−</button>
+        <span class="min-w-8 text-center text-sm font-semibold">{{quantite}}</span>
+        <button type="button" data-action="augmenter" data-variant-id="{{variantId}}" aria-label="Ajouter un exemplaire" class="size-9 text-lg aria-disabled:cursor-not-allowed aria-disabled:opacity-40">+</button>
+      </div>
+      <p class="text-sm font-semibold">{{sousTotal}}</p>
+    </div>
+  </div>
+</li>

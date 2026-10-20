@@ -1,0 +1,28 @@
+<div class="flex flex-col gap-3 rounded-md bg-surface-soft p-5 sm:flex-row sm:items-center sm:p-6">
+  <div>
+    <p data-zone="bienvenue" tabindex="-1" class="text-lg font-semibold focus:outline-none">Bonjour, {{identifiant}}</p>
+    <p class="mt-1 text-sm text-muted">Vous êtes connecté au back-office.</p>
+  </div>
+  <button type="button" data-action="deconnexion" class="h-11 self-start px-2 text-sm text-muted underline underline-offset-2 hover:text-danger aria-disabled:cursor-wait sm:ml-auto sm:self-center">Se déconnecter</button>
+</div>
+
+<h2 class="mt-8 mb-4 text-lg font-semibold">Gestion de la boutique</h2>
+
+<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <!-- Le lien du titre s'étend à toute la carte (after:inset-0). -->
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlProduits}}" data-link class="after:absolute after:inset-0 after:content-['']">Produits</a></h3>
+    <p class="text-sm text-muted">Ajouter, modifier ou retirer des bijoux et leurs variantes.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les produits →</p>
+  </li>
+  <li class="flex flex-col gap-2 rounded-md border border-line p-5">
+    <h3 class="font-semibold">Catégories</h3>
+    <p class="text-sm text-muted">Organiser les catégories et sous-catégories du catalogue.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Bientôt disponible</p>
+  </li>
+  <li class="flex flex-col gap-2 rounded-md border border-line p-5">
+    <h3 class="font-semibold">Commandes</h3>
+    <p class="text-sm text-muted">Suivre les réservations et préparer les retraits au centre Vaima.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Bientôt disponible</p>
+  </li>
+</ul>

@@ -10,8 +10,8 @@ catalogue de bijoux (catégories, produits, variantes, stock, commandes).
 
 | Ressource             | Lien                                                       |
 | --------------------- | ---------------------------------------------------------- |
-| Site en production    | https://mmi.unilim.fr/~segrestan1/SAE301-Starter/Base/     |
-| Site en développement | http://localhost:5173/~segrestan1/SAE301-Starter/Base/     |
+| Site en production    | https://mmi.unilim.fr/~segrestan1/SAE301-Starter/     |
+| Site en développement | http://localhost:5173/~segrestan1/SAE301-Starter/     |
 | Dépôt GitHub          | https://github.com/jujusgrtn/SAE301                        |
 | Maquettes Figma       | https://www.figma.com/design/BF6DnP4noqun61O6jHr4MJ        |
 
@@ -29,14 +29,15 @@ PDO et une organisation en couches `Core`, `Controller` et `Model`.
 
 ## 2. Organisation globale du dépôt
 
-Le dossier `Base/` est la racine déployée sur le serveur, dans
-`~/public_html/SAE301-Starter/Base/`.
+La racine du dépôt est la racine déployée sur le serveur, dans
+`~/public_html/SAE301-Starter/`.
 
 ```text
-Base/
+SAE301-Starter/
 ├── AGENTS.md                 règles générales pour les modifications
 ├── ARCHITECTURE.md           ce document
 ├── README.md                 présentation, installation, analyse des user stories
+├── SKILL.md                  méthode de réalisation d'une US, avec exemples
 ├── .gitignore                node_modules, dist et config.php exclus de Git
 ├── .htaccess                 point d'entrée HTTP déployé
 ├── back/
@@ -385,7 +386,7 @@ coordonnée le SQL, les modèles, les contrôleurs, les routes, les modules
 Depuis [`front/`](./front/), dans le terminal SSH :
 
 ```bash
-cd ~/public_html/SAE301-Starter/Base/front
+cd ~/public_html/SAE301-Starter/front
 npm install
 npm run dev
 ```
@@ -394,10 +395,10 @@ Vite utilise par défaut le port `5173` et le chemin de base configuré dans
 [`vite.config.js`](./front/vite.config.js) :
 
 ```text
-/~segrestan1/SAE301-Starter/Base/
+/~segrestan1/SAE301-Starter/
 ```
 
-L'application s'ouvre sur http://localhost:5173/~segrestan1/SAE301-Starter/Base/
+L'application s'ouvre sur http://localhost:5173/~segrestan1/SAE301-Starter/
 (VS Code Remote-SSH transfère le port automatiquement ; si le port est pris,
 Vite en affiche un autre). Le proxy Vite relaie les requêtes `/api/` vers
 `https://mmi.unilim.fr` sous le même chemin de base. La valeur `BASE` du front
@@ -407,7 +408,7 @@ doit rester identique à `chemin` dans
 ### 7.2 Compilation
 
 ```bash
-cd ~/public_html/SAE301-Starter/Base/front
+cd ~/public_html/SAE301-Starter/front
 npm run build
 ```
 
@@ -437,12 +438,12 @@ Avant de considérer une modification front terminée :
 
 | Symptôme | Vérifications à effectuer |
 | --- | --- |
-| « Not Found » sur `…/Base/` | `front/dist/` absent : lancer `npm run build` depuis `front/` |
+| « Not Found » sur `…/SAE301-Starter/` | `front/dist/` absent : lancer `npm run build` depuis `front/` |
 | Page blanche ou assets en 404 | vérifier `BASE` dans `vite.config.js` et relancer `npm run build` |
 | Route `/admin` inaccessible après rechargement | vérifier que `.htaccess` renvoie les routes front vers `front/dist/index.html` |
 | API en 404 en développement | vérifier le proxy Vite et la disponibilité du back sur `mmi.unilim.fr` |
 | Catalogue impossible à charger | vérifier `back/config/config.php`, la connexion MySQL et l'import de `sql/import.sql` |
-| `npm` ne trouve pas `package.json` | se placer dans `Base/front/` avant `npm run dev` ou `npm run build` |
+| `npm` ne trouve pas `package.json` | se placer dans `front/` avant `npm run dev` ou `npm run build` |
 | Session ou préférences non conservées | vérifier la cohérence entre `BASE` et `chemin` |
 | Statistiques refusées | vérifier la session et laisser le serveur décider des droits `401`/`403` |
 
