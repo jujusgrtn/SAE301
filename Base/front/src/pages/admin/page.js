@@ -1,5 +1,5 @@
 import { AdminData } from "../../data/admin.js";
-import { genericRenderer, htmlToFragment } from "../../lib/utils.js";
+import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
@@ -338,7 +338,10 @@ V.createContentFragment = function (state) {
     return htmlToFragment(genericRenderer(templateLoadError, { texte: state.loadError }));
   }
   if (state.status === "ready") {
-    return htmlToFragment(genericRenderer(templateDashboard, { identifiant: state.admin.identifiant }));
+    return htmlToFragment(genericRenderer(templateDashboard, {
+        identifiant: state.admin.identifiant,
+        urlProduits: routeUrl("/admin/produits"),
+      }));
   }
   return V.createFormFragment(state);
 };

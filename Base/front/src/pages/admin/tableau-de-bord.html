@@ -9,10 +9,11 @@
 <h2 class="mt-8 mb-4 text-lg font-semibold">Gestion de la boutique</h2>
 
 <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-  <li class="flex flex-col gap-2 rounded-md border border-line p-5">
-    <h3 class="font-semibold">Produits</h3>
+  <!-- Le lien du titre s'étend à toute la carte (after:inset-0). -->
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlProduits}}" data-link class="after:absolute after:inset-0 after:content-['']">Produits</a></h3>
     <p class="text-sm text-muted">Ajouter, modifier ou retirer des bijoux et leurs variantes.</p>
-    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Bientôt disponible</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les produits →</p>
   </li>
   <li class="flex flex-col gap-2 rounded-md border border-line p-5">
     <h3 class="font-semibold">Catégories</h3>
