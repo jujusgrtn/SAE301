@@ -50,7 +50,7 @@ function htmlToFragment(htmlString) {
 
 /**
  * Adresse complète d'une route : « /categorie/bagues » devient
- * « /~login/…/Base/categorie/bagues ».
+ * « /~login/SAE301-Starter/categorie/bagues ».
  *
  * Le routeur complète lui-même les liens data-link présents au moment où il
  * affiche une page. Un lien ajouté plus tard (après un chargement de données)

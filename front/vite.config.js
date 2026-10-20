@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 // Chemin du projet sur le serveur, avec la barre finale. Il doit être
 // identique à « chemin » dans back/config/config.php.
-const BASE = "/~segrestan1/SAE301-Starter/Base/";
+const BASE = "/~segrestan1/SAE301-Starter/";
 
 // Serveur qui héberge l'API.
 const SERVEUR = "https://mmi.unilim.fr";
@@ -17,8 +17,8 @@ export default defineConfig({
   plugins: [tailwindcss()],
 
   // En développement (npm run dev), le front est servi par Vite sur
-  // http://localhost:5173/~votre_login/Base/ et les requêtes vers
-  // /~votre_login/Base/api/... sont relayées vers le serveur. Pour le
+  // http://localhost:5173/~votre_login/SAE301-Starter/ et les requêtes vers
+  // /~votre_login/SAE301-Starter/api/... sont relayées vers le serveur. Pour le
   // navigateur, front et API ont donc la même origine et le même chemin
   // qu'en production : les cookies de l'API (préférences, session) sont
   // acceptés et renvoyés comme sur le serveur.

@@ -2,7 +2,7 @@
 # Aiguillage principal du projet.
 #
 # Le projet est déposé dans un espace web personnel et accessible à
-# https://mmi.unilim.fr/~votre_login/Base/
+# https://mmi.unilim.fr/~votre_login/SAE301-Starter/
 # Ce fichier décide, pour chaque requête, si elle relève du back (l'API) ou
 # du front (le résultat de npm run build, dans front/dist/).
 # ---------------------------------------------------------------------------

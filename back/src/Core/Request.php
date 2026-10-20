@@ -44,7 +44,7 @@ final class Request
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
         // L'application est déployée dans un sous-dossier, donc l'URL reçue
-        // ressemble à /~votre_login/Base/api/films. On ne conserve que la partie
+        // ressemble à /~votre_login/SAE301-Starter/api/films. On ne conserve que la partie
         // qui nous concerne, à partir du marqueur /api/.
         $position = strpos($uri, '/api/');
         $chemin   = $position === false ? '/' : substr($uri, $position);

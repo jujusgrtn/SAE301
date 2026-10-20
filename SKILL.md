@@ -7,7 +7,7 @@ description: Méthode pour réaliser une user story du projet SAE301 Matira Cré
 
 Ce skill complète `AGENTS.md` (les règles) par la **méthode** et des **exemples réels** tirés
 des US déjà livrées. En cas de conflit, `AGENTS.md` fait foi. Les chemins sont donnés depuis
-`Base/`.
+la racine du dépôt (`~/public_html/SAE301-Starter/`).
 
 ## 1. Quand utiliser ce skill
 
@@ -343,12 +343,12 @@ premier dans le compte rendu.
 ### 7.1 Vérifications systématiques
 
 ```bash
-cd ~/public_html/SAE301-Starter/Base
+cd ~/public_html/SAE301-Starter
 for f in back/index.php back/src/routes.php back/src/Model/*.php back/src/Controller/*.php; do php -l "$f" | grep -v "No syntax"; done
 grep -rn "foreach\| fn" back/src/Model/<Nouveau>.php back/src/Controller/<Nouveau>.php
 grep -n "=>\|forEach" front/src/pages/<page>/page.js      # aucun résultat attendu
 (cd front && npm run build)                                # « ✓ built in … »
-cd .. && node .agents/skills/verifier-mvc/scripts/check-mvc.js .   # depuis la racine du dépôt (AGENTS.md §9) ; signaler s'il est absent
+node .agents/skills/verifier-mvc/scripts/check-mvc.js .    # AGENTS.md §9 ; signaler s'il est absent
 ```
 
 ### 7.2 Tester l'API avec une vraie session
@@ -360,7 +360,7 @@ qui imite `.htaccess` :
 ```php
 <?php // router.php, dans le dossier temporaire de session, jamais dans le dépôt
 if (str_contains($_SERVER['REQUEST_URI'], '/api/')) {
-    require '/home/etudiants/segrestan1/public_html/SAE301-Starter/Base/back/index.php';
+    require '/home/etudiants/segrestan1/public_html/SAE301-Starter/back/index.php';
     return true;
 }
 return false;
@@ -427,7 +427,7 @@ Suivre `AGENTS.md` §11, dans cet ordre :
 
 ```bash
 cd ~/public_html/SAE301-Starter
-git add Base/back Base/front/src          # + Base/sql si le schéma a changé
+git add back front/src                    # + sql si le schéma a changé
 git commit -m "<CODE> : <résumé>"
 git push -u origin feature/<CODE>-<sujet>
 ```

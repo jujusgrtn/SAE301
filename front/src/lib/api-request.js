@@ -2,7 +2,7 @@
  * Appels à l'API.
  *
  * L'API est servie avec le front, sous le même chemin :
- * /~login/Base/api/... (import.meta.env.BASE_URL vaut /~login/Base/).
+ * /~login/SAE301-Starter/api/... (import.meta.env.BASE_URL vaut /~login/SAE301-Starter/).
  *
  * Front et API ayant la même origine, le navigateur joint automatiquement les
  * cookies du site à chaque requête : aucune option n'est nécessaire ici.

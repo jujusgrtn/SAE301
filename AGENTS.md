@@ -21,8 +21,8 @@ Liens du projet :
 
 | Ressource           | Lien                                                         |
 | ------------------- | ------------------------------------------------------------ |
-| Site en production  | https://mmi.unilim.fr/~segrestan1/SAE301-Starter/Base/       |
-| Site en développement | http://localhost:5173/~segrestan1/SAE301-Starter/Base/     |
+| Site en production  | https://mmi.unilim.fr/~segrestan1/SAE301-Starter/       |
+| Site en développement | http://localhost:5173/~segrestan1/SAE301-Starter/     |
 | Dépôt GitHub        | https://github.com/jujusgrtn/SAE301                          |
 | Maquettes Figma     | https://www.figma.com/design/BF6DnP4noqun61O6jHr4MJ          |
 | Site de l'enseigne  | https://www.matiracreation.com/                              |
@@ -57,7 +57,7 @@ configurations et les sous-dossiers, avant une modification structurante.
   métier et commentaires pédagogiques peuvent rester en français comme dans
   l'existant.
 - Pour chaque test ou vérification : `cd front/`, puis `npm run dev`, puis
-  ouverture de http://localhost:5173/~segrestan1/SAE301-Starter/Base/ grâce à
+  ouverture de http://localhost:5173/~segrestan1/SAE301-Starter/ grâce à
   la config `vite.config.js` (si le port 5173 est pris, Vite affiche le port
   utilisé). Les requêtes `/api/...` sont relayées vers l'API déployée sur
   mmi.unilim.fr.
@@ -66,7 +66,8 @@ configurations et les sous-dossiers, avant une modification structurante.
 ## 2. Architecture actuelle à respecter
 
 Le dépôt est un full-stack sans framework applicatif. Les chemins sont donnés
-depuis le dossier `Base/` (racine déployée sur le serveur) :
+depuis la racine du dépôt (`~/public_html/SAE301-Starter/`, racine déployée sur
+le serveur) :
 
 | Zone        | Rôle                                                                          | Emplacement  |
 | ----------- | ----------------------------------------------------------------------------- | ------------ |
@@ -80,7 +81,7 @@ Le back conserve `Core/`, `Controller/`, `Model/`, `routes.php` et son point
 d'entrée `back/index.php`. Ne crée pas une nouvelle couche ou un nouveau
 framework seulement pour contourner cette structure.
 
-Le chemin du projet `/~segrestan1/SAE301-Starter/Base/` apparaît à deux
+Le chemin du projet `/~segrestan1/SAE301-Starter/` apparaît à deux
 endroits seulement et doit y rester identique : `BASE` dans
 `front/vite.config.js` et `chemin` dans `back/config/config.php`.
 

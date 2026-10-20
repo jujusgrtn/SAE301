@@ -17,8 +17,8 @@ class Router {
     this.routes = [];
     this.layouts = {};
 
-    // Chemin du projet sans la barre finale : « /~login/Base/ » devient
-    // « /~login/Base », et « / » devient « ».
+    // Chemin du projet sans la barre finale : « /~login/SAE301-Starter/ » devient
+    // « /~login/SAE301-Starter », et « / » devient « ».
     this.base = (options.base ?? "/").replace(/\/$/, "");
 
     // Numéro de la dernière navigation demandée (voir handleRoute).
@@ -108,14 +108,14 @@ class Router {
     return params;
   }
 
-  // Chemin de route d'une adresse : /~login/Base/admin -> /admin
+  // Chemin de route d'une adresse : /~login/SAE301-Starter/admin -> /admin
   routePath(pathname) {
     if (pathname === this.base) return "/";
     if (pathname.startsWith(this.base + "/")) return pathname.slice(this.base.length);
     return pathname;
   }
 
-  // Adresse d'un chemin de route : /admin -> /~login/Base/admin
+  // Adresse d'un chemin de route : /admin -> /~login/SAE301-Starter/admin
   url(path) {
     return this.base + path;
   }

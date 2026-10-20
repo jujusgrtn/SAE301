@@ -1,2 +1,14 @@
+# Dépendances et build du front : se régénèrent avec npm install et npm run build
 front/node_modules/
 front/dist/
+
+# Identifiants MySQL réels : restent sur le serveur, jamais dans le dépôt
+# (seul back/config/config.example.php est versionné).
+back/config/config.php
+
+# Fichiers d'environnement des éditeurs et systèmes
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
