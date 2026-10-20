@@ -9,6 +9,7 @@ use App\Controller\CartController;
 use App\Controller\AccountController;
 use App\Controller\OrderController;
 use App\Controller\AdminController;
+use App\Controller\AdminProductController;
 
 /**
  * Table des routes de l'API.
@@ -38,4 +39,5 @@ return [
     'GET  /api/admin/compte'        => [AdminController::class, 'show'],
     'POST /api/admin/connexion'     => [AdminController::class, 'login'],
     'POST /api/admin/deconnexion'   => [AdminController::class, 'logout'],
+    'GET  /api/admin/produits'      => [AdminProductController::class, 'index'],
 ];

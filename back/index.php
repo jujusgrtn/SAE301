@@ -23,6 +23,7 @@ use App\Controller\CartController;
 use App\Controller\AccountController;
 use App\Controller\OrderController;
 use App\Controller\AdminController;
+use App\Controller\AdminProductController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
@@ -78,6 +79,7 @@ try {
         AccountController::class   => new AccountController(new UserModel($pdo)),
         OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo)),
         AdminController::class     => new AdminController(new AdminModel($pdo)),
+        AdminProductController::class => new AdminProductController(new AdminModel($pdo), new ProductModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';
