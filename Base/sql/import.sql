@@ -5,7 +5,8 @@
 --   - « Découvrir l'offre » (DEC-a, DEC-b, DEC-c) : categorie, produit,
 --     image_produit ;
 --   - « Commander en click & collect » (CMD-a, CMD-b, CMD-c) : variante,
---     utilisateur, commande, ligne_commande.
+--     utilisateur, commande, ligne_commande ;
+--   - « Gérer les stocks » (STK-a) : mouvement_stock.
 -- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
 -- sont pas créées ici.
 --
@@ -20,6 +21,7 @@
 SET NAMES utf8mb4;
 
 -- Suppression dans l'ordre inverse des dépendances (clés étrangères).
+DROP TABLE IF EXISTS mouvement_stock;
 DROP TABLE IF EXISTS ligne_commande;
 DROP TABLE IF EXISTS commande;
 DROP TABLE IF EXISTS utilisateur;
@@ -220,6 +222,46 @@ CREATE TABLE ligne_commande (
         ON UPDATE CASCADE,
 
     CONSTRAINT ck_ligne_quantite CHECK (quantite > 0)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Journal des mouvements de stock (STK-a)
+--
+-- Une ligne par variation du stock d'une variante : sortie à la validation
+-- d'une réservation, entrée à son annulation (PIL-b), ajustement manuel
+-- (back-office). Le journal permet de retrouver l'origine de chaque stock.
+--
+-- quantite : variation signée (-2 = deux exemplaires sortis, +1 = un rentré).
+-- stock_apres : stock de la variante juste après le mouvement.
+-- variante_id et commande_id passent à NULL si la variante ou la réservation
+-- est supprimée : le journal reste complet.
+-- ---------------------------------------------------------------------------
+CREATE TABLE mouvement_stock (
+    id             INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    variante_id    SMALLINT UNSIGNED NULL,
+    commande_id    INT UNSIGNED      NULL,
+    quantite       SMALLINT          NOT NULL,
+    stock_apres    SMALLINT UNSIGNED NOT NULL,
+    motif          ENUM('reservation', 'annulation', 'ajustement') NOT NULL,
+    date_mouvement DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_mouvement_variante (variante_id),
+    KEY idx_mouvement_commande (commande_id),
+
+    CONSTRAINT fk_mouvement_variante
+        FOREIGN KEY (variante_id) REFERENCES variante (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_mouvement_commande
+        FOREIGN KEY (commande_id) REFERENCES commande (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    CONSTRAINT ck_mouvement_quantite CHECK (quantite <> 0)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;

@@ -28,12 +28,17 @@ final class OrderModel
     /** Connexion à la base, fournie à la construction. */
     private PDO $pdo;
 
+    /** Mouvements de stock, sur la même connexion : ils entrent dans la transaction. */
+    private StockModel $stock;
+
     /**
-     * @param PDO $pdo Connexion ouverte par back/index.php.
+     * @param PDO        $pdo   Connexion ouverte par back/index.php.
+     * @param StockModel $stock Modèle des mouvements de stock, sur la même connexion.
      */
-    public function __construct(PDO $pdo)
+    public function __construct(PDO $pdo, StockModel $stock)
     {
-        $this->pdo = $pdo;
+        $this->pdo   = $pdo;
+        $this->stock = $stock;
     }
 
     /**
@@ -44,7 +49,8 @@ final class OrderModel
      * Les prix et les stocks sont relus en base dans la transaction ; les
      * variantes sont verrouillées (FOR UPDATE) : entre le contrôle du stock
      * (STK-c) et la fin de la transaction, aucune autre validation ne peut
-     * utiliser les mêmes exemplaires. Le décrément (STK-a) s'ajoutera ici.
+     * utiliser les mêmes exemplaires. Le stock de chaque variante est ensuite
+     * décrémenté et journalisé (STK-a), dans la même transaction.
      *
      * Le numéro (MC-2026-00042) est déduit de l'identifiant auto-incrémenté,
      * unique par construction : deux validations simultanées ne peuvent pas
@@ -81,6 +87,10 @@ final class OrderModel
             $statement->execute();
 
             $this->insertLines($orderId, $lines);
+
+            for ($i = 0; $i < count($lines); $i++) {
+                $this->stock->withdraw($lines[$i]['variantId'], $lines[$i]['quantite'], $orderId);
+            }
 
             $this->pdo->commit();
         } catch (Throwable $e) {
