@@ -371,6 +371,7 @@ V.createCartFragment = function (state) {
     genericRenderer(templateContent, {
       nombreArticles: state.itemCountLabel,
       total: formatPrice(state.total),
+      urlRecapitulatif: routeUrl("/commande/recapitulatif"),
     })
   );
 

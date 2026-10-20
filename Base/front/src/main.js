@@ -5,6 +5,8 @@ import { CategoryPage } from "./pages/categorie/page.js";
 import { ProductPage } from "./pages/produit/page.js";
 import { CartPage } from "./pages/panier/page.js";
 import { LoginPage } from "./pages/connexion/page.js";
+import { SummaryPage } from "./pages/recapitulatif/page.js";
+import { ConfirmationPage } from "./pages/confirmation/page.js";
 import { AdminPage } from "./pages/admin/page.js";
 import { The404Page } from "./pages/404/page.js";
 
@@ -18,6 +20,8 @@ router.addRoute("/categorie/:slug", CategoryPage);
 router.addRoute("/produit/:slug", ProductPage);
 router.addRoute("/panier", CartPage);
 router.addRoute("/connexion", LoginPage);
+router.addRoute("/commande/recapitulatif", SummaryPage);
+router.addRoute("/commande/confirmation", ConfirmationPage);
 router.addRoute("/admin", AdminPage);
 
 // En dernier : toute adresse qui ne correspond à aucune route.

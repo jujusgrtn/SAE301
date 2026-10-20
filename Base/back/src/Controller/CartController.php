@@ -22,7 +22,7 @@ use InvalidArgumentException;
 final class CartController
 {
     /** Clé du panier dans $_SESSION. */
-    private const SESSION_KEY = 'panier';
+    public const SESSION_KEY = 'panier';
 
     /** Le modèle qui interroge les variantes, fourni à la construction. */
     private VariantModel $variants;

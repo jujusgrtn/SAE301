@@ -1,0 +1,34 @@
+<div class="grid gap-8 lg:grid-cols-[1fr_20rem] lg:items-start">
+  <div class="flex flex-col gap-6">
+    <section aria-labelledby="titre-bijoux">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="titre-bijoux" class="text-lg font-semibold">Vos bijoux</h2>
+        <a href="{{urlPanier}}" data-link class="text-sm text-primary-text underline underline-offset-2">Modifier le panier</a>
+      </div>
+      <ul class="mt-3 divide-y divide-line border-y border-line">
+        <slot name="lignes"></slot>
+      </ul>
+    </section>
+
+    <section aria-labelledby="titre-retrait" class="rounded-md border border-line p-5">
+      <h2 id="titre-retrait" class="text-lg font-semibold">Retrait en boutique</h2>
+      <p class="mt-2 text-sm font-medium">Matira Création — Centre Vaima, Papeete</p>
+      <p class="mt-1 text-sm text-muted">Retrait gratuit. Vous essayez vos bijoux et vous les réglez sur place.</p>
+    </section>
+  </div>
+
+  <aside aria-labelledby="titre-client" class="rounded-md bg-surface-soft p-5">
+    <h2 id="titre-client" class="text-base font-semibold">Réservation au nom de</h2>
+    <p class="mt-1 text-sm">{{prenom}} {{nom}}</p>
+    <p class="text-sm break-all text-muted">{{email}}</p>
+
+    <dl class="mt-4 flex items-baseline justify-between gap-4 border-t border-line pt-4">
+      <dt class="text-sm">Total ({{nombreArticles}})</dt>
+      <dd class="text-lg font-semibold">{{total}}</dd>
+    </dl>
+    <p class="mt-1 text-[0.8125rem] text-muted">À régler en boutique : rien à payer en ligne.</p>
+
+    <slot name="erreur"></slot>
+    <button type="button" data-action="valider" class="mt-4 h-11 w-full rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60">Valider ma réservation</button>
+  </aside>
+</div>

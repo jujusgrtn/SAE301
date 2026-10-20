@@ -23,7 +23,7 @@ use App\Model\UserModel;
 final class AccountController
 {
     /** Clé de l'identifiant du client dans $_SESSION. */
-    private const SESSION_KEY = 'clientId';
+    public const SESSION_KEY = 'clientId';
 
     /** Longueur minimale du mot de passe à l'inscription. */
     private const PASSWORD_MIN_LENGTH = 8;

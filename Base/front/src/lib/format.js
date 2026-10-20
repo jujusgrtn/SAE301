@@ -40,6 +40,22 @@ export function formatPrice(price) {
 }
 
 /**
+ * « 2026-10-20 08:47:34 » (DATETIME MySQL) -> « 20 octobre 2026 à 08:47 »
+ *
+ * @param {string} dateTime - Date renvoyée par l'API, heure locale du serveur.
+ * @returns {string} - La date en toutes lettres, ou la valeur reçue si elle est illisible.
+ */
+export function formatDate(dateTime) {
+  const date = new Date(String(dateTime).replace(" ", "T"));
+
+  if (Number.isNaN(date.getTime())) {
+    return String(dateTime);
+  }
+
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(date);
+}
+
+/**
  * Calcule une teinte stable à partir d'une chaîne, pour donner à chaque film un
  * visuel qui lui est propre sans charger la moindre image.
  */

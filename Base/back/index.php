@@ -23,10 +23,12 @@ use App\Controller\ProductController;
 use App\Controller\CategoryController;
 use App\Controller\CartController;
 use App\Controller\AccountController;
+use App\Controller\OrderController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
 use App\Model\UserModel;
+use App\Model\OrderModel;
 use App\Model\FilmModel;
 
 // --- Chargement automatique des classes ------------------------------------
@@ -75,6 +77,7 @@ try {
         CategoryController::class  => new CategoryController(new CategoryModel($pdo)),
         CartController::class      => new CartController(new VariantModel($pdo)),
         AccountController::class   => new AccountController(new UserModel($pdo)),
+        OrderController::class     => new OrderController(new OrderModel($pdo), new UserModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';
