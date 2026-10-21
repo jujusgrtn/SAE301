@@ -9,6 +9,7 @@ import { SummaryPage } from "./pages/recapitulatif/page.js";
 import { ConfirmationPage } from "./pages/confirmation/page.js";
 import { AdminPage } from "./pages/admin/page.js";
 import { AdminProductsPage } from "./pages/admin-produits/page.js";
+import { AdminProductFormPage } from "./pages/admin-produit/page.js";
 import { The404Page } from "./pages/404/page.js";
 
 // base : chemin du projet sur le serveur (BASE dans vite.config.js).
@@ -25,6 +26,8 @@ router.addRoute("/commande/recapitulatif", SummaryPage);
 router.addRoute("/commande/confirmation", ConfirmationPage);
 router.addRoute("/admin", AdminPage);
 router.addRoute("/admin/produits", AdminProductsPage);
+router.addRoute("/admin/produits/nouveau", AdminProductFormPage);
+router.addRoute("/admin/produits/:id/modifier", AdminProductFormPage);
 
 // En dernier : toute adresse qui ne correspond à aucune route.
 router.addRoute("*", The404Page);

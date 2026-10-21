@@ -67,4 +67,20 @@ let postRequest = function (uri, data = {}) {
   });
 };
 
-export { getRequest, postRequest, ErreurApi };
+/**
+ * Envoi d'un formulaire avec fichier (multipart/form-data). Par exemple :
+ * await postFormRequest("admin/produits/creer", new FormData(formulaire))
+ *
+ * Pas d'en-tête Content-Type ici : le navigateur le fabrique lui-même, avec la
+ * séparation propre à cet envoi (boundary). En poser un à la main casserait
+ * le décodage côté serveur.
+ */
+let postFormRequest = function (uri, formData) {
+  return request(uri, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    body: formData,
+  });
+};
+
+export { getRequest, postRequest, postFormRequest, ErreurApi };

@@ -40,6 +40,20 @@ export function formatPrice(price) {
 }
 
 /**
+ * Taille d'un fichier en toutes lettres.
+ * 85000 -> « 83 Ko » ; 1572864 -> « 1,5 Mo »
+ *
+ * @param {number} bytes - Taille en octets.
+ * @returns {string}
+ */
+export function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
+}
+
+/**
  * Alerte d'une ligne de panier dont la quantité dépasse le stock (US STK-c).
  * 0 -> « Épuisé : retirez ce bijou pour valider. »
  * 2 -> « Plus que 2 disponibles : réduisez la quantité. »

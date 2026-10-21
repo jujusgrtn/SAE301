@@ -1,13 +1,10 @@
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { formatPrice } from "../../lib/format.js";
+import { productImageUrl } from "../../lib/image.js";
 import { StockBadgeView } from "../badge-stock/index.js";
 import template from "./template.html?raw";
 import templateImage from "./image.html?raw";
 import templateNoImage from "./sans-image.html?raw";
-
-// Les photos sont servies par Vite depuis front/public/, sous la base du projet.
-// Chaque fichier existe en 800 px (fichier.webp) et en 400 px (fichier-400.webp).
-const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
 
 // Carte d'un bijou, tel que le renvoie l'API :
 // { nom, slug, prix, categorie: { nom }, sousCategorie: { nom }, image: { fichier, alt } | null }
@@ -23,11 +20,9 @@ let ProductCardView = {
       return templateNoImage;
     }
 
-    const file = encodeURIComponent(image.fichier);
-
     return genericRenderer(templateImage, {
-      src: `${IMAGES_URL}${file}.webp`,
-      srcPetite: `${IMAGES_URL}${file}-400.webp`,
+      src: productImageUrl(image.fichier, false),
+      srcPetite: productImageUrl(image.fichier, true),
       alt: image.alt,
     });
   },

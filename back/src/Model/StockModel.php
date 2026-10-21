@@ -22,6 +22,7 @@ final class StockModel
     /** Motifs de mouvement, valeurs de l'ENUM mouvement_stock.motif. */
     public const REASON_RESERVATION = 'reservation';
     public const REASON_CANCELLATION = 'annulation';
+    public const REASON_ADJUSTMENT = 'ajustement';
 
     /** Connexion à la base, partagée avec le modèle qui ouvre la transaction. */
     private PDO $pdo;
@@ -68,15 +69,53 @@ final class StockModel
     }
 
     /**
-     * Enregistre un mouvement dans le journal, avec le stock qui en résulte.
+     * Fixe le stock d'une variante à une valeur donnée (ajustement manuel du
+     * back-office, US GOF-a) et journalise la différence.
      *
-     * @param int    $variantId Variante concernée.
-     * @param int    $delta     Variation signée (négative pour une sortie).
-     * @param int    $orderId   Réservation à l'origine du mouvement.
-     * @param string $reason    Une des constantes REASON_*.
+     * La ligne est verrouillée (FOR UPDATE) le temps de lire l'ancien stock :
+     * une réservation simultanée ne peut pas fausser la différence journalisée.
+     * Sans changement de valeur, rien n'est écrit.
+     *
+     * @param int $variantId Variante concernée.
+     * @param int $newStock  Nouveau stock, 0 ou plus.
      * @return void
      */
-    private function log(int $variantId, int $delta, int $orderId, string $reason): void
+    public function adjust(int $variantId, int $newStock): void
+    {
+        $statement = $this->pdo->prepare('SELECT stock FROM variante WHERE id = :id FOR UPDATE');
+        $statement->bindValue(':id', $variantId, PDO::PARAM_INT);
+        $statement->execute();
+
+        $current = $statement->fetchColumn();
+
+        if ($current === false) {
+            throw new StockException('Cette option n\'existe plus.');
+        }
+
+        $delta = $newStock - (int) $current;
+
+        if ($delta === 0) {
+            return;
+        }
+
+        $update = $this->pdo->prepare('UPDATE variante SET stock = :stock WHERE id = :id');
+        $update->bindValue(':stock', $newStock, PDO::PARAM_INT);
+        $update->bindValue(':id', $variantId, PDO::PARAM_INT);
+        $update->execute();
+
+        $this->log($variantId, $delta, null, self::REASON_ADJUSTMENT);
+    }
+
+    /**
+     * Enregistre un mouvement dans le journal, avec le stock qui en résulte.
+     *
+     * @param int      $variantId Variante concernée.
+     * @param int      $delta     Variation signée (négative pour une sortie).
+     * @param int|null $orderId   Réservation à l'origine du mouvement, null pour un ajustement manuel.
+     * @param string   $reason    Une des constantes REASON_*.
+     * @return void
+     */
+    private function log(int $variantId, int $delta, ?int $orderId, string $reason): void
     {
         $statement = $this->pdo->prepare(
             'INSERT INTO mouvement_stock (variante_id, commande_id, quantite, stock_apres, motif)
@@ -84,7 +123,7 @@ final class StockModel
                FROM variante
               WHERE id = :id'
         );
-        $statement->bindValue(':commande_id', $orderId, PDO::PARAM_INT);
+        $statement->bindValue(':commande_id', $orderId, $orderId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $statement->bindValue(':quantite', $delta, PDO::PARAM_INT);
         $statement->bindValue(':motif', $reason, PDO::PARAM_STR);
         $statement->bindValue(':id', $variantId, PDO::PARAM_INT);

@@ -25,6 +25,9 @@ export default defineConfig({
   server: {
     proxy: {
       [BASE + "api"]: { target: SERVEUR, changeOrigin: true },
+      // Photos envoyées depuis le back-office : elles sont enregistrées sur le
+      // serveur (uploads/), pas dans front/public/, donc Vite doit les relayer.
+      [BASE + "uploads"]: { target: SERVEUR, changeOrigin: true },
     },
   },
 

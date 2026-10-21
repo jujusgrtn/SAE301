@@ -1,5 +1,5 @@
-<li class="grid grid-cols-[3.5rem_1fr] items-center gap-x-4 gap-y-1 p-3 sm:p-4 md:grid-cols-[3.5rem_1fr_8rem_9rem]">
-  <div class="row-span-2 size-14 overflow-hidden rounded-md bg-surface-soft md:row-span-1">
+<li class="grid grid-cols-[3.5rem_1fr] items-center gap-x-4 gap-y-1 p-3 sm:p-4 md:grid-cols-[3.5rem_1fr_7rem_8rem_15rem]">
+  <div class="row-span-3 size-14 overflow-hidden rounded-md bg-surface-soft md:row-span-1">
     <slot name="image"></slot>
   </div>
 
@@ -11,5 +11,9 @@
   <div class="flex flex-wrap items-center gap-x-4 gap-y-1 md:contents">
     <p class="text-sm font-semibold md:text-right">{{prix}}</p>
     <p class="text-sm font-medium md:text-right {{couleurStock}}">{{stock}}</p>
+  </div>
+
+  <div class="col-start-2 mt-1 md:col-start-auto md:mt-0">
+    <slot name="actions"></slot>
   </div>
 </li>

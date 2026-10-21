@@ -1,0 +1,8 @@
+# Photos des bijoux envoyées depuis le back-office (US GOF-a).
+# Le serveur n'écrit ici que des fichiers .webp (voir ProductImageStorage) :
+# on n'en sert pas d'autres, et rien ne doit pouvoir s'exécuter dans ce dossier.
+Require all denied
+
+<FilesMatch "\.webp$">
+    Require all granted
+</FilesMatch>

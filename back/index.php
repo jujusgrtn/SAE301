@@ -30,6 +30,8 @@ use App\Model\VariantModel;
 use App\Model\UserModel;
 use App\Model\OrderModel;
 use App\Model\StockModel;
+use App\Model\AdminProductModel;
+use App\Model\ProductImageStorage;
 use App\Model\AdminModel;
 use App\Model\FilmModel;
 
@@ -79,7 +81,14 @@ try {
         AccountController::class   => new AccountController(new UserModel($pdo)),
         OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo)),
         AdminController::class     => new AdminController(new AdminModel($pdo)),
-        AdminProductController::class => new AdminProductController(new AdminModel($pdo), new ProductModel($pdo)),
+        AdminProductController::class => new AdminProductController(
+            new AdminModel($pdo),
+            new ProductModel($pdo),
+            new AdminProductModel($pdo, new StockModel($pdo)),
+            new CategoryModel($pdo),
+            // Photos envoyées : uploads/ à la racine du dépôt, hors de front/dist/ que le build vide.
+            new ProductImageStorage(dirname(__DIR__) . '/uploads/produits')
+        ),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

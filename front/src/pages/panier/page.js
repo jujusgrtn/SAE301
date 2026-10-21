@@ -1,4 +1,5 @@
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
+import { productImageUrl } from "../../lib/image.js";
 import { formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { MessageView } from "../../ui/message/index.js";
@@ -12,9 +13,6 @@ import templateImage from "./image.html?raw";
 import templateStockWarning from "./alerte-stock.html?raw";
 import templateValidate from "./valider.html?raw";
 import templateValidateBlocked from "./valider-bloque.html?raw";
-
-// Les miniatures du panier utilisent la version 400 px des photos.
-const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
 
 /**
  * Page « Panier » (US CMD-b) : /panier.
@@ -370,7 +368,7 @@ V.createLineFragment = function (line) {
     imageSlot.replaceWith(
       htmlToFragment(
         genericRenderer(templateImage, {
-          src: `${IMAGES_URL}${encodeURIComponent(line.produit.image.fichier)}-400.webp`,
+          src: productImageUrl(line.produit.image.fichier, true),
         })
       )
     );

@@ -1,6 +1,7 @@
 import { AccountData } from "../../data/compte.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { OrderData } from "../../data/commande.js";
+import { productImageUrl } from "../../lib/image.js";
 import { formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
@@ -12,9 +13,6 @@ import templateImage from "./image.html?raw";
 import templateError from "./erreur.html?raw";
 import templateStockWarning from "./alerte-stock.html?raw";
 import templateBlocked from "./bloque.html?raw";
-
-// Les miniatures utilisent la version 400 px des photos.
-const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
 
 /**
  * Page « Récapitulatif » (US CMD-a) : /commande/recapitulatif.
@@ -323,7 +321,7 @@ V.createLineFragment = function (line) {
     imageSlot.replaceWith(
       htmlToFragment(
         genericRenderer(templateImage, {
-          src: `${IMAGES_URL}${encodeURIComponent(line.produit.image.fichier)}-400.webp`,
+          src: productImageUrl(line.produit.image.fichier, true),
         })
       )
     );

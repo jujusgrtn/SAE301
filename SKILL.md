@@ -199,6 +199,22 @@ try {
 `Model/Stock.php` fixe le seuil (`LOW_THRESHOLD = 3`) et renvoie `{ stock, disponibilite }`
 (`en_stock`, `stock_faible`, `epuise`). Le front **affiche** la disponibilité, il ne la calcule pas.
 
+### 4.8 Envoi de fichiers : les photos du back-office (GOF-a)
+
+| Pattern | Où le voir |
+| --- | --- |
+| Un envoi avec fichier est du **multipart/form-data** : `Request` expose les champs par `corps()` et le fichier par `fichier('photo')` ; `envoiRefuse()` signale un corps au-delà de `post_max_size` (PHP vide alors `$_POST` et `$_FILES` sans prévenir) | `Core/Request.php` |
+| Le fichier reçu **n'est jamais conservé tel quel** : type vérifié sur le contenu (`finfo`, pas l'extension), dimensions lues **avant** de décoder (`getimagesize`), puis réécriture par GD en WebP 800 px et 400 px. Le dossier ne contient que des `.webp` | `Model/ProductImageStorage::store()` |
+| Photos des utilisateurs hors de `front/dist/` (le build le vide) : `uploads/produits/` à la racine, règle `RewriteRule ^uploads/ - [END]` dans `.htaccess`, `uploads/.htaccess` qui n'autorise que `.webp`, dossier ignoré par Git | `.htaccess`, `uploads/.htaccess`, `.gitignore` |
+| `image_produit.fichier` : un **nom simple** pour les photos du catalogue d'origine, `uploads/produits/nom` pour les photos envoyées. Le front ne construit jamais une adresse à la main | `front/src/lib/image.js` → `productImageUrl(fichier, estPetite)` |
+| Ne supprimer du disque que ce qui a été envoyé (`ProductImageStorage::isUploaded()`, expression régulière stricte) : une photo d'origine ou un chemin piégé est ignoré | `ProductImageStorage::delete()` |
+| Ordre des opérations : écrire les fichiers, **puis** la transaction SQL ; en cas d'échec de la base, effacer les fichiers ; l'ancienne photo n'est effacée qu'**après** le `commit` | `AdminProductController::create()` et `update()` |
+| Un ajustement manuel du stock est journalisé comme les autres mouvements (motif `ajustement`, `commande_id` NULL) | `StockModel::adjust()` |
+| Le slug est dérivé du nom (accents retirés par une table, pas par `iconv`) et rendu unique par suffixe `-2`, `-3` ; il **ne change pas** à la modification pour ne pas casser les adresses partagées | `Model/Slug.php`, `AdminProductModel::uniqueSlug()` |
+
+Côté front, `lib/api-request.js` fournit `postFormRequest(uri, formData)` : **pas d'en-tête
+`Content-Type`**, le navigateur fabrique la séparation (`boundary`) lui-même.
+
 ## 5. Front-end : patterns en place
 
 ### 5.1 Module `data/` : un appel réseau, rien d'autre
@@ -290,7 +306,14 @@ export function CategoryPage(params) {
 | Lien affiché après le passage du routeur : adresse complète avec `routeUrl("/…")` | `ui/carte-produit/index.js` |
 | Changer de page depuis le code : `history.pushState` puis `popstate` (dans V) | `V.goToConfirmation()` |
 | Valeurs injectées uniquement via `genericRenderer` (échappement) ; composants via `<slot>` | tous les templates |
-| Prix : `formatPrice()` → `14 900 XPF` (espaces insécables) ; dates : `formatDate()` | `lib/format.js` |
+| Prix : `formatPrice()` → `14 900 XPF` (espaces insécables) ; dates : `formatDate()` ; tailles : `formatFileSize()` | `lib/format.js` |
+| Formulaire avec fichier : sur erreur du serveur, **ne pas reconstruire** le formulaire (le champ fichier se viderait) ; ne mettre à jour que la zone d'erreur et le bouton | `V.renderSubmitError()` de `pages/admin-produit/page.js` |
+| Contrôle immédiat d'un fichier choisi (type, poids) pour éviter un envoi voué à l'échec ; le serveur reste seul juge | `M.checkPhoto()`, `C.handler_changePhoto` |
+| Aperçu d'un fichier choisi : `URL.createObjectURL` dans V, **révoqué** (`revokeObjectURL`) à chaque changement | `V.renderPhotoPreview()`, `V.releasePreview()` |
+| Suppression : confirmation **sur la ligne** (pas de `confirm()`), focus sur « Annuler » puis rendu au bouton d'origine ; une seule suppression à la fois | `pages/admin-produits/page.js` |
+| Une page à deux modes (création / modification) : un seul module, l'identifiant vient de l'adresse (`/…/nouveau`, `/…/:id/modifier`) | `AdminProductFormPage` |
+| Annonce après une action sur une autre page : `?notice=cree`, traduit par une **liste blanche** (`Object.hasOwn`), jamais affiché tel quel | `NOTICES` de `pages/admin-produits/page.js` |
+| Réponse arrivée après un changement de page : un compteur de visite (`M.visit`) la fait ignorer | `M.fetchForm()`, `M.submit()` |
 
 ### 5.4 Communication page → layout
 
@@ -393,7 +416,10 @@ envoyer un formulaire avec `dispatchEvent(new Event("submit", { bubbles: true, c
 | Comptes jetables reconnaissables, supprimés à la fin | `test-cmdc-<nombre>@matira.test` |
 | Ne supprimer que ce que le test a créé (filtre explicite) | réservations du seul compte `client@matira.test` |
 | Restaurer toute valeur modifiée | stock de la variante 5 remis à 2 |
-| Remettre le compteur auto-incrémenté à `MAX(id) + 1` | prochaine réservation numérotée sans trou |
+| Remettre le compteur auto-incrémenté à `MAX(id) + 1` **seulement pour les tables que le test a remplies** | `produit`, `variante`, `image_produit`, `mouvement_stock` |
+| **Jamais** `commande` ni `ligne_commande` : le numéro `MC-AAAA-NNNNN` vient de l'id, un compteur abaissé réutiliserait un numéro de réservation déjà donné | les réservations de l'utilisatrice sont réelles |
+| Supprimer aussi les traces laissées dans le journal (`mouvement_stock` à `variante_id` NULL) | `db-state.php cleanup` |
+| Vider puis retirer le dossier `uploads/produits/` après un test d'envoi | aucun fichier de test laissé |
 | Ne jamais toucher aux données de l'utilisatrice | ses réservations `MC-2026-00001`/`00002` conservées |
 | Tester un changement de schéma sans l'appliquer | `CREATE TEMPORARY TABLE` dans le script de test (sans clés étrangères) |
 
@@ -458,3 +484,5 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-b affichage du stock | — | champs `stock`, `disponibilite` | `Model/Stock`, `ui/badge-stock` |
 | STK-c contraintes de stock | — | 409 sur panier et réservation | `StockException`, `Cart::setQuantity`, `OrderModel::checkStock` |
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
+| GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
+| GOF-a gestion des produits | `/admin/produits`, `/admin/produits/nouveau`, `/admin/produits/:id/modifier` | `GET /api/admin/produits`, `GET /api/admin/produit?id=`, `POST /api/admin/produits/{creer,modifier,supprimer}` | `AdminProductModel`, `ProductImageStorage`, `Slug`, `StockModel::adjust`, `AdminProductController`, `lib/image.js`, `pages/admin-produits`, `pages/admin-produit` |

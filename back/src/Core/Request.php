@@ -21,15 +21,29 @@ final class Request
     /** Paramètres de la chaîne de requête ($_GET). */
     private array $parametres;
 
-    /** Corps de la requête, décodé depuis le JSON reçu. */
+    /** Corps de la requête : le JSON reçu, ou les champs d'un formulaire multipart. */
     private array $corps;
 
-    private function __construct(string $methode, string $chemin, array $parametres, array $corps)
-    {
-        $this->methode    = $methode;
-        $this->chemin     = $chemin;
-        $this->parametres = $parametres;
-        $this->corps      = $corps;
+    /** Fichiers envoyés par un formulaire multipart ($_FILES). */
+    private array $fichiers;
+
+    /** Vrai si PHP a rejeté l'envoi, par exemple au-delà de post_max_size. */
+    private bool $envoiRefuse;
+
+    private function __construct(
+        string $methode,
+        string $chemin,
+        array $parametres,
+        array $corps,
+        array $fichiers,
+        bool $envoiRefuse
+    ) {
+        $this->methode     = $methode;
+        $this->chemin      = $chemin;
+        $this->parametres  = $parametres;
+        $this->corps       = $corps;
+        $this->fichiers    = $fichiers;
+        $this->envoiRefuse = $envoiRefuse;
     }
 
     /**
@@ -49,11 +63,25 @@ final class Request
         $position = strpos($uri, '/api/');
         $chemin   = $position === false ? '/' : substr($uri, $position);
 
-        $corps = [];
+        $corps       = [];
+        $fichiers    = [];
+        $envoiRefuse = false;
+
         if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            $brut    = file_get_contents('php://input') ?: '';
-            $decode  = json_decode($brut, true);
-            $corps   = is_array($decode) ? $decode : [];
+            $type = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+
+            if (str_starts_with($type, 'multipart/form-data')) {
+                // PHP a déjà décodé le formulaire. Si le corps dépasse
+                // post_max_size, il vide $_POST et $_FILES sans prévenir : on le
+                // détecte à leur vide malgré un corps annoncé.
+                $corps       = $_POST;
+                $fichiers    = $_FILES;
+                $envoiRefuse = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0 && $_POST === [] && $_FILES === [];
+            } else {
+                $brut   = file_get_contents('php://input') ?: '';
+                $decode = json_decode($brut, true);
+                $corps  = is_array($decode) ? $decode : [];
+            }
         }
 
         return new self(
@@ -61,6 +89,8 @@ final class Request
             $chemin,
             $_GET,
             $corps,
+            $fichiers,
+            $envoiRefuse,
         );
     }
 
@@ -90,6 +120,34 @@ final class Request
     public function corps(): array
     {
         return $this->corps;
+    }
+
+    /**
+     * Un fichier envoyé par un formulaire multipart (US GOF-a).
+     *
+     * @param string $cle Nom du champ de fichier.
+     * @return array{name: string, type: string, tmp_name: string, error: int, size: int}|null
+     *         Les informations de PHP, ou null si le champ est absent. Un champ
+     *         laissé vide donne error = UPLOAD_ERR_NO_FILE.
+     */
+    public function fichier(string $cle): ?array
+    {
+        $fichier = $this->fichiers[$cle] ?? null;
+
+        return is_array($fichier) && is_int($fichier['error'] ?? null) && is_string($fichier['tmp_name'] ?? null)
+            ? $fichier
+            : null;
+    }
+
+    /**
+     * Indique si PHP a rejeté l'envoi parce qu'il dépassait la taille permise
+     * (post_max_size). Les champs et les fichiers sont alors tous perdus.
+     *
+     * @return bool
+     */
+    public function envoiRefuse(): bool
+    {
+        return $this->envoiRefuse;
     }
 
     /**

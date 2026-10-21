@@ -1,0 +1,60 @@
+<form data-form="produit" class="flex flex-col gap-5">
+  <input type="hidden" name="id" value="{{id}}">
+
+  <!-- Erreur du serveur : remplie sans reconstruire le formulaire, pour garder la photo choisie. -->
+  <div data-zone="erreur-formulaire"></div>
+
+  <div class="flex flex-col gap-1.5">
+    <label for="produit-nom" class="text-sm font-medium">Nom du bijou</label>
+    <input id="produit-nom" name="nom" type="text" required maxlength="120" value="{{nom}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <label for="produit-description" class="text-sm font-medium">Description</label>
+    <textarea id="produit-description" name="description" rows="5" maxlength="2000" class="rounded-md border border-line bg-transparent px-3 py-2">{{description}}</textarea>
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <label for="produit-categorie" class="text-sm font-medium">Sous-catégorie</label>
+    <select id="produit-categorie" name="sousCategorie" required class="h-11 rounded-md border border-line bg-transparent px-3"></select>
+  </div>
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div class="flex flex-col gap-1.5">
+      <label for="produit-prix" class="text-sm font-medium">Prix (XPF)</label>
+      <input id="produit-prix" name="prix" type="number" required min="1" max="9999999" step="1" inputmode="numeric" value="{{prix}}" aria-describedby="aide-prix" class="h-11 rounded-md border border-line bg-transparent px-3">
+      <p id="aide-prix" class="text-[0.8125rem] text-muted">En francs pacifiques, sans centimes.</p>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="produit-stock" class="text-sm font-medium">Stock</label>
+      <input id="produit-stock" name="stock" type="number" required min="0" max="9999" step="1" inputmode="numeric" value="{{stock}}" aria-describedby="aide-stock" class="h-11 rounded-md border border-line bg-transparent px-3">
+      <p id="aide-stock" class="text-[0.8125rem] text-muted">Chaque changement est enregistré dans le journal de stock.</p>
+    </div>
+  </div>
+
+  <fieldset class="rounded-md border border-line p-4">
+    <legend class="px-1 text-sm font-medium">Photo</legend>
+
+    <slot name="photo-actuelle"></slot>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="produit-photo" class="text-sm font-medium">{{libellePhoto}}</label>
+      <input id="produit-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="aide-photo" class="text-sm file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-soft file:px-3 file:text-sm file:font-medium">
+      <p id="aide-photo" class="text-[0.8125rem] text-muted">JPEG, PNG ou WebP, 2 Mo au maximum, 400 px au minimum. La photo est recadrée au carré, au centre.</p>
+    </div>
+
+    <div data-zone="apercu" aria-live="polite" class="mt-3"></div>
+
+    <div class="mt-4 flex flex-col gap-1.5">
+      <label for="produit-alt" class="text-sm font-medium">Texte alternatif de la photo</label>
+      <input id="produit-alt" name="altPhoto" type="text" maxlength="255" value="{{altPhoto}}" aria-describedby="aide-alt" class="h-11 rounded-md border border-line bg-transparent px-3">
+      <p id="aide-alt" class="text-[0.8125rem] text-muted">Décrit la photo aux personnes qui ne la voient pas. Par défaut : le nom du bijou.</p>
+    </div>
+  </fieldset>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60">{{libelleBouton}}</button>
+    <a href="{{urlListe}}" data-link class="inline-flex h-11 items-center px-3 text-sm font-medium underline underline-offset-2">Annuler</a>
+  </div>
+</form>

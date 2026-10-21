@@ -1,5 +1,6 @@
 import { ProductData } from "../../data/produit.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
+import { productImageUrl } from "../../lib/image.js";
 import { formatPrice } from "../../lib/format.js";
 import { StockBadgeView } from "../../ui/badge-stock/index.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
@@ -16,9 +17,6 @@ import templateOptionItem from "./option-item.html?raw";
 import templateAddButton from "./bouton-ajout.html?raw";
 import templateAddSuccess from "./ajout-succes.html?raw";
 import templateAddError from "./ajout-erreur.html?raw";
-
-// Les photos sont servies par Vite depuis front/public/, en 800 et 400 px.
-const IMAGES_URL = import.meta.env.BASE_URL + "images/produits/";
 
 /**
  * Page « Fiche produit » (US DEC-c) : /produit/:slug.
@@ -490,11 +488,9 @@ V.formatOnePhoto = function (image) {
     return templateNoPhoto;
   }
 
-  let file = encodeURIComponent(image.fichier);
-
   return genericRenderer(templatePhoto, {
-    src: `${IMAGES_URL}${file}.webp`,
-    srcPetite: `${IMAGES_URL}${file}-400.webp`,
+    src: productImageUrl(image.fichier, false),
+    srcPetite: productImageUrl(image.fichier, true),
     alt: image.alt,
   });
 };
@@ -517,7 +513,7 @@ V.formatOneThumbnail = function (image, index, total, isSelected) {
     numero: index + 1,
     total: total,
     selectionnee: String(isSelected),
-    src: `${IMAGES_URL}${encodeURIComponent(image.fichier)}-400.webp`,
+    src: productImageUrl(image.fichier, true),
   });
 };
 

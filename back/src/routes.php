@@ -40,4 +40,8 @@ return [
     'POST /api/admin/connexion'     => [AdminController::class, 'login'],
     'POST /api/admin/deconnexion'   => [AdminController::class, 'logout'],
     'GET  /api/admin/produits'      => [AdminProductController::class, 'index'],
+    'GET  /api/admin/produit'       => [AdminProductController::class, 'show'],
+    'POST /api/admin/produits/creer'     => [AdminProductController::class, 'create'],
+    'POST /api/admin/produits/modifier'  => [AdminProductController::class, 'update'],
+    'POST /api/admin/produits/supprimer' => [AdminProductController::class, 'remove'],
 ];

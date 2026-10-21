@@ -12,3 +12,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Photos envoyées depuis le back-office : données d'exécution, pas du code
+# (uploads/.htaccess, lui, est versionné).
+uploads/produits/

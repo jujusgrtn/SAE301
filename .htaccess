@@ -16,6 +16,11 @@ RewriteEngine On
 #    QSA conserve la chaîne de requête (?page=2), END arrête la réécriture.
 RewriteRule ^api/ back/index.php [END,QSA]
 
+# 1 bis. Les photos envoyées depuis le back-office (US GOF-a) sont dans uploads/,
+#    à la racine et non dans front/dist/ que npm run build vide. On les sert
+#    telles quelles ; uploads/.htaccess n'y autorise que des fichiers .webp.
+RewriteRule ^uploads/ - [END]
+
 # 3. (second passage, voir la règle 2) La requête désigne désormais un chemin
 #    dans front/dist/. Si c'est un fichier du build (script, feuille de style,
 #    image), on le sert tel quel.
