@@ -11,10 +11,16 @@
       module : le navigateur l'exécute avant de dessiner la page, qui
       n'apparaît donc jamais, même brièvement, dans le mauvais thème.
       Le thème est conservé en localStorage : le serveur n'en a pas besoin.
+
+      Le localStorage est partagé par TOUTES les pages d'une même origine, donc
+      par tous les sites hébergés sous https://mmi.unilim.fr/~login/… : une clé
+      générique comme « theme » serait lue et écrasée par les sites des autres.
+      La clé porte donc le chemin du projet (%BASE_URL% est remplacé par Vite) ;
+      lib/theme.js construit la même.
     -->
     <script>
       try {
-        if (localStorage.getItem("theme") === "sombre") {
+        if (localStorage.getItem("matira:%BASE_URL%:theme") === "sombre") {
           document.documentElement.classList.add("theme-dark");
         }
       } catch (e) {

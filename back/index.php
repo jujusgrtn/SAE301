@@ -94,10 +94,17 @@ try {
     $routes = require __DIR__ . '/src/routes.php';
 
     // --- Session : réglage unique, avant tout contrôleur --------------------
-    // PHP n'envoie le cookie PHPSESSID qu'au moment où il crée la session : ses
+    // PHP n'envoie le cookie de session qu'au moment où il crée la session : ses
     // paramètres doivent donc être fixés ici, avant session_start(), et nulle
     // part ailleurs.
     ini_set('session.use_strict_mode', '1');
+
+    // Nom propre au projet plutôt que PHPSESSID. Tous les sites du serveur
+    // partagent le même hôte : un site dont le cookie PHPSESSID aurait pour Path
+    // « / » serait envoyé à celui-ci aussi, et PHP pourrait en charger la
+    // session (le mode strict n'écarte que les identifiants inconnus). Avec un
+    // nom distinct, nos cookies et les leurs ne se croisent jamais.
+    session_name('matira_session');
 
     session_set_cookie_params([
         'path'     => $config['chemin'],
