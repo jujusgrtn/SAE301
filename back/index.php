@@ -25,6 +25,7 @@ use App\Controller\OrderController;
 use App\Controller\AdminController;
 use App\Controller\AdminProductController;
 use App\Controller\AdminCategoryController;
+use App\Controller\AdminOrderController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
@@ -33,6 +34,7 @@ use App\Model\OrderModel;
 use App\Model\StockModel;
 use App\Model\AdminProductModel;
 use App\Model\AdminCategoryModel;
+use App\Model\AdminOrderModel;
 use App\Model\ProductImageStorage;
 use App\Model\AdminModel;
 use App\Model\FilmModel;
@@ -92,6 +94,7 @@ try {
             new ProductImageStorage(dirname(__DIR__) . '/uploads/produits')
         ),
         AdminCategoryController::class => new AdminCategoryController(new AdminModel($pdo), new AdminCategoryModel($pdo)),
+        AdminOrderController::class => new AdminOrderController(new AdminModel($pdo), new AdminOrderModel($pdo, new StockModel($pdo))),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

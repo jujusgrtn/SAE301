@@ -12,6 +12,8 @@ import { AdminProductsPage } from "./pages/admin-produits/page.js";
 import { AdminProductFormPage } from "./pages/admin-produit/page.js";
 import { AdminCategoriesPage } from "./pages/admin-categories/page.js";
 import { AdminCategoryFormPage } from "./pages/admin-categorie/page.js";
+import { AdminOrdersPage } from "./pages/admin-commandes/page.js";
+import { AdminOrderPage } from "./pages/admin-commande/page.js";
 import { The404Page } from "./pages/404/page.js";
 
 // base : chemin du projet sur le serveur (BASE dans vite.config.js).
@@ -33,6 +35,8 @@ router.addRoute("/admin/produits/:id/modifier", AdminProductFormPage);
 router.addRoute("/admin/categories", AdminCategoriesPage);
 router.addRoute("/admin/categories/nouveau", AdminCategoryFormPage);
 router.addRoute("/admin/categories/:id/modifier", AdminCategoryFormPage);
+router.addRoute("/admin/commandes", AdminOrdersPage);
+router.addRoute("/admin/commandes/:numero", AdminOrderPage);
 
 // En dernier : toute adresse qui ne correspond à aucune route.
 router.addRoute("*", The404Page);

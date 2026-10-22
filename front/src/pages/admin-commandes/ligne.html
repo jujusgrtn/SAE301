@@ -1,0 +1,15 @@
+<li class="grid grid-cols-2 items-center gap-x-4 gap-y-1 p-3 sm:p-4 md:grid-cols-[9rem_1fr_6rem_9rem_10rem]">
+  <div class="min-w-0">
+    <p class="text-sm font-semibold"><a href="{{href}}" data-link class="transition-colors hover:text-primary-text">{{numero}}</a></p>
+    <p class="text-[0.8125rem] text-muted">{{date}}</p>
+  </div>
+
+  <div class="min-w-0">
+    <p class="truncate text-sm font-medium">{{client}}</p>
+    <p class="truncate text-[0.8125rem] text-muted">{{email}}</p>
+  </div>
+
+  <p class="text-sm md:text-right"><span class="text-muted md:hidden">Articles : </span>{{articles}}</p>
+  <p class="text-sm font-semibold md:text-right">{{total}}</p>
+  <div><slot name="statut"></slot></div>
+</li>

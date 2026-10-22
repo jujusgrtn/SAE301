@@ -160,7 +160,7 @@ M.startSubmit = function () {
  * Envoie le formulaire au serveur : création ou modification selon le mode.
  * . values : champs du formulaire { nom, description, parentId? } (chaînes)
  * > Promise<{isCurrent, noticeKey}> : noticeKey vaut « cree » ou « modifie » en cas
- *   de succès, null sinon ; isCurrent est faux si l'utilisatrice a quitté la page
+ *   de succès, null sinon ; isCurrent est faux si la page a été quittée pendant l'envoi
  *
  * @param {{nom: string, description: string, parentId?: string}} values
  * @returns {Promise<{isCurrent: boolean, noticeKey: string|null}>}

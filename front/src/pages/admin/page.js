@@ -342,6 +342,7 @@ V.createContentFragment = function (state) {
         identifiant: state.admin.identifiant,
         urlProduits: routeUrl("/admin/produits"),
         urlCategories: routeUrl("/admin/categories"),
+        urlCommandes: routeUrl("/admin/commandes"),
       }));
   }
   return V.createFormFragment(state);

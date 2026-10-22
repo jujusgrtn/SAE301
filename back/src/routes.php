@@ -11,6 +11,7 @@ use App\Controller\OrderController;
 use App\Controller\AdminController;
 use App\Controller\AdminProductController;
 use App\Controller\AdminCategoryController;
+use App\Controller\AdminOrderController;
 
 /**
  * Table des routes de l'API.
@@ -50,4 +51,7 @@ return [
     'POST /api/admin/categories/modifier'  => [AdminCategoryController::class, 'update'],
     'POST /api/admin/categories/deplacer'  => [AdminCategoryController::class, 'move'],
     'POST /api/admin/categories/supprimer' => [AdminCategoryController::class, 'remove'],
+    'GET  /api/admin/commandes'            => [AdminOrderController::class, 'index'],
+    'GET  /api/admin/commande'             => [AdminOrderController::class, 'show'],
+    'POST /api/admin/commandes/statut'     => [AdminOrderController::class, 'changeStatus'],
 ];
