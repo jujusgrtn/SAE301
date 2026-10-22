@@ -97,3 +97,36 @@ export function teinteDepuisTexte(texte) {
 
   return somme % 360;
 }
+
+/**
+ * Options choisies, écrites option par option.
+ * [{ nom: "Taille", valeur: "54" }, { nom: "Perle", valeur: "Keishi blanc" }] -> « Taille : 54 · Perle : Keishi blanc »
+ *
+ * @param {Array<{nom: string, valeur: string}>} options - Options d'une ligne du panier.
+ * @returns {string} Le texte, vide pour un bijou sans option.
+ */
+export function formatOptions(options) {
+  return options
+    .map(function (option) {
+      return `${option.nom} : ${option.valeur}`;
+    })
+    .join(" · ");
+}
+
+/**
+ * Sépare le nom d'une ligne de réservation en bijou et options. Le nom, figé à
+ * la réservation, s'écrit « Bague Rangiroa — Taille 54 · Perle de Tahiti » : les
+ * options suivent le dernier « — ».
+ *
+ * @param {string} lineName - Nom figé de la ligne (ligne_commande.nom_produit).
+ * @returns {{nom: string, options: string}} Les options sont vides pour un bijou sans option.
+ */
+export function splitLineName(lineName) {
+  let separator = " — ";
+  let position = lineName.lastIndexOf(separator);
+
+  if (position === -1) {
+    return { nom: lineName, options: "" };
+  }
+  return { nom: lineName.slice(0, position), options: lineName.slice(position + separator.length) };
+}

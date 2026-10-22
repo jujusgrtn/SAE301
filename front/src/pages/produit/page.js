@@ -2,6 +2,7 @@ import { ProductData } from "../../data/produit.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { productImageUrl } from "../../lib/image.js";
 import { formatPrice } from "../../lib/format.js";
+import { findVariant, formatValueLabel, getPrice, getSelection, getValueStatuses } from "../../lib/options.js";
 import { StockBadgeView } from "../../ui/badge-stock/index.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
@@ -30,7 +31,8 @@ import templateAddError from "./ajout-erreur.html?raw";
  * variante choisie. Un bijou à options (US OPT-c : taille, coloris…) propose
  * un groupe de choix par option : la variante qui correspond à la combinaison
  * choisie est retrouvée, et le prix, la disponibilité et le bouton suivent
- * chaque choix. Le prix affiché est une aide : c'est le serveur qui calcule
+ * chaque choix. Une valeur dont la combinaison (avec les autres choix en cours)
+ * est épuisée ou n'existe pas est signalée dans son libellé (US OPT-b). Le prix affiché est une aide : c'est le serveur qui calcule
  * le prix de la variante ajoutée au panier.
  */
 
@@ -126,24 +128,8 @@ M.getDefaultValues = function () {
   let variant = variants.find(function (candidate) {
     return candidate.stock > 0;
   });
-  if (variant === undefined) {
-    variant = variants[0];
-  }
 
-  let selected = {};
-  if (variant === undefined) {
-    return selected;
-  }
-
-  M.product.options.forEach(function (option) {
-    let value = option.valeurs.find(function (candidate) {
-      return variant.valeurs.includes(candidate.id);
-    });
-    if (value !== undefined) {
-      selected[option.id] = value.id;
-    }
-  });
-  return selected;
+  return getSelection(M.product, variant === undefined ? variants[0] : variant);
 };
 
 /**
@@ -156,17 +142,8 @@ M.getDefaultValues = function () {
  * @returns {number|null}
  */
 M.findVariantId = function (selected) {
-  let chosen = Object.values(selected);
-
-  let variant = M.product.variantes.find(function (candidate) {
-    return (
-      candidate.valeurs.length === chosen.length &&
-      chosen.every(function (valueId) {
-        return candidate.valeurs.includes(valueId);
-      })
-    );
-  });
-  return variant === undefined ? null : variant.id;
+  let variant = findVariant(M.product, selected);
+  return variant === null ? null : variant.id;
 };
 
 /**
@@ -202,6 +179,18 @@ M.selectOption = function (optionId, valueId) {
 };
 
 /**
+ * Disponibilité de chaque valeur d'option, selon les autres choix en cours :
+ * la combinaison obtenue en choisissant cette valeur existe-t-elle, a-t-elle du stock ?
+ * . aucun paramètre
+ * > { valeurId: "disponible" | "epuise" | "absente" }
+ *
+ * @returns {Object}
+ */
+M.getValueStatuses = function () {
+  return getValueStatuses(M.product, M.selectedValues);
+};
+
+/**
  * Prix de la combinaison choisie : le prix du bijou plus le supplément de
  * chaque valeur choisie. Le serveur applique la même règle (VariantModel::PRICE_SQL).
  * . aucun paramètre
@@ -210,17 +199,7 @@ M.selectOption = function (optionId, valueId) {
  * @returns {number}
  */
 M.getPrice = function () {
-  let price = M.product.prix;
-
-  M.product.options.forEach(function (option) {
-    let value = option.valeurs.find(function (candidate) {
-      return candidate.id === M.selectedValues[option.id];
-    });
-    if (value !== undefined) {
-      price += value.supplement;
-    }
-  });
-  return price;
+  return getPrice(M.product, M.selectedValues);
 };
 
 /**
@@ -334,7 +313,7 @@ M.getSelectedVariant = function () {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, product, images, imageIndex, image, message, options, selectedValues, price,
+ * > { status, product, images, imageIndex, image, message, options, selectedValues, valueStatuses, price,
  *     selectedVariantId, selectedVariant, isUnavailable, isSoldOut, cartStatus, cartError, canAddToCart }
  *
  * @returns {Object}
@@ -351,6 +330,7 @@ M.getState = function () {
     message: M.message,
     options: M.product === null ? [] : M.product.options,
     selectedValues: M.selectedValues,
+    valueStatuses: M.product === null ? {} : M.getValueStatuses(),
     price: M.product === null ? 0 : M.getPrice(),
     selectedVariantId: M.selectedVariantId,
     selectedVariant: M.getSelectedVariant(),
@@ -450,6 +430,7 @@ C.handler_changeOption = function (ev) {
 
   if (M.selectOption(Number(input.dataset.option), Number(input.value))) {
     V.renderPrice(M.getState());
+    V.renderValueStatuses(M.getState());
     V.renderStock(M.getState());
     V.renderAddToCart(M.getState());
   }
@@ -499,28 +480,51 @@ V.init = function () {
 };
 
 /**
- * Libellé d'une valeur d'option, avec son supplément s'il y en a un.
- * . value : { valeur, supplement }
- * > chaîne, par exemple « Perle de Tahiti (+3 000 XPF) »
+ * Libellé d'une valeur d'option, avec son supplément s'il y en a un et sa
+ * disponibilité si la combinaison n'est pas commandable (le texte porte
+ * l'information : la couleur ne fait que la souligner).
+ * . value : { valeur, supplement }, status : « disponible », « epuise » ou « absente »
+ * > chaîne, par exemple « Perle de Tahiti (+3 000 XPF) — épuisé »
  *
  * @param {{valeur: string, supplement: number}} value
+ * @param {string} status
  * @returns {string}
  */
-V.formatOneValueLabel = function (value) {
-  return value.supplement > 0 ? `${value.valeur} (+${formatPrice(value.supplement)})` : value.valeur;
+V.formatOneValueLabel = function (value, status) {
+  return formatValueLabel(value, status);
+};
+
+/**
+ * Écrit le libellé d'une valeur et grise celles qui ne sont pas commandables.
+ * Elles restent sélectionnables : on peut changer les options dans n'importe
+ * quel ordre, et la fiche explique ce qui manque.
+ * . span : l'élément du libellé, value : la valeur, status : sa disponibilité
+ * > aucune valeur de retour
+ *
+ * @param {HTMLElement} span
+ * @param {{valeur: string, supplement: number}} value
+ * @param {string} status
+ * @returns {void}
+ */
+V.applyValueStatus = function (span, value, status) {
+  span.textContent = V.formatOneValueLabel(value, status);
+  span.classList.toggle("text-muted", status !== "disponible");
+  span.classList.toggle("border-dashed", status !== "disponible");
 };
 
 /**
  * Groupe de choix d'une option : un bouton radio par valeur, celui de la
  * valeur choisie est coché.
- * . option : { id, nom, valeurs }, selectedValueId : valeur choisie
+ * . option : { id, nom, valeurs }, selectedValueId : valeur choisie,
+ *   statuses : disponibilité de chaque valeur
  * > DocumentFragment
  *
  * @param {Object} option
  * @param {number|undefined} selectedValueId
+ * @param {Object} statuses
  * @returns {DocumentFragment}
  */
-V.createOptionFragment = function (option, selectedValueId) {
+V.createOptionFragment = function (option, selectedValueId, statuses) {
   let fragment = htmlToFragment(genericRenderer(templateOption, { nom: option.nom }));
 
   let items = option.valeurs.map(function (value) {
@@ -528,9 +532,10 @@ V.createOptionFragment = function (option, selectedValueId) {
       genericRenderer(templateValue, {
         optionId: option.id,
         valeurId: value.id,
-        libelle: V.formatOneValueLabel(value),
+        libelle: "",
       })
     );
+    V.applyValueStatus(item.querySelector("span"), value, statuses[value.id]);
     item.querySelector("input").checked = value.id === selectedValueId;
     return item;
   });
@@ -553,7 +558,7 @@ V.createAddToCartFragment = function (state) {
   if (state.options.length > 0) {
     let container = htmlToFragment(templateOptions);
     let groups = state.options.map(function (option) {
-      return V.createOptionFragment(option, state.selectedValues[option.id]);
+      return V.createOptionFragment(option, state.selectedValues[option.id], state.valueStatuses);
     });
     container.querySelector('slot[name="options"]').replaceWith(...groups);
     fragment.append(container);
@@ -768,6 +773,24 @@ V.renderPage = function (state) {
     V.renderStock(state);
     V.renderAddToCart(state);
   }
+};
+
+/**
+ * Met à jour le libellé de chaque valeur d'option après un choix, sans
+ * reconstruire les groupes : le focus clavier reste sur le bouton choisi.
+ * . state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {Object} state
+ * @returns {void}
+ */
+V.renderValueStatuses = function (state) {
+  state.options.forEach(function (option) {
+    option.valeurs.forEach(function (value) {
+      let input = V.root.querySelector(`input[data-option="${option.id}"][value="${value.id}"]`);
+      V.applyValueStatus(input.nextElementSibling, value, state.valueStatuses[value.id]);
+    });
+  });
 };
 
 /**

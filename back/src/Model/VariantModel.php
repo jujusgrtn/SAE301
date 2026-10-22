@@ -60,7 +60,10 @@ final class VariantModel
      *
      * @param array<int, int> $variantIds Identifiants lus dans le panier.
      * @return array<int, array<string, mixed>> Lignes indexées par identifiant de variante :
-     *         { variantId, libelle, prixUnitaire, stock, disponibilite, produit: { nom, slug, image } }
+     *         { variantId, libelle, options: [{ nom, valeur }], prixUnitaire, stock, disponibilite,
+     *           produit: { nom, slug, image } }
+     *         `options` dit, option par option, ce qui a été choisi (« Taille » = « 54 ») ; il est vide
+     *         pour un bijou sans option.
      */
     public function findForCart(array $variantIds): array
     {
@@ -96,14 +99,68 @@ final class VariantModel
         $statement->execute();
 
         $rows    = $statement->fetchAll();
+        $options = $this->findOptionsOf($variantIds);
         $indexed = [];
 
         for ($i = 0; $i < count($rows); $i++) {
             $line = self::formatCartLine($rows[$i]);
+            $line['options'] = $options[$line['variantId']] ?? [];
             $indexed[$line['variantId']] = $line;
         }
 
         return $indexed;
+    }
+
+    /**
+     * Le bijou auquel appartient une variante (US OPT-a) : changer les options
+     * d'une ligne du panier n'est permis qu'entre variantes du même bijou.
+     *
+     * @param int $variantId Identifiant de la variante.
+     * @return int|null Identifiant du bijou, ou null si la variante n'existe pas.
+     */
+    public function findProductId(int $variantId): ?int
+    {
+        $statement = $this->pdo->prepare('SELECT produit_id FROM variante WHERE id = :id');
+        $statement->bindValue(':id', $variantId, PDO::PARAM_INT);
+        $statement->execute();
+
+        $productId = $statement->fetchColumn();
+
+        return $productId === false ? null : (int) $productId;
+    }
+
+    /**
+     * Les options choisies de plusieurs variantes, dans l'ordre des options du bijou.
+     *
+     * @param array<int, int> $variantIds Identifiants des variantes.
+     * @return array<int, array<int, array{nom: string, valeur: string}>> Indexées par identifiant de variante.
+     */
+    private function findOptionsOf(array $variantIds): array
+    {
+        $placeholders = implode(', ', array_fill(0, count($variantIds), '?'));
+
+        $statement = $this->pdo->prepare(
+            "SELECT variante_valeur.variante_id, option_produit.nom, valeur_option.valeur
+               FROM variante_valeur
+         INNER JOIN option_produit ON option_produit.id = variante_valeur.option_id
+         INNER JOIN valeur_option ON valeur_option.id = variante_valeur.valeur_id
+              WHERE variante_valeur.variante_id IN ({$placeholders})
+           ORDER BY option_produit.ordre"
+        );
+
+        for ($i = 0; $i < count($variantIds); $i++) {
+            $statement->bindValue($i + 1, $variantIds[$i], PDO::PARAM_INT);
+        }
+        $statement->execute();
+
+        $rows    = $statement->fetchAll();
+        $options = [];
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $options[(int) $rows[$i]['variante_id']][] = ['nom' => $rows[$i]['nom'], 'valeur' => $rows[$i]['valeur']];
+        }
+
+        return $options;
     }
 
     /**

@@ -117,6 +117,59 @@ final class CartController
     }
 
     /**
+     * POST /api/panier/changer-options : { variantId, nouvelleVariantId } remplace
+     * la combinaison d'options d'une ligne du panier (US OPT-a).
+     *
+     * La quantité est conservée. Si la nouvelle combinaison est déjà dans le
+     * panier, les deux lignes fusionnent. Le prix de la ligne devient celui de la
+     * nouvelle combinaison (relu en base, comme toujours).
+     *
+     * Erreurs : 400 si les données sont invalides, si la nouvelle variante est celle d'un autre
+     * bijou ou si le total dépasse le maximum, 404 si la ligne n'est pas dans le panier ou si
+     * la nouvelle variante n'existe plus, 409 si le stock de la nouvelle combinaison ne suffit pas.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function changeOptions(Request $request): void
+    {
+        $body  = $request->corps();
+        $from  = self::readInt($body, 'variantId');
+        $to    = self::readInt($body, 'nouvelleVariantId');
+
+        if ($from === null || $to === null) {
+            Response::erreur('Requête invalide : variantId et nouvelleVariantId doivent être des entiers.', 400);
+            return;
+        }
+
+        $cart = $this->loadCart();
+
+        if ($cart->quantityOf($from) === 0) {
+            Response::erreur('Ce bijou n\'est pas dans votre panier.', 404);
+            return;
+        }
+
+        $toStock = $this->variants->findStock($to);
+
+        if ($toStock === null) {
+            Response::erreur('Cette combinaison n\'est plus proposée.', 404);
+            return;
+        }
+
+        $fromProduct = $this->variants->findProductId($from);
+
+        if ($fromProduct === null || $fromProduct !== $this->variants->findProductId($to)) {
+            Response::erreur('Cette combinaison n\'appartient pas à ce bijou.', 400);
+            return;
+        }
+
+        $this->apply(function () use ($cart, $from, $to, $toStock): void {
+            $cart->replace($from, $to, $toStock);
+        });
+
+        $this->respond($cart);
+    }
+
+    /**
      * POST /api/panier/retirer : { variantId }.
      *
      * Erreur : 400 si variantId est invalide. Retirer un bijou absent du

@@ -51,6 +51,20 @@ CartData.update = async function (variantId, quantity) {
 };
 
 /**
+ * Remplace la combinaison d'options d'une ligne : POST /api/panier/changer-options
+ * La quantité est conservée ; si la nouvelle combinaison est déjà dans le panier,
+ * les deux lignes fusionnent. Un stock insuffisant lève une ErreurApi 409, une
+ * combinaison d'un autre bijou une ErreurApi 400.
+ *
+ * @param {number} variantId - Variante actuelle de la ligne.
+ * @param {number} newVariantId - Variante choisie à la place.
+ * @returns {Promise<Object>}
+ */
+CartData.changeOptions = async function (variantId, newVariantId) {
+  return postRequest("panier/changer-options", { variantId: variantId, nouvelleVariantId: newVariantId });
+};
+
+/**
  * Retire une ligne : POST /api/panier/retirer
  *
  * @param {number} variantId - Identifiant de la variante.

@@ -2,7 +2,7 @@ import { AccountData } from "../../data/compte.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { OrderData } from "../../data/commande.js";
 import { productImageUrl } from "../../lib/image.js";
-import { formatPrice, formatStockWarning } from "../../lib/format.js";
+import { formatOptions, formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
@@ -290,7 +290,7 @@ V.init = function () {
 
 /**
  * Remplit le template d'une ligne et y place sa miniature.
- * . line : ligne du panier { variantId, libelle, prixUnitaire, quantite, sousTotal, produit }
+ * . line : ligne du panier { variantId, libelle, options, prixUnitaire, quantite, sousTotal, produit }
  * > DocumentFragment
  *
  * @param {Object} line
@@ -300,7 +300,7 @@ V.createLineFragment = function (line) {
   let fragment = htmlToFragment(
     genericRenderer(templateLine, {
       nom: line.produit.nom,
-      libelle: line.libelle,
+      options: formatOptions(line.options),
       quantite: line.quantite,
       prixUnitaire: formatPrice(line.prixUnitaire),
       sousTotal: formatPrice(line.sousTotal),

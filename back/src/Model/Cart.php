@@ -103,6 +103,52 @@ final class Cart
     }
 
     /**
+     * Remplace une variante du panier par une autre, en gardant la quantité
+     * (US OPT-a : changer les options d'une ligne). Si la nouvelle variante est
+     * déjà dans le panier, les deux lignes fusionnent.
+     *
+     * Rien n'est modifié si le changement est refusé : la nouvelle quantité est
+     * validée (maximum, stock) avant que l'ancienne ligne ne soit retirée.
+     *
+     * @param int $fromId  Variante actuellement dans le panier.
+     * @param int $toId    Variante choisie à la place.
+     * @param int $toStock Exemplaires en stock pour la nouvelle variante (STK-c).
+     * @return self
+     * @throws InvalidArgumentException Si le total dépasse le maximum par bijou.
+     * @throws StockException           Si le total dépasse le stock de la nouvelle variante.
+     */
+    public function replace(int $fromId, int $toId, int $toStock): self
+    {
+        if ($fromId === $toId) {
+            return $this;
+        }
+
+        $isMerge = $this->quantityOf($toId) > 0;
+        $total   = $this->quantityOf($fromId) + $this->quantityOf($toId);
+
+        $this->setQuantity($toId, $total, $toStock);
+
+        if ($isMerge) {
+            return $this->remove($fromId);
+        }
+
+        // Pas de fusion : la nouvelle variante prend la place de l'ancienne, la ligne ne saute pas en fin de panier.
+        $items = [];
+        $keys  = array_keys($this->items);
+
+        for ($i = 0; $i < count($keys); $i++) {
+            if ($keys[$i] === $fromId) {
+                $items[$toId] = $this->items[$toId];
+            } elseif ($keys[$i] !== $toId) {
+                $items[$keys[$i]] = $this->items[$keys[$i]];
+            }
+        }
+        $this->items = $items;
+
+        return $this;
+    }
+
+    /**
      * Message affiché quand une quantité dépasse le stock.
      *
      * @param int $stock Exemplaires en stock.
