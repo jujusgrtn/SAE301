@@ -4,6 +4,7 @@ import { OrderData } from "../../data/commande.js";
 import { productImageUrl } from "../../lib/image.js";
 import { formatOptions, formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
+import { PriceView } from "../../ui/prix/index.js";
 import { TotalsView } from "../../ui/lignes-totaux/index.js";
 import templateCodeInput from "./code-saisie.html?raw";
 import templateCodeError from "./code-erreur.html?raw";
@@ -421,10 +422,11 @@ V.createLineFragment = function (line) {
       nom: line.produit.nom,
       options: formatOptions(line.options),
       quantite: line.quantite,
-      prixUnitaire: formatPrice(line.prixUnitaire),
       sousTotal: formatPrice(line.sousTotal),
     })
   );
+
+  fragment.querySelector('slot[name="prix"]').replaceWith(PriceView.dom({ prix: line.prixUnitaire, prixInitial: line.prixInitial }));
 
   let warningSlot = fragment.querySelector('slot[name="alerte"]');
   if (line.stockWarning === null) {

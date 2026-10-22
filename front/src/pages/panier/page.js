@@ -5,6 +5,7 @@ import { formatOptions, formatPrice, formatStockWarning } from "../../lib/format
 import { findVariant, formatValueLabel, getPrice, getSelection, getValueStatuses } from "../../lib/options.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { MessageView } from "../../ui/message/index.js";
+import { PriceView } from "../../ui/prix/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateEmpty from "./vide.html?raw";
@@ -714,11 +715,12 @@ V.createLineFragment = function (line) {
       variantId: line.variantId,
       href: routeUrl(`/produit/${encodeURIComponent(line.produit.slug)}`),
       nom: line.produit.nom,
-      prixUnitaire: formatPrice(line.prixUnitaire),
       quantite: line.quantite,
       sousTotal: formatPrice(line.sousTotal),
     })
   );
+
+  fragment.querySelector('slot[name="prix"]').replaceWith(PriceView.dom({ prix: line.prixUnitaire, prixInitial: line.prixInitial }));
 
   let imageSlot = fragment.querySelector('slot[name="image"]');
   if (line.produit.image === null) {

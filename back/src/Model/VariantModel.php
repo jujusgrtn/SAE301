@@ -15,17 +15,28 @@ use PDO;
 final class VariantModel
 {
     /**
-     * Expression SQL du prix d'une variante (US OPT-c) : le prix du bijou plus
-     * les suppléments des valeurs d'options de la combinaison. C'est la seule
-     * définition de ce calcul ; toute requête qui lit un prix l'utilise, pour
-     * que la fiche, le panier et la réservation affichent le même montant.
+     * Expression SQL du prix d'une variante **avant promotion** (US OPT-c) : le prix du
+     * bijou plus les suppléments des valeurs d'options de la combinaison. C'est le prix
+     * « barré » quand le bijou est en promotion automatique (US PRO-c).
      * La requête doit désigner les tables `produit` et `variante` sous ces noms.
      */
-    public const PRICE_SQL = '(produit.prix + COALESCE((SELECT SUM(valeur_option.supplement)
+    public const INITIAL_PRICE_SQL = '(produit.prix + COALESCE((SELECT SUM(valeur_option.supplement)
                                                           FROM variante_valeur
                                                     INNER JOIN valeur_option
                                                             ON valeur_option.id = variante_valeur.valeur_id
                                                          WHERE variante_valeur.variante_id = variante.id), 0))';
+
+    /**
+     * Expression SQL du prix d'une variante, **promotion automatique comprise** (US PRO-c).
+     * C'est la seule définition du prix à payer ; toute requête qui lit un prix l'utilise,
+     * pour que la fiche, le panier et la réservation affichent le même montant.
+     * Construite par Promotion::priceSql() (une constante ne peut pas appeler de méthode, d'où
+     * l'initialisation dans priceSql()).
+     */
+    public static function priceSql(): string
+    {
+        return Promotion::priceSql(self::INITIAL_PRICE_SQL, 'produit.id');
+    }
 
     /** Connexion à la base, fournie à la construction. */
     private PDO $pdo;
@@ -60,8 +71,9 @@ final class VariantModel
      *
      * @param array<int, int> $variantIds Identifiants lus dans le panier.
      * @return array<int, array<string, mixed>> Lignes indexées par identifiant de variante :
-     *         { variantId, libelle, options: [{ nom, valeur }], prixUnitaire, stock, disponibilite,
+     *         { variantId, libelle, options: [{ nom, valeur }], prixUnitaire, prixInitial, stock, disponibilite,
      *           produit: { nom, slug, image } }
+     *         prixUnitaire est le prix à payer (promotion comprise) ; prixInitial le prix avant promotion.
      *         `options` dit, option par option, ce qui a été choisi (« Taille » = « 54 ») ; il est vide
      *         pour un bijou sans option.
      */
@@ -81,7 +93,8 @@ final class VariantModel
                     variante.stock,
                     produit.nom,
                     produit.slug,
-                    " . self::PRICE_SQL . " AS prix,
+                    " . self::priceSql() . " AS prix,
+                    " . self::INITIAL_PRICE_SQL . " AS prix_initial,
                     image_produit.fichier AS image_fichier,
                     image_produit.alt     AS image_alt
                FROM variante
@@ -105,6 +118,7 @@ final class VariantModel
         for ($i = 0; $i < count($rows); $i++) {
             $line = self::formatCartLine($rows[$i]);
             $line['options'] = $options[$line['variantId']] ?? [];
+            $line['prixInitial'] = (int) $rows[$i]['prix_initial'];
             $indexed[$line['variantId']] = $line;
         }
 

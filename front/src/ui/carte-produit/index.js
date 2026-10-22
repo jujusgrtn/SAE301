@@ -1,13 +1,13 @@
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
-import { formatPrice } from "../../lib/format.js";
 import { productImageUrl } from "../../lib/image.js";
 import { StockBadgeView } from "../badge-stock/index.js";
+import { PriceView } from "../prix/index.js";
 import template from "./template.html?raw";
 import templateImage from "./image.html?raw";
 import templateNoImage from "./sans-image.html?raw";
 
 // Carte d'un bijou, tel que le renvoie l'API :
-// { nom, slug, prix, categorie: { nom }, sousCategorie: { nom }, image: { fichier, alt } | null }
+// { nom, slug, prix (avant promotion), prixPromo (ou null), categorie: { nom }, sousCategorie: { nom }, image: { fichier, alt } | null }
 let ProductCardView = {
   /**
    * Remplit le template de l'image principale, ou celui d'un bijou sans photo.
@@ -39,7 +39,6 @@ let ProductCardView = {
       nom: product.nom,
       href: routeUrl(`/produit/${encodeURIComponent(product.slug)}`),
       matiere: product.sousCategorie.nom,
-      prix: formatPrice(product.prix),
     });
   },
 
@@ -53,6 +52,9 @@ let ProductCardView = {
     let fragment = htmlToFragment(ProductCardView.html(product));
     let image = htmlToFragment(ProductCardView.formatOneImage(product.image));
     fragment.querySelector('slot[name="image"]').replaceWith(image);
+    fragment
+      .querySelector('slot[name="prix"]')
+      .replaceWith(PriceView.dom({ prix: product.prixPromo ?? product.prix, prixInitial: product.prix }));
     fragment.querySelector('slot[name="stock"]').replaceWith(StockBadgeView.dom(product));
     return fragment;
   },

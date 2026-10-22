@@ -197,7 +197,7 @@ final class OrderModel
     {
         $statement = $this->pdo->prepare(
             'SELECT ligne_commande.variante_id, ligne_commande.nom_produit, ligne_commande.prix_unitaire,
-                    ligne_commande.quantite, variante.stock, ' . VariantModel::PRICE_SQL . ' AS prix_actuel
+                    ligne_commande.quantite, variante.stock, ' . VariantModel::priceSql() . ' AS prix_actuel
                FROM commande
          INNER JOIN ligne_commande ON ligne_commande.commande_id = commande.id
           LEFT JOIN variante ON variante.id = ligne_commande.variante_id
@@ -383,7 +383,7 @@ final class OrderModel
         $placeholders = implode(', ', array_fill(0, count($variantIds), '?'));
 
         $statement = $this->pdo->prepare(
-            "SELECT variante.id, variante.libelle, variante.stock, produit.nom, " . VariantModel::PRICE_SQL . " AS prix
+            "SELECT variante.id, variante.libelle, variante.stock, produit.nom, " . VariantModel::priceSql() . " AS prix
                FROM variante
          INNER JOIN produit ON produit.id = variante.produit_id
               WHERE variante.id IN ({$placeholders})

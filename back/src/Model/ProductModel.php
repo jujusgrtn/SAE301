@@ -28,6 +28,7 @@ final class ProductModel
                        produit.slug,
                        produit.prix,
                        produit.description,
+                       (produit.id = ' . Promotion::PRODUCT_ID_SQL . ') AS en_promotion,
                        (SELECT COALESCE(SUM(variante.stock), 0)
                           FROM variante
                          WHERE variante.produit_id = produit.id) AS stock,
@@ -190,12 +191,13 @@ final class ProductModel
      * retrouve la variante qui correspond aux choix du client.
      *
      * @param int $productId Identifiant du bijou.
-     * @return array<int, array{id: int, libelle: string, prix: int, valeurs: array<int, int>, stock: int, disponibilite: string}>
+     * @return array<int, array{id: int, libelle: string, prix: int, prixInitial: int, valeurs: array<int, int>, stock: int, disponibilite: string}>
      */
     private function findVariants(int $productId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT variante.id, variante.libelle, variante.stock, ' . VariantModel::PRICE_SQL . ' AS prix
+            'SELECT variante.id, variante.libelle, variante.stock, ' . VariantModel::priceSql() . ' AS prix,
+                    ' . VariantModel::INITIAL_PRICE_SQL . ' AS prix_initial
                FROM variante
          INNER JOIN produit ON produit.id = variante.produit_id
               WHERE variante.produit_id = :produit_id
@@ -228,6 +230,7 @@ final class ProductModel
                 'id'      => $id,
                 'libelle' => $row['libelle'],
                 'prix'    => (int) $row['prix'],
+                'prixInitial' => (int) $row['prix_initial'],
                 'valeurs' => $valuesByVariant[$id] ?? [],
             ] + Stock::describe((int) $row['stock']);
         }, $rows);
@@ -261,7 +264,8 @@ final class ProductModel
      * MySQL renvoie les nombres sous forme de chaînes : ils sont convertis ici.
      *
      * @param array<string, mixed> $row Ligne renvoyée par findAll().
-     * @return array<string, mixed> { id, nom, slug, prix, stock, disponibilite, categorie, sousCategorie, image }
+     * @return array<string, mixed> { id, nom, slug, prix, prixPromo, promotion, stock, disponibilite, categorie, sousCategorie, image }
+     *         prix est le prix du bijou avant promotion ; prixPromo le prix en promotion automatique (US PRO-c), ou null.
      */
     private static function formatProduct(array $row): array
     {
@@ -279,6 +283,8 @@ final class ProductModel
             'nom'           => $row['nom'],
             'slug'          => $row['slug'],
             'prix'          => (int) $row['prix'],
+            'prixPromo'     => (int) $row['en_promotion'] === 1 ? Promotion::discounted((int) $row['prix']) : null,
+            'promotion'     => (int) $row['en_promotion'] === 1 ? ['pourcentage' => Promotion::PERCENT] : null,
         ] + Stock::describe((int) $row['stock']) + [
             'categorie'     => [
                 'nom'  => $row['categorie_nom'],

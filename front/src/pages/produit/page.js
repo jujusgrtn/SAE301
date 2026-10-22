@@ -2,7 +2,8 @@ import { ProductData } from "../../data/produit.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { productImageUrl } from "../../lib/image.js";
 import { formatPrice } from "../../lib/format.js";
-import { findVariant, formatValueLabel, getPrice, getSelection, getValueStatuses } from "../../lib/options.js";
+import { findVariant, formatValueLabel, getInitialPrice, getPrice, getSelection, getValueStatuses } from "../../lib/options.js";
+import { PriceView } from "../../ui/prix/index.js";
 import { StockBadgeView } from "../../ui/badge-stock/index.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
@@ -203,6 +204,17 @@ M.getPrice = function () {
 };
 
 /**
+ * Prix de la combinaison choisie avant promotion automatique (US PRO-c).
+ * . aucun paramètre
+ * > prix en XPF
+ *
+ * @returns {number}
+ */
+M.getInitialPrice = function () {
+  return getInitialPrice(M.product, M.selectedValues);
+};
+
+/**
  * Indique si un ajout au panier peut partir : une variante est choisie et
  * aucun ajout n'est déjà en cours (un double clic n'ajoute qu'une fois).
  * . aucun paramètre
@@ -313,7 +325,7 @@ M.getSelectedVariant = function () {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, product, images, imageIndex, image, message, options, selectedValues, valueStatuses, price,
+ * > { status, product, images, imageIndex, image, message, options, selectedValues, valueStatuses, price, initialPrice,
  *     selectedVariantId, selectedVariant, isUnavailable, isSoldOut, cartStatus, cartError, canAddToCart }
  *
  * @returns {Object}
@@ -332,6 +344,7 @@ M.getState = function () {
     selectedValues: M.selectedValues,
     valueStatuses: M.product === null ? {} : M.getValueStatuses(),
     price: M.product === null ? 0 : M.getPrice(),
+    initialPrice: M.product === null ? 0 : M.getInitialPrice(),
     selectedVariantId: M.selectedVariantId,
     selectedVariant: M.getSelectedVariant(),
     isUnavailable: M.product !== null && M.product.options.length > 0 && M.selectedVariantId === null,
@@ -714,7 +727,6 @@ V.createProductFragment = function (state) {
       categorie: product.categorie.nom,
       sousCategorie: product.sousCategorie.nom,
       nom: product.nom,
-      prix: formatPrice(state.price),
       description: product.description,
     })
   );
@@ -770,6 +782,7 @@ V.renderPage = function (state) {
   zone.replaceChildren(content);
 
   if (state.status === "success") {
+    V.renderPrice(state);
     V.renderStock(state);
     V.renderAddToCart(state);
   }
@@ -802,7 +815,7 @@ V.renderValueStatuses = function (state) {
  * @returns {void}
  */
 V.renderPrice = function (state) {
-  V.root.querySelector('[data-zone="prix"]').textContent = formatPrice(state.price);
+  V.root.querySelector('[data-zone="prix"]').replaceChildren(PriceView.dom({ prix: state.price, prixInitial: state.initialPrice }));
 };
 
 /**

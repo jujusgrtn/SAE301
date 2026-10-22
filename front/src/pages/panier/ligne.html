@@ -8,7 +8,7 @@
     <div class="min-w-0">
       <h2 class="text-sm font-medium sm:text-[0.9375rem]"><a href="{{href}}" data-link class="underline-offset-2 hover:text-primary-text hover:underline">{{nom}}</a></h2>
       <slot name="options"></slot>
-      <p class="mt-0.5 text-[0.8125rem] text-muted">{{prixUnitaire}} l'unité</p>
+      <p class="mt-0.5 text-[0.8125rem] text-muted"><slot name="prix"></slot> l'unité</p>
       <slot name="alerte"></slot>
       <button type="button" data-action="retirer" data-variant-id="{{variantId}}" class="mt-2 text-[0.8125rem] text-muted underline underline-offset-2 hover:text-danger aria-disabled:cursor-wait">Retirer<span class="sr-only"> {{nom}} du panier</span></button>
     </div>

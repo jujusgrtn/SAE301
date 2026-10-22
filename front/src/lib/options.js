@@ -60,14 +60,14 @@ export function getSelection(product, variant) {
 }
 
 /**
- * Prix d'une sélection : le prix du bijou plus le supplément de chaque valeur
- * choisie. Le serveur applique la même règle (VariantModel::PRICE_SQL).
+ * Prix d'une sélection **avant promotion** : le prix du bijou plus le supplément de
+ * chaque valeur choisie.
  *
  * @param {Object} product - Fiche du bijou.
  * @param {Object} selected - { optionId: valeurId }.
  * @returns {number} Prix en XPF.
  */
-export function getPrice(product, selected) {
+export function getInitialPrice(product, selected) {
   let price = product.prix;
 
   product.options.forEach(function (option) {
@@ -79,6 +79,24 @@ export function getPrice(product, selected) {
     }
   });
   return price;
+}
+
+/**
+ * Prix à payer pour une sélection : le prix avant promotion, moins la promotion
+ * automatique si le bijou en bénéficie (US PRO-c). Le serveur applique la même règle
+ * (VariantModel::priceSql) ; ce calcul ne sert qu'à guider le choix.
+ *
+ * @param {Object} product - Fiche du bijou.
+ * @param {Object} selected - { optionId: valeurId }.
+ * @returns {number} Prix en XPF.
+ */
+export function getPrice(product, selected) {
+  let price = getInitialPrice(product, selected);
+
+  if (product.promotion === null || product.promotion === undefined) {
+    return price;
+  }
+  return Math.round((price * (100 - product.promotion.pourcentage)) / 100);
 }
 
 /**
