@@ -1,6 +1,6 @@
 ---
 name: realiser-us
-description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-a, GOF-c, PIL-b, SUI-c, SUI-b et SUI-a. À utiliser pour toute nouvelle US (OPT-…) ou toute fonctionnalité qui touche à la fois le back et le front.
+description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-a, GOF-c, PIL-b, SUI-c, SUI-b, SUI-a, OPT-c, OPT-b, OPT-a, PIL-a et PRO-a/b/c. À utiliser pour toute nouvelle US ou évolution ou toute fonctionnalité qui touche à la fois le back et le front.
 ---
 
 # Réaliser une user story — SAE301 Matira Création
@@ -147,7 +147,7 @@ le code se lit sans connaître ce détail.
 'GET  /api/commande'            => [OrderController::class, 'show'],
 
 // back/index.php — les dépendances sont créées explicitement
-OrderController::class => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo)),
+OrderController::class => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo), new PromoModel($pdo)),
 ```
 
 ### 4.5 Session : clés, identité, panier
@@ -320,6 +320,15 @@ export function CategoryPage(params) {
 | Pagination : des **liens** (une adresse par page), le lien sans destination perd `href` et `data-link` et porte `role="link"` + `aria-disabled` | `ui/pagination` |
 | Page réservée au client : l'état « anonyme » (compte `null`) déclenche `V.redirect('/connexion')` (`replaceState` puis `popstate`), jamais un écran vide ; une session perdue pendant un envoi (401) fait de même | `C.loadSpace()`, `C.handler_submitForm()` |
 | Plusieurs formulaires sur une page : un `data-form` chacun, une seule action à la fois (`M.pending`), un message par formulaire, focus sur son message ; les champs de mot de passe ne sont jamais pré-remplis | `pages/profil/page.js` |
+| Retrouver la variante d'une combinaison de choix, prix et disponibilité de chaque valeur : fonctions **pures** partagées par la fiche et le panier | `lib/options.js` |
+| Éditeur en ligne sous une ligne (options du panier) : un seul ouvert à la fois, rendu complet de la page puis focus rendu au champ (`V.focusEditorField`), refus du serveur affiché dans l'éditeur qui reste ouvert | `pages/panier/page.js` |
+| Règle de prix unique : une expression SQL (`VariantModel::priceSql`) pour fiche, panier et réservation, et un composant d'affichage unique pour le prix (`ui/prix`) | `Promotion`, `ui/prix` |
+| Valeur calculée côté serveur, revérifiée au moment d'écrire : le front n'envoie que le texte du code, le serveur recalcule la réduction à chaque réponse et à la validation (409 si le code n'est plus valable) | `CartController::loadPromo()`, `OrderController::create()` |
+| Graphique décoratif (`aria-hidden`) doublé d'une **liste de valeurs** écrites ; la couleur ne porte jamais seule l'information (texte « épuisé », « faible ») | `pages/admin-statistiques` |
+| Sélection multiple : barre d'action mise à jour **sans reconstruire la liste** (le focus reste sur la case) ; action en lot réservation par réservation avec compte rendu des refus ; confirmation avant l'annulation | `pages/admin-commandes/page.js`, `AdminOrderModel::changeStatusBatch()` |
+| Une écriture renvoie la liste à jour, l'écran la remplace ; édition et suppression avec confirmation dans la ligne, focus rendu au bouton d'origine après « Non » | `pages/admin-codes-promo`, `AdminPromoController` |
+| Trace d'audit écrite **dans la même transaction** que la modification, avec le nom de l'acteur recopié | `AdminOrderModel::writeJournal()` |
+| Export de fichier : lien `<a download>` simple (le cookie de session suit), CSV UTF-8 avec BOM et `;`, texte neutralisé s'il ressemble à une formule | `StatsExport`, `Response::fichier()` |
 | Un lien `data-link` peut porter une chaîne de requête (`?parent=3`) : le routeur la conserve au clic **et** dans le `href` réécrit par `updateLinks()` (corrigé avec GOF-c : il la supprimait) | `lib/router.js` (`lien.search`) |
 | Réordonner : l'action renvoie l'arbre à jour, le focus revient au **même bouton**, le résultat est annoncé par une région `role="status"` masquée plutôt que par un `aria-live` sur toute la liste | `V.announce()` de `pages/admin-categories/page.js` |
 | Suppression refusée par le serveur (409) : afficher son message tel quel, ne rien retirer de la liste | `M.deleteCategory()` |
@@ -347,6 +356,11 @@ Un composant reçoit ses données, produit un `DocumentFragment`, et ne charge j
 Exemple : `ui/badge-stock/index.js` reçoit `{ disponibilite, stock }`, choisit un texte
 (« Plus que 2 en stock ») et une couleur écrite **en entier** (`text-danger`) pour Tailwind.
 
+Composants partagés ajoutés depuis : `ui/pagination` (liens, une adresse par page), `ui/badge-statut`,
+`ui/navigation-compte`, `ui/resultat-reutilisation`, `ui/lignes-totaux` (sous-total et réduction),
+`ui/prix` (prix barré, prix promotionnel, pastille « −20 % »). Un prix ne s'affiche **jamais** par
+`formatPrice()` seul quand il peut être en promotion : passer par `PriceView.dom()`.
+
 ### 5.6 Tokens Tailwind déjà déclarés (`global.css`)
 
 | Classe | Usage |
@@ -369,6 +383,12 @@ Un nouveau besoin de couleur ajoute un token primitif **et** un token sémantiqu
 
 Exemple STK-a : table `mouvement_stock` ajoutée à `import.sql`, requête fournie, exécutée
 par la personne qui développe, structure vérifiée (7 colonnes, 2 clés étrangères).
+
+Depuis OPT-c, la livraison d'un changement de schéma suit toujours le même ordre : (1) écrire
+`sql/<us>.sql` (script d'ajout, rejouable ou « une seule fois » dit en tête) **et** reporter la même chose
+dans `sql/import.sql` ; (2) **s'arrêter** et demander l'import avant d'écrire du code qui lit la table ;
+(3) vérifier le schéma en lecture seule, puis coder et tester. Scripts livrés : `opt-c-options.sql`,
+`pil-b-journal.sql`, `pro-codes-promo.sql`.
 
 ⚠️ `back/` tourne directement depuis `~/public_html` : une route qui dépend d'une table
 absente répond **500 en production** tant que la migration n'est pas appliquée. Le dire en
@@ -435,6 +455,9 @@ envoyer un formulaire avec `dispatchEvent(new Event("submit", { bubbles: true, c
 | Vider puis retirer le dossier `uploads/produits/` après un test d'envoi | aucun fichier de test laissé |
 | Ne jamais toucher aux données réelles du projet | les réservations déjà faites (`MC-2026-00001`, `00002`…) conservées |
 | Tester un changement de schéma sans l'appliquer | `CREATE TEMPORARY TABLE` dans le script de test (sans clés étrangères) |
+| Sauvegarder aussi `produit` (noms, descriptions) quand le test écrit via l'API admin | un test `curl -F` a remplacé deux noms par du texte échappé |
+| Vider `journal_admin` et remettre son compteur à 1 après un test qui change un statut | table vide au départ |
+| Supprimer les codes promo créés par le test et restaurer le compteur de `code_promo` | seuls `BIENVENUE10`, `TAHITI15`, `ARCHIVE5` restent |
 
 Compte de test des seeds : `client@matira.test` / `Matira2026!`.
 
@@ -446,6 +469,10 @@ Compte de test des seeds : `client@matira.test` / `Matira2026!`.
 | Route PHP en 404 « Route inconnue » | route absente de `routes.php` ou contrôleur absent de `index.php` | ajouter les deux (section 4.4) |
 | Erreur 500 juste après une US touchant le SQL | migration pas encore appliquée | section 6 |
 | `Failed to listen … Address already in use` | port déjà pris | port libre calculé (section 7.2) |
+| « Le contrôleur … n'est pas enregistré dans back/index.php » alors qu'il l'est | `use App\Controller\…` oublié en tête de `routes.php` (la classe est résolue sans namespace) | ajouter le `use` |
+| `<select>` vide ou options absentes à l'affichage | un `<slot>` dans un `<select>` est supprimé par le navigateur | créer les `<option>` en JavaScript (`select.replaceChildren(...)`) |
+| Prix différent entre fiche, panier et réservation | un prix calculé ailleurs que par `VariantModel::priceSql()` | utiliser cette seule expression SQL |
+| Revenus à 0 alors que des réservations existent | seules les réservations **retirées** comptent | normal tant qu'aucune n'est retirée |
 | Lien ajouté après chargement qui ouvre une mauvaise adresse dans un nouvel onglet | `href="/…"` sans le chemin du projet | `routeUrl("/…")` |
 | Classe Tailwind absente du CSS | classe assemblée par concaténation | l'écrire en entier dans le code |
 | `grep` ne trouve pas `size-1.5` dans le CSS | le point est échappé (`size-1\.5`) | chercher la version échappée |
@@ -500,6 +527,14 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
 | GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
 | PIL-b gestion des réservations | `/admin/commandes` (`?statut=`), `/admin/commandes/:numero` | `GET /api/admin/commandes`, `GET /api/admin/commande?numero=`, `POST /api/admin/commandes/statut` | `OrderStatus` (transitions), `AdminOrderModel`, `StockModel::refundOrder`, `AdminOrderController`, `ui/badge-statut`, `pages/admin-commandes`, `pages/admin-commande` |
+| PRO-c promotion automatique | catalogue, fiche, panier, récapitulatif (prix barré) | champs `prixPromo`, `promotion`, `prixInitial` | `Promotion`, `VariantModel::priceSql`, `ProductModel`, `ui/prix` |
+| PRO-b gestion des codes promo | `/admin/codes-promo` | `GET /api/admin/codes-promo`, `POST /api/admin/codes-promo/{creer,modifier,supprimer}` | `AdminPromoModel` (statistiques hors annulations), `AdminPromoController`, `pages/admin-codes-promo` |
+| PRO-a codes promotionnels | champ sur `/commande/recapitulatif` | `POST /api/panier/code`, `POST /api/panier/code/retirer`, `codePromo` / `reduction` / `totalAPayer` du panier | `Promo`, `PromoModel`, `CartController::applyCode`, `OrderModel::createFromItems` (réduction enregistrée), `ui/lignes-totaux` |
+| PIL-b (complément) tri, lot, journal | `/admin/commandes` (`?tri=&ordre=`), `/admin/journal` | `POST /api/admin/commandes/lot`, `GET /api/admin/journal` | `AdminOrderModel::changeStatusBatch` / `writeJournal`, `AdminJournalModel`, table `journal_admin` |
+| PIL-a statistiques | `/admin/statistiques` | `GET /api/admin/statistiques`, `GET /api/admin/statistiques/export` | `AdminStatsModel`, `StatsExport`, `Response::fichier`, `pages/admin-statistiques` |
+| OPT-a options dans le panier | `/panier` (éditeur d'options), récapitulatif, confirmation, détail | `POST /api/panier/changer-options`, `options` des lignes | `Cart::replace`, `CartController::changeOptions`, `lib/options.js`, `lib/format.js` (`formatOptions`, `splitLineName`) |
+| OPT-b variantes et stock par variante | fiche (valeurs grisées), formulaire admin du bijou | `stocks[<id>]` de `POST /api/admin/produits/modifier` | `AdminProductModel::resolveStocks`, `lib/options.js` (`getValueStatuses`) |
+| OPT-c choix des options | `/produit/:slug` | `options` et variantes de `GET /api/produit?slug=` | tables `option_produit`, `valeur_option`, `variante_valeur`, `VariantModel`, `ProductModel`, `pages/produit` |
 | SUI-c historique des réservations (livrée sous le nom SUI-b) | `/compte/commandes` (`?statut=&du=&au=&page=`), `/compte/commandes/:numero` | `GET /api/commandes` (filtres + pagination), `GET /api/commande?numero=` | `OrderModel::findPageForUser` (filtre SQL commun au `COUNT` et à la page), `OrderController::index` (dates validées strictement), `ui/pagination` (liens, `aria-disabled`), `ui/badge-statut`, `pages/mes-commandes`, `pages/ma-commande` |
 | SUI-a commander à nouveau | `/compte/commandes` et `/compte/commandes/:numero` (bouton « Commander à nouveau ») | `POST /api/commandes/reutiliser` | `Reorder` (règle pure, un résultat par ligne), `OrderModel::findLinesForReorder`, `OrderController::reorder`, `ui/resultat-reutilisation`, `pages/mes-commandes`, `pages/ma-commande` |
 | SUI-b espace personnel | `/compte`, `/compte/profil` (`/connexion` y renvoie un client connecté) | `GET /api/compte`, `POST /api/compte/{modifier,mot-de-passe}` | `UserModel::updateProfile/updatePassword`, `AccountController::update/changePassword` (mot de passe actuel exigé), `ui/navigation-compte`, `pages/espace-client`, `pages/profil` |

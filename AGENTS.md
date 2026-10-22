@@ -99,7 +99,10 @@ SAE301-Starter/                 racine du dépôt = racine déployée sur le ser
 │   ├── .htaccess               n'autorise que les fichiers .webp
 │   └── produits/               photos envoyées depuis le back-office (créé à l'exécution, non versionné)
 ├── sql/
-│   └── import.sql              schéma et données initiales
+│   ├── import.sql              schéma et données initiales (base vide)
+│   ├── opt-c-options.sql      script d'ajout : options des bijoux (OPT-c)
+│   ├── pil-b-journal.sql      script d'ajout : journal des administrateurs (PIL-b)
+│   └── pro-codes-promo.sql    script d'ajout : codes promotionnels (PRO-a, PRO-b)
 ├── back/                       API PHP, ne renvoie que du JSON (voir 6.2)
 │   ├── index.php               point d'entrée unique
 │   ├── config/
@@ -138,6 +141,10 @@ SAE301-Starter/                 racine du dépôt = racine déployée sur le ser
    qui contient des données à conserver ; pour ajouter une table, exécuter
    seulement son `CREATE TABLE` dans l'onglet « SQL ». Les tables `film` et
    `genre` du starter ne sont pas touchées.
+   Sur une base **déjà en service**, ne pas rejouer `import.sql` : importer à la place, **une fois chacun**,
+   les scripts d'ajout de `sql/` (`opt-c-options.sql`, `pil-b-journal.sql`, `pro-codes-promo.sql`), qui
+   ajoutent tables et colonnes sans rien supprimer. Le back utilise ces tables dès qu'il est enregistré :
+   importer le script **avant** de toucher à la production.
 2. Copier `back/config/config.example.php` en `back/config/config.php`, puis y
    renseigner les identifiants MySQL et le chemin du projet
    (`/~votre_login/SAE301-Starter/`).
@@ -423,7 +430,7 @@ que le compilateur les détecte.
 | Classe | Rôle et points à connaître |
 | --- | --- |
 | `Request` | méthode, chemin à partir de `/api/`, paramètres de requête (`parametre()`), corps (`corps()`) : le **JSON** reçu, ou les champs d'un formulaire **multipart** ; `fichier('photo')` donne un fichier envoyé ; `envoiRefuse()` signale un corps rejeté par PHP (au-delà de `post_max_size`, `$_POST` et `$_FILES` arrivent vides sans erreur) |
-| `Response` | `json($donnees, $statut)` et `erreur($message, $statut)` terminent le script par `exit` : le code écrit après n'est jamais exécuté. Cookies à poser **avant** |
+| `Response` | `json($donnees, $statut)` et `erreur($message, $statut)` terminent le script par `exit` : le code écrit après n'est jamais exécuté. Cookies à poser **avant**. `fichier($contenu, $nom, $type)` envoie un fichier à télécharger (export CSV des statistiques) : seule réponse non JSON de l'API |
 | `Router` | compare `MÉTHODE /api/chemin` à la table des routes ; **pas de paramètre dans le chemin** : l'identifiant ou le slug passent en paramètre de requête (`/api/produit?slug=…`) ou dans le corps ; route inconnue → 404 JSON |
 | `Database` | PDO en `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, `utf8mb4`, et `ATTR_EMULATE_PREPARES` à `false` : **un même marqueur nommé ne peut pas apparaître deux fois** dans une requête (utiliser deux noms distincts) |
 
@@ -431,13 +438,16 @@ que le compilateur les détecte.
 
 | Route | Contrôleur::méthode | Accès | Effet |
 | --- | --- | --- | --- |
-| `GET /api/produits` (`?categorie=slug`) | `ProductController::index` | public | catalogue, ou bijoux d'une catégorie (400 slug mal formé, 404 inconnu) |
-| `GET /api/produit?slug=` | `ProductController::show` | public | fiche d'un bijou : photos, variantes, stock |
+| `GET /api/produits` (`?categorie=slug`) | `ProductController::index` | public | catalogue (chaque bijou porte `prix` avant promotion, `prixPromo` et `promotion` : promotion automatique de PRO-c), ou bijoux d'une catégorie (400 slug mal formé, 404 inconnu) |
+| `GET /api/produit?slug=` | `ProductController::show` | public | fiche d'un bijou : photos, `options` (valeurs et suppléments), variantes (une par combinaison : `prix` à payer, `prixInitial`, `valeurs`, stock) |
 | `GET /api/categories` | `CategoryController::index` | public | arbre catégories → sous-catégories |
-| `GET /api/panier` | `CartController::show` | session | contenu du panier, recalculé depuis la base |
+| `GET /api/panier` | `CartController::show` | session | contenu du panier, recalculé depuis la base ; chaque ligne porte `options` (`[{ nom, valeur }]`), `prixUnitaire` (à payer) et `prixInitial` ; le panier porte `codePromo`, `reduction` et `totalAPayer` |
 | `POST /api/panier/ajouter` | `CartController::add` | session | ajoute des exemplaires (400 requête invalide, 404 variante absente, 409 stock insuffisant) |
 | `POST /api/panier/modifier` | `CartController::update` | session | fixe la quantité d'une ligne, 0 la retire (404 ligne absente, 409 si la hausse dépasse le stock) |
 | `POST /api/panier/retirer` | `CartController::remove` | session | retire une ligne |
+| `POST /api/panier/changer-options` | `CartController::changeOptions` | session | JSON `{ variantId, nouvelleVariantId }` : remplace la combinaison d'une ligne en gardant la quantité, fusionne avec une ligne identique, la ligne garde sa place (400 autre bijou ou maximum dépassé, 404 ligne absente ou combinaison inconnue, 409 stock insuffisant) |
+| `POST /api/panier/code` | `CartController::applyCode` | session | JSON `{ code }` : applique un code promotionnel (insensible à la casse) ; 400 si vide, mal formé, inconnu ou désactivé (même message) |
+| `POST /api/panier/code/retirer` | `CartController::removeCode` | session | retire le code ; retirer un code absent n'est pas une erreur |
 | `GET /api/compte` | `AccountController::show` | public | client connecté, ou `connecte: false` (toujours 200) |
 | `POST /api/compte/connexion` | `AccountController::login` | public | connexion (401 sans préciser si c'est l'e-mail ou le mot de passe) |
 | `POST /api/compte/inscription` | `AccountController::register` | public | crée le compte et connecte (201 ; 400 champ refusé, 409 e-mail déjà utilisé) |
@@ -445,25 +455,33 @@ que le compilateur les détecte.
 | `POST /api/compte/modifier` | `AccountController::update` | client | JSON `{ prenom, nom, email }` ; renvoie l'état de connexion à jour (401 ; 400 champ refusé ; 409 e-mail d'un autre compte) |
 | `POST /api/compte/mot-de-passe` | `AccountController::changePassword` | client | JSON `{ motDePasseActuel, nouveauMotDePasse }` : le mot de passe **actuel est exigé** (401 ; 400 actuel faux, nouveau invalide ou identique) ; l'identifiant de session est renouvelé |
 | `GET /api/commandes` (`?statut=&du=&au=&page=`) | `OrderController::index` | client | historique **du client connecté**, récentes d'abord, 10 par page ; `du` et `au` (AAAA-MM-JJ, jours inclus) bornent la date ; renvoie `total`, `page`, `pages` et les effectifs par statut (401 ; 400 statut, date ou page invalide, ou `du` après `au`) ; une page trop loin est ramenée à la dernière |
-| `POST /api/commandes` | `OrderController::create` | client | valide le panier en une transaction (401, 400 panier vide, 409 stock) |
+| `POST /api/commandes` | `OrderController::create` | client | valide le panier en une transaction ; revérifie le code promo et enregistre code, pourcentage et réduction (401, 400 panier vide, 409 stock ou code promo plus valable, qui est alors retiré) |
 | `POST /api/commandes/reutiliser` | `OrderController::reorder` | client | JSON `{ numero }` : « Commander à nouveau », ajoute au panier ce qui est disponible d'une réservation **du client** ; renvoie `panier` et `resultat` (une ligne par bijou : `ajoutee`, `partielle`, `limite`, `epuisee`, `retiree`, avec l'ancien et le nouveau prix s'il a changé) (401 ; 400 numéro mal formé ; 404 absente ou d'un autre client) |
-| `GET /api/commande?numero=` | `OrderController::show` | client | une réservation **du client connecté** (404 si elle appartient à un autre) |
+| `GET /api/commande?numero=` | `OrderController::show` | client | une réservation **du client connecté** (avec `reduction`, `sousTotal`, `codePromo`, `pourcentagePromo` ; `total` est après réduction) (404 si elle appartient à un autre) |
 | `GET /api/admin/compte` | `AdminController::show` | admin (401 sinon) | administrateur connecté |
 | `POST /api/admin/connexion` | `AdminController::login` | public | connexion au back-office |
 | `POST /api/admin/deconnexion` | `AdminController::logout` | public | ferme la session d'administration |
 | `GET /api/admin/produits` | `AdminProductController::index` | admin | liste des bijoux |
-| `GET /api/admin/produit?id=` | `AdminProductController::show` | admin | un bijou pour le formulaire de modification |
+| `GET /api/admin/produit?id=` | `AdminProductController::show` | admin | un bijou pour le formulaire de modification (avec `variantes: [{ id, libelle, stock }]`) |
 | `POST /api/admin/produits/creer` | `AdminProductController::create` | admin | crée un bijou ; multipart : champs + photo facultative (201) |
-| `POST /api/admin/produits/modifier` | `AdminProductController::update` | admin | modifie un bijou ; multipart, avec `id` (404 absent, 409 plusieurs options) |
+| `POST /api/admin/produits/modifier` | `AdminProductController::update` | admin | modifie un bijou ; multipart, avec `id` ; un bijou à options envoie `stocks[<id de la variante>]` pour **chaque** combinaison au lieu de `stock`, chaque changement est journalisé en « ajustement » (404 absent, 409 stock qui ne correspond pas aux variantes) |
 | `POST /api/admin/produits/supprimer` | `AdminProductController::remove` | admin | suppression en cascade (JSON `{ id }`) |
 | `GET /api/admin/categories` | `AdminCategoryController::index` | admin | arbre des catégories avec le nombre de sous-catégories et de bijoux |
 | `POST /api/admin/categories/creer` | `AdminCategoryController::create` | admin | JSON `{ nom, description?, parentId? }` : catégorie principale, ou sous-catégorie si `parentId` (201 ; 400 champ refusé ou parent qui n'est pas une catégorie principale) |
 | `POST /api/admin/categories/modifier` | `AdminCategoryController::update` | admin | JSON `{ id, nom, description? }` ; le slug et la place ne changent pas (404 absente) |
 | `POST /api/admin/categories/deplacer` | `AdminCategoryController::move` | admin | JSON `{ id, sens }`, `sens` = `haut` ou `bas` : échange avec la voisine du même niveau, renvoie l'arbre à jour (404 absente) |
 | `POST /api/admin/categories/supprimer` | `AdminCategoryController::remove` | admin | refusée (409) tant que la catégorie contient des sous-catégories ou des bijoux ; renvoie l'arbre à jour |
-| `GET /api/admin/commandes` | `AdminOrderController::index` | admin | réservations de tous les clients, récentes d'abord ; `?statut=` filtre (400 statut inconnu) ; renvoie aussi les effectifs par statut |
+| `GET /api/admin/commandes` | `AdminOrderController::index` | admin | réservations de tous les clients, récentes d'abord ; `?statut=` filtre, `?tri=date\|statut\|montant&ordre=asc\|desc` trie (400 valeur inconnue) ; renvoie aussi les effectifs par statut |
 | `GET /api/admin/commande?numero=` | `AdminOrderController::show` | admin | une réservation avec client, lignes et statuts accessibles (`transitions`) |
 | `POST /api/admin/commandes/statut` | `AdminOrderController::changeStatus` | admin | JSON `{ numero, statut }` ; annuler rend au stock ce que le journal a enregistré (`stockRendu`) ; 409 si le passage n'est pas permis |
+| `POST /api/admin/commandes/lot` | `AdminOrderController::changeStatusBatch` | admin | JSON `{ numeros: [...], statut }`, 100 réservations au plus : chaque réservation est traitée **séparément** (pas de « tout ou rien ») ; renvoie `resultats` (`numero`, `ok`, `message`, `stockRendu`), `reussies`, `refusees` ; tous les changements partagent un repère de lot au journal |
+| `GET /api/admin/statistiques` | `AdminStatsController::index` | admin | stocks par bijou, alertes de stock faible, revenus des 7 derniers jours (réservations **retirées**, au jour du retrait), réservations par statut, bijoux les plus réservés ; jamais mis en cache |
+| `GET /api/admin/statistiques/export` | `AdminStatsController::export` | admin | les mêmes statistiques en fichier CSV (UTF-8 avec BOM, séparateur `;`) à télécharger |
+| `GET /api/admin/journal` (`?page=`) | `AdminJournalController::index` | admin | journal des modifications des administrateurs, récentes d'abord, 30 par page (400 page invalide) |
+| `GET /api/admin/codes-promo` | `AdminPromoController::index` | admin | codes promotionnels avec leurs statistiques d'utilisation (réservations non annulées, annulées, réduction accordée, montant réservé) et l'utilisation des codes supprimés |
+| `POST /api/admin/codes-promo/creer` | `AdminPromoController::create` | admin | JSON `{ code, pourcentage, actif? }` ; renvoie la liste à jour (201 ; 400 code ou pourcentage refusé, 409 code existant) |
+| `POST /api/admin/codes-promo/modifier` | `AdminPromoController::update` | admin | JSON `{ id, pourcentage, actif }` ; le texte du code ne change pas (400, 404) |
+| `POST /api/admin/codes-promo/supprimer` | `AdminPromoController::remove` | admin | JSON `{ id }` ; les réservations passées gardent leur réduction (400, 404) |
 
 ### 6.6 Contrôleurs, modèles et dépendances
 
@@ -471,20 +489,23 @@ que le compilateur les détecte.
 | --- | --- | --- |
 | `ProductController` | `ProductModel`, `CategoryModel` | lecture des bijoux ; résolution du slug de catégorie |
 | `CategoryController` | `CategoryModel` | arbre du menu |
-| `CartController` | `VariantModel`, `Cart` | `Cart` : panier en session (quantités, limite de 10, résumé) ; `VariantModel` : prix et stock lus en base |
+| `CartController` | `VariantModel`, `PromoModel`, `Cart` | `Cart` : panier en session (quantités, limite de 10, résumé, `replace()` pour changer d'options) ; `VariantModel` : prix (promotion comprise), options et stock lus en base ; `PromoModel` : code promotionnel actif |
 | `AccountController` | `UserModel` | comptes clients (mot de passe haché bcrypt), profil et changement de mot de passe |
-| `OrderController` | `OrderModel`, `UserModel`, `VariantModel` | `OrderModel` : transaction de réservation, historique paginé et filtré du client, lignes à réutiliser ; `VariantModel` : relecture du panier après un transfert |
+| `OrderController` | `OrderModel`, `UserModel`, `VariantModel`, `PromoModel` | `OrderModel` : transaction de réservation (réduction du code promo), historique paginé et filtré du client, lignes à réutiliser ; `VariantModel` : relecture du panier après un transfert ; `PromoModel` : revérification du code à la validation |
 | `AdminController` | `AdminModel` | comptes administrateurs |
 | `AdminAreaController` (abstrait) | `AdminModel` | `requireAdmin()` : accès décidé par la session **et** la base à chaque requête |
-| `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos |
+| `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos, stock de chaque combinaison |
 | `AdminCategoryController` (hérite de `AdminAreaController`) | `AdminCategoryModel` | arbre avec effectifs, création, modification, ordre, suppression |
-| `AdminOrderController` (hérite de `AdminAreaController`) | `AdminOrderModel`, `StockModel` | réservations, changement de statut, recrédit du stock à l'annulation |
+| `AdminOrderController` (hérite de `AdminAreaController`) | `AdminOrderModel`, `StockModel` | réservations triées, changement de statut seul ou en lot, recrédit du stock à l'annulation, trace au journal dans la même transaction |
+| `AdminStatsController` (hérite de `AdminAreaController`) | `AdminStatsModel`, `StatsExport` | statistiques lues à chaque appel, export CSV |
+| `AdminJournalController` (hérite de `AdminAreaController`) | `AdminJournalModel` | lecture paginée du journal des administrateurs |
+| `AdminPromoController` (hérite de `AdminAreaController`) | `AdminPromoModel` | codes promotionnels : création, modification, suppression, statistiques d'utilisation |
 
 Modèles transverses : `StockModel` (décrément à la réservation, ajustement manuel, **journal** `mouvement_stock`
 dans la même transaction que l'opération), `Stock` (règle unique de disponibilité : seuil de stock faible),
 `StockException` (stock insuffisant → **409**), `CategoryInUseException` (catégorie encore utilisée → **409**), `OrderStatus` (statuts et transitions permises, seule source
 de ces règles) et `OrderTransitionException` (passage de statut non permis → **409**),
-`Reorder` (règle de « Commander à nouveau » : quoi transférer au panier selon le stock, la limite par bijou et les bijoux supprimés), `Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
+`VariantModel::priceSql()` (**seule définition du prix à payer** d'une variante : prix du bijou + suppléments d'options, promotion automatique comprise ; `INITIAL_PRICE_SQL` donne le prix barré), `Promotion` (promotion automatique de PRO-c : −20 % sur le bijou dont le stock total est le plus élevé, calculée à chaque lecture), `Promo` (règles des codes promo : normalisation en majuscules, réduction arrondie au franc), `Reorder` (règle de « Commander à nouveau » : quoi transférer au panier selon le stock, la limite par bijou et les bijoux supprimés), `Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
 (contrôle, conversion et suppression des photos envoyées).
 
 ### 6.7 Session, accès et codes HTTP
@@ -494,6 +515,7 @@ de ces règles) et `OrderTransitionException` (passage de statut non permis → 
 | `panier` | `{ variantId => quantité }` | `CartController` |
 | `clientId` | identifiant du client connecté | `AccountController` |
 | `adminId` | identifiant de l'administrateur connecté | `AdminController` |
+| `codePromo` | code promotionnel saisi (texte en majuscules), revérifié en base à chaque réponse | `CartController` |
 
 - Seul un **identifiant** est rangé en session ; l'identité est relue en base à chaque requête.
 - Connexion : `session_regenerate_id(true)` puis écriture de la clé. Déconnexion : session détruite.
@@ -514,12 +536,15 @@ de ces règles) et `OrderTransitionException` (passage de statut non permis → 
 | Table | Contenu | Effet de la suppression d'une ligne |
 | --- | --- | --- |
 | `categorie` | catégories (`parent_id` NULL) et sous-catégories | refusée (`RESTRICT`) tant qu'elle a des sous-catégories ou des bijoux |
-| `produit` | bijou : nom, slug, description, prix (entier XPF), sous-catégorie | supprime ses variantes et ses photos (`CASCADE`) |
-| `variante` | option du bijou (« Modèle unique »), **porte le stock** | les lignes de commande et le journal gardent leurs données, `variante_id` passe à `NULL` |
+| `produit` | bijou : nom, slug, description, prix de base (entier XPF), sous-catégorie | supprime ses variantes et ses photos (`CASCADE`) |
+| `variante` | **combinaison d'options** d'un bijou (« Modèle unique » s'il n'en a pas, « Taille 54 · Perle de Tahiti » sinon), **porte le stock** | les lignes de commande et le journal gardent leurs données, `variante_id` passe à `NULL` |
+| `option_produit` · `valeur_option` · `variante_valeur` | options **définies par bijou** (« Taille »), leurs valeurs avec un supplément de prix en XPF, et la valeur choisie par option pour chaque variante (clé composite : une valeur par option, appartenant bien à cette option) | en cascade depuis le bijou ou la variante |
 | `image_produit` | photos ; `ordre` 0 = photo principale | — |
 | `utilisateur` · `administrateur` | comptes clients · comptes du back-office | un client est refusé (`RESTRICT`) tant qu'il a des réservations |
-| `commande` · `ligne_commande` | réservation (`MC-AAAA-NNNNN`) et lignes à nom et prix figés | supprime ses lignes (`CASCADE`) ; `commande_id` passe à `NULL` dans le journal |
+| `commande` · `ligne_commande` | réservation (`MC-AAAA-NNNNN`, avec `code_promo_id`, `code_promo`, `pourcentage_promo`, `reduction` ; `total` est **après** réduction, la somme des lignes vaut `total + reduction`) et lignes à nom (options comprises : « Bague … — Taille 54 · Perle de Tahiti ») et prix figés | supprime ses lignes (`CASCADE`) ; `commande_id` passe à `NULL` dans le journal |
 | `mouvement_stock` | journal : variation signée, stock résultant, motif (`reservation`, `annulation`, `ajustement`) | — |
+| `code_promo` | codes promotionnels : `code` (unique, majuscules), `pourcentage` (1 à 100), `actif` | `commande.code_promo_id` passe à `NULL`, la réservation garde le texte du code et sa réduction |
+| `journal_admin` | trace des modifications des administrateurs : qui (nom recopié), action, réservation visée, statut avant et après, détail, repère de lot, date ; écrite dans la même transaction que la modification | — |
 
 Photos : celles du catalogue d'origine sont dans `front/public/images/produits/` (nom simple dans
 `image_produit.fichier`) ; celles envoyées depuis le back-office sont dans `uploads/produits/`
@@ -532,7 +557,7 @@ en deux tailles : `<fichier>.webp` (800 px) et `<fichier>-400.webp` (400 px).
 - [ ] Méthode du contrôleur : validation, droits, orchestration, `Response::json()` / `Response::erreur()`.
 - [ ] Ligne dans `back/src/routes.php`.
 - [ ] Contrôleur et modèles créés dans `back/index.php` s'ils sont nouveaux.
-- [ ] Table ou colonne nouvelle : `CREATE TABLE` ajouté à `sql/import.sql` **et** exécuté sur la base (2.2).
+- [ ] Table ou colonne nouvelle : `CREATE TABLE` ajouté à `sql/import.sql` **et** livré dans un script d'ajout de `sql/` que la personne qui développe importe **avant** que le back ne l'utilise (2.2).
 - [ ] `php -l` sur les fichiers touchés ; essai avec une vraie session (voir `SKILL.md`, section 7).
 
 ### 6.10 Héritage du starter (films)
