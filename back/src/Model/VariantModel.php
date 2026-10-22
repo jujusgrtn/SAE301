@@ -14,6 +14,19 @@ use PDO;
  */
 final class VariantModel
 {
+    /**
+     * Expression SQL du prix d'une variante (US OPT-c) : le prix du bijou plus
+     * les suppléments des valeurs d'options de la combinaison. C'est la seule
+     * définition de ce calcul ; toute requête qui lit un prix l'utilise, pour
+     * que la fiche, le panier et la réservation affichent le même montant.
+     * La requête doit désigner les tables `produit` et `variante` sous ces noms.
+     */
+    public const PRICE_SQL = '(produit.prix + COALESCE((SELECT SUM(valeur_option.supplement)
+                                                          FROM variante_valeur
+                                                    INNER JOIN valeur_option
+                                                            ON valeur_option.id = variante_valeur.valeur_id
+                                                         WHERE variante_valeur.variante_id = variante.id), 0))';
+
     /** Connexion à la base, fournie à la construction. */
     private PDO $pdo;
 
@@ -65,7 +78,7 @@ final class VariantModel
                     variante.stock,
                     produit.nom,
                     produit.slug,
-                    produit.prix,
+                    " . self::PRICE_SQL . " AS prix,
                     image_produit.fichier AS image_fichier,
                     image_produit.alt     AS image_alt
                FROM variante

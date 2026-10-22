@@ -1,4 +1,6 @@
-<div>
-  <label for="variante" class="mb-1 block text-sm font-medium">Option</label>
-  <select id="variante" data-zone="variante" class="h-11 w-full rounded-md border border-line bg-transparent px-3 text-sm sm:w-auto"></select>
-</div>
+<fieldset class="min-w-0">
+  <legend class="mb-2 text-sm font-medium">{{nom}}</legend>
+  <div class="flex flex-wrap gap-2">
+    <slot name="valeurs"></slot>
+  </div>
+</fieldset>
