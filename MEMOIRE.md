@@ -37,7 +37,7 @@ jeton, identifiant réel) puisque le dépôt est sur GitHub.
 | Préférence | Comment l'appliquer |
 | --- | --- |
 | Les commits et les push sont faits par la personne qui développe (consigne du départ, `AGENTS.md` §1) | ne jamais les exécuter ; terminer par les commandes à lancer (`AGENTS.md` §11.5) |
-| Coder à la demande, une US à la fois, dans l'ordre de `AGENTS.md` §8 | « US n » = la n-ième de l'ordre §8 hors fondations : 1 DEC-b, 2 DEC-a, 3 DEC-c, 4 CMD-b, 5 CMD-c, 6 CMD-a, 7 STK-b, 8 STK-c, 9 STK-a, 10 GOF-b, 11 GOF-a, 12 GOF-c, 13 PIL-b |
+| Coder à la demande, une US à la fois, dans l'ordre de `AGENTS.md` §8 | « US n » = la n-ième de l'ordre §8 hors fondations : 1 DEC-b, 2 DEC-a, 3 DEC-c, 4 CMD-b, 5 CMD-c, 6 CMD-a, 7 STK-b, 8 STK-c, 9 STK-a, 10 GOF-b, 11 GOF-a, 12 GOF-c, 13 PIL-b, 14 SUI-b, 15 SUI-c, 16 SUI-a |
 | Poser les choix structurants avant de coder | une seule série de questions avec l'outil de question ; la personne peut interrompre l'outil et répondre dans le message suivant (« Answering your earlier questions ») : ces réponses valent décision |
 | Style de code imposé | pas de `foreach`, pas de `fn` en PHP, pas de fonction fléchée en JavaScript ; JSDoc/PHPDoc sur tout ; M/V/C strict avec les commentaires `. paramètre` / `> retour` |
 | Comptes rendus pédagogiques en français | sections numérotées, tableaux, check-lists, diagnostic ; détail des fichiers modifiés ; puis les commandes Git |
@@ -59,6 +59,11 @@ jeton, identifiant réel) puisque le dépôt est sur GitHub.
 | Réservation | une transaction SQL ; numéro `MC-AAAA-NNNNN` tiré de l'id ; statut initial « en cours » ; nom et prix recopiés dans les lignes | `OrderModel` |
 | Stock | porté par la variante ; « faible » à 3 exemplaires ou moins ; 409 au-delà du stock ; décrément et journal `mouvement_stock` dans la même transaction que la réservation ; ajustement du back-office journalisé (motif `ajustement`) | `Stock`, `StockModel` |
 | Statuts d'une réservation | chaîne stricte validée le 2026-10-22 : « en cours » → « disponible » → « retirée » ; annulation possible tant que la réservation n'est pas retirée ; « retirée » et « annulée » sont définitifs ; passage vérifié sur le statut relu **dans la transaction** (ligne verrouillée), refus en 409 | `OrderStatus`, `AdminOrderModel::changeStatus()` |
+<<<<<<< Updated upstream
+=======
+| Historique du client (SUI-c) | énoncé reçu le 2026-10-22 (liste par date décroissante, statut, total, détail, filtres statut et période, options visibles, pagination) ; filtres et page **dans l'adresse** (`?statut=&du=&au=&page=`), pagination serveur à 10 par page, page trop loin ramenée à la dernière ; l'option choisie est déjà dans `ligne_commande.nom_produit` (« Bague Rangiroa — Taille 54 ») ; pages `/compte/commandes` et `/compte/commandes/:numero`, accessibles depuis « Mon compte » et la confirmation | `OrderModel::findPageForUser()`, `pages/mes-commandes`, `pages/ma-commande`, `ui/pagination` |
+| Espace personnel (SUI-b) | `/compte` (accueil : informations, 3 réservations récentes, déconnexion) et `/compte/profil` (deux formulaires indépendants) ; `/connexion` redirige vers `/compte` dès que le client est connecté (la déconnexion a quitté cette page : `?deconnecte=1` y affiche l'annonce) ; une page de l'espace sans session renvoie vers `/connexion` (`replaceState` + `popstate`) ; changer le mot de passe exige l'actuel (400 s'il est faux), renouvelle l'identifiant de session et refuse un nouveau identique à l'ancien ; changer l'e-mail n'exige pas le mot de passe | `AccountController::update()`, `changePassword()`, `ui/navigation-compte`, `pages/espace-client`, `pages/profil` |
+>>>>>>> Stashed changes
 | Annulation et stock | le stock rendu est lu dans le **journal** (somme des sorties `reservation` de la réservation), pas dans ses lignes : une réservation antérieure au journal (`MC-2026-00001` et `00002`) rend 0 au lieu de gonfler le stock ; une seule restitution par réservation | `StockModel::refundOrder()` |
 | Photos envoyées | `uploads/produits/` à la racine (hors de `front/dist/` que le build vide) ; WebP 800 px et 400 px recadrés au carré ; `image_produit.fichier` = nom simple (catalogue d'origine) ou `uploads/produits/nom` | `ProductImageStorage`, `lib/image.js` |
 | Slugs | dérivés du nom, rendus uniques par suffixe, **jamais modifiés** ensuite ; slug d'une sous-catégorie préfixé par celui de sa catégorie principale | `Slug`, `AdminProductModel`, `AdminCategoryModel` |
@@ -82,10 +87,23 @@ jeton, identifiant réel) puisque le dépôt est sur GitHub.
 | GOF-b | back-office : accès administrateur | 2026-10-20 |
 | GOF-a | gestion des produits, photos comprises | 2026-10-21 |
 | GOF-c | gestion des catégories | 2026-10-22 |
+<<<<<<< Updated upstream
 | PIL-b | gestion des réservations, avec recrédit du stock à l'annulation | 2026-10-22 (branche `feature/PIL-b-commandes`, à commiter) |
 
 **Prochaines étapes, dans l'ordre** : SUI-b, SUI-c (historique des réservations côté client : les statuts
 de PIL-b y seront affichés), SUI-a, OPT-c, OPT-b, OPT-a, PIL-a, et PRO-a/b/c en bonus.
+=======
+| PIL-b | gestion des réservations, avec recrédit du stock à l'annulation | 2026-10-22 (branche `feature/PIL-b-commandes`, poussée ; pas encore fusionnée dans `main`) |
+| SUI-c | historique des réservations du client : liste paginée, filtres statut et période, détail avec options | 2026-10-22 (commit « SUI-b : historique… » sur la branche `feature/SUI-b-historique` : **mal nommés**, c'est SUI-c ; énoncé d'abord mal transmis) |
+| SUI-b | espace personnel : accueil, profil, mot de passe (actuel exigé), aperçu d'activité, navigation | 2026-10-22 (branche `feature/SUI-b-espace-personnel`, à commiter) |
+
+**Prochaines étapes, dans l'ordre** : SUI-a (« Commander à nouveau » depuis l'historique), OPT-c, OPT-b, OPT-a, PIL-a, et
+PRO-a/b/c en bonus. Énoncés reçus le 2026-10-22 : SUI-b = espace personnel (accueil personnalisé, informations, modification
+nom / e-mail / mot de passe, navigation, redirection vers la connexion, aperçu des commandes récentes ; DoD : le mot de passe
+actuel est exigé) ; SUI-c = historique (voir §4) ; SUI-a = réutiliser une commande (bouton « Commander à nouveau », produits
+transférés dans le panier après contrôle de la disponibilité, produits indisponibles signalés, options conservées, message de
+confirmation ; DoD : produits supprimés ou modifiés depuis la commande).
+>>>>>>> Stashed changes
 
 ## 6. Environnement et méthode de test
 
@@ -100,8 +118,10 @@ de PIL-b y seront affichés), SUI-a, OPT-c, OPT-b, OPT-a, PIL-a, et PRO-a/b/c en
 | Tester avec des réservations | créer des réservations de test avec le compte client des seeds, puis tout restaurer à partir d'un instantané pris avant (compteurs, stocks, réservations, lignes, journal) et vérifier que l'état est identique |
 | PHP | 8.4 ; GD avec JPEG, PNG et WebP ; `exif` et `finfo` présents ; `upload_max_filesize` 2 Mo, `post_max_size` 8 Mo |
 | Comptes de test | voir `AGENTS.md` §2.2 |
+| Énoncés des US | l'énoncé fait foi : un nom d'US dit de mémoire peut se tromper (SUI-b et SUI-c ont été confondues le 2026-10-22) ; vérifier le titre et les critères avant de coder | `MEMOIRE.md` §5 |
 | Git, création de branche | ne pas faire `git switch -c x origin/main` : la branche suivrait `origin/main` et un `git push` partirait **vers `main`** ; faire `git switch -c x` depuis la branche locale, puis `git push -u origin x` |
 | Git, `ECONNREFUSED …vscode-git-….sock` | le terminal date d'une ancienne session VS Code : en ouvrir un nouveau |
+| Git, branches des US | `main` ne reçoit une US qu'à la demande de la personne qui développe : une US qui dépend d'une autre non fusionnée (SUI-b sur PIL-b) part de la **branche de l'US précédente** ; vérifier `git branch --show-current` avant de coder, la personne peut avoir changé de branche entre deux demandes |
 | Git, identité | `user.name` et `user.email` ne sont pas configurés (avertissement à chaque commit) |
 
 Le détail des pièges de code déjà rencontrés est dans `SKILL.md`, section 8.
@@ -125,7 +145,11 @@ Le détail des pièges de code déjà rencontrés est dans `SKILL.md`, section 8
 | 2026-10-19 | DEC-b (route et front), DEC-a, DEC-c, CMD-b |
 | 2026-10-20 | CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-b ; création de `SKILL.md` ; sortie du dossier `Base/` ; fusion de GOF-b dans `main` |
 | 2026-10-21 | GOF-a ; `ARCHITECTURE.md` supprimé ; isolation entre sites (clé de thème préfixée, cookie `matira_session`) |
+<<<<<<< Updated upstream
 | 2026-10-22 | GOF-c ; correction du routeur (la chaîne de requête des liens `data-link` était perdue) ; restauration dans `AGENTS.md` de l'architecture du back, qui n'était jamais arrivée sur `main` ; création de `MEMOIRE.md` ; PIL-b (suivi des réservations et annulation avec recrédit du stock) |
+=======
+| 2026-10-22 | SUI-c (historique du client, livré sous le nom SUI-b) ; SUI-b (espace personnel) ; GOF-c ; correction du routeur (la chaîne de requête des liens `data-link` était perdue) ; restauration dans `AGENTS.md` de l'architecture du back, qui n'était jamais arrivée sur `main` ; création de `MEMOIRE.md` ; PIL-b (suivi des réservations et annulation avec recrédit du stock) |
+>>>>>>> Stashed changes
 
 ## 9. Diagnostic
 

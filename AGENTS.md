@@ -442,6 +442,9 @@ que le compilateur les détecte.
 | `POST /api/compte/connexion` | `AccountController::login` | public | connexion (401 sans préciser si c'est l'e-mail ou le mot de passe) |
 | `POST /api/compte/inscription` | `AccountController::register` | public | crée le compte et connecte (201 ; 400 champ refusé, 409 e-mail déjà utilisé) |
 | `POST /api/compte/deconnexion` | `AccountController::logout` | public | détruit la session, panier compris |
+| `POST /api/compte/modifier` | `AccountController::update` | client | JSON `{ prenom, nom, email }` ; renvoie l'état de connexion à jour (401 ; 400 champ refusé ; 409 e-mail d'un autre compte) |
+| `POST /api/compte/mot-de-passe` | `AccountController::changePassword` | client | JSON `{ motDePasseActuel, nouveauMotDePasse }` : le mot de passe **actuel est exigé** (401 ; 400 actuel faux, nouveau invalide ou identique) ; l'identifiant de session est renouvelé |
+| `GET /api/commandes` (`?statut=&du=&au=&page=`) | `OrderController::index` | client | historique **du client connecté**, récentes d'abord, 10 par page ; `du` et `au` (AAAA-MM-JJ, jours inclus) bornent la date ; renvoie `total`, `page`, `pages` et les effectifs par statut (401 ; 400 statut, date ou page invalide, ou `du` après `au`) ; une page trop loin est ramenée à la dernière |
 | `POST /api/commandes` | `OrderController::create` | client | valide le panier en une transaction (401, 400 panier vide, 409 stock) |
 | `GET /api/commande?numero=` | `OrderController::show` | client | une réservation **du client connecté** (404 si elle appartient à un autre) |
 | `GET /api/admin/compte` | `AdminController::show` | admin (401 sinon) | administrateur connecté |
@@ -468,8 +471,8 @@ que le compilateur les détecte.
 | `ProductController` | `ProductModel`, `CategoryModel` | lecture des bijoux ; résolution du slug de catégorie |
 | `CategoryController` | `CategoryModel` | arbre du menu |
 | `CartController` | `VariantModel`, `Cart` | `Cart` : panier en session (quantités, limite de 10, résumé) ; `VariantModel` : prix et stock lus en base |
-| `AccountController` | `UserModel` | comptes clients (mot de passe haché bcrypt) |
-| `OrderController` | `OrderModel`, `UserModel` | `OrderModel` : transaction de réservation |
+| `AccountController` | `UserModel` | comptes clients (mot de passe haché bcrypt), profil et changement de mot de passe |
+| `OrderController` | `OrderModel`, `UserModel` | `OrderModel` : transaction de réservation, historique paginé et filtré du client |
 | `AdminController` | `AdminModel` | comptes administrateurs |
 | `AdminAreaController` (abstrait) | `AdminModel` | `requireAdmin()` : accès décidé par la session **et** la base à chaque requête |
 | `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos |

@@ -1,6 +1,6 @@
 ---
 name: realiser-us
-description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c et STK-a. À utiliser pour toute nouvelle US (GOF-a, GOF-c, PIL-b, SUI-…, OPT-…) ou toute fonctionnalité qui touche à la fois le back et le front.
+description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-a, GOF-c, PIL-b, SUI-c et SUI-b. À utiliser pour toute nouvelle US (SUI-a, OPT-…) ou toute fonctionnalité qui touche à la fois le back et le front.
 ---
 
 # Réaliser une user story — SAE301 Matira Création
@@ -315,6 +315,10 @@ export function CategoryPage(params) {
 | Une page à deux modes (création / modification) : un seul module, l'identifiant vient de l'adresse (`/…/nouveau`, `/…/:id/modifier`) | `AdminProductFormPage` |
 | Annonce après une action sur une autre page : `?notice=cree`, traduit par une **liste blanche** (`Object.hasOwn`), jamais affiché tel quel | `NOTICES` de `pages/admin-produits/page.js` |
 | Réponse arrivée après un changement de page : un compteur de visite (`M.visit`) la fait ignorer | `M.fetchForm()`, `M.submit()` |
+| Liste filtrée et paginée : filtres et page **dans l'adresse**, liens construits par `M.buildPath()` (un filtre qui change revient à la page 1), formulaire de période envoyé par `C.handler_submitPeriod` puis navigation `pushState` + `popstate` ; le serveur ramène une page trop loin à la dernière | `pages/mes-commandes/page.js`, `OrderModel::findPageForUser()` |
+| Pagination : des **liens** (une adresse par page), le lien sans destination perd `href` et `data-link` et porte `role="link"` + `aria-disabled` | `ui/pagination` |
+| Page réservée au client : l'état « anonyme » (compte `null`) déclenche `V.redirect('/connexion')` (`replaceState` puis `popstate`), jamais un écran vide ; une session perdue pendant un envoi (401) fait de même | `C.loadSpace()`, `C.handler_submitForm()` |
+| Plusieurs formulaires sur une page : un `data-form` chacun, une seule action à la fois (`M.pending`), un message par formulaire, focus sur son message ; les champs de mot de passe ne sont jamais pré-remplis | `pages/profil/page.js` |
 | Un lien `data-link` peut porter une chaîne de requête (`?parent=3`) : le routeur la conserve au clic **et** dans le `href` réécrit par `updateLinks()` (corrigé avec GOF-c : il la supprimait) | `lib/router.js` (`lien.search`) |
 | Réordonner : l'action renvoie l'arbre à jour, le focus revient au **même bouton**, le résultat est annoncé par une région `role="status"` masquée plutôt que par un `aria-live` sur toute la liste | `V.announce()` de `pages/admin-categories/page.js` |
 | Suppression refusée par le serveur (409) : afficher son message tel quel, ne rien retirer de la liste | `M.deleteCategory()` |
@@ -495,5 +499,10 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
 | GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
 | PIL-b gestion des réservations | `/admin/commandes` (`?statut=`), `/admin/commandes/:numero` | `GET /api/admin/commandes`, `GET /api/admin/commande?numero=`, `POST /api/admin/commandes/statut` | `OrderStatus` (transitions), `AdminOrderModel`, `StockModel::refundOrder`, `AdminOrderController`, `ui/badge-statut`, `pages/admin-commandes`, `pages/admin-commande` |
+<<<<<<< Updated upstream
+=======
+| SUI-c historique des réservations (livrée sous le nom SUI-b) | `/compte/commandes` (`?statut=&du=&au=&page=`), `/compte/commandes/:numero` | `GET /api/commandes` (filtres + pagination), `GET /api/commande?numero=` | `OrderModel::findPageForUser` (filtre SQL commun au `COUNT` et à la page), `OrderController::index` (dates validées strictement), `ui/pagination` (liens, `aria-disabled`), `ui/badge-statut`, `pages/mes-commandes`, `pages/ma-commande` |
+| SUI-b espace personnel | `/compte`, `/compte/profil` (`/connexion` y renvoie un client connecté) | `GET /api/compte`, `POST /api/compte/{modifier,mot-de-passe}` | `UserModel::updateProfile/updatePassword`, `AccountController::update/changePassword` (mot de passe actuel exigé), `ui/navigation-compte`, `pages/espace-client`, `pages/profil` |
+>>>>>>> Stashed changes
 | GOF-c gestion des catégories | `/admin/categories`, `/admin/categories/nouveau?parent=`, `/admin/categories/:id/modifier` | `GET /api/admin/categories`, `POST /api/admin/categories/{creer,modifier,deplacer,supprimer}` | `AdminCategoryModel` (transactions, ordre réécrit de 1 à n), `CategoryInUseException`, `AdminCategoryController`, `pages/admin-categories`, `pages/admin-categorie` |
 | GOF-a gestion des produits | `/admin/produits`, `/admin/produits/nouveau`, `/admin/produits/:id/modifier` | `GET /api/admin/produits`, `GET /api/admin/produit?id=`, `POST /api/admin/produits/{creer,modifier,supprimer}` | `AdminProductModel`, `ProductImageStorage`, `Slug`, `StockModel::adjust`, `AdminProductController`, `lib/image.js`, `pages/admin-produits`, `pages/admin-produit` |
