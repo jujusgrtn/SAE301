@@ -187,6 +187,7 @@ V.createOrderFragment = function (state) {
       statut: state.statusLabel,
       total: formatPrice(order.total),
       urlCatalogue: routeUrl("/"),
+      urlCommandes: routeUrl("/compte/commandes"),
     })
   );
 

@@ -388,6 +388,7 @@ V.createContentFragment = function (state) {
         prenom: state.user.prenom,
         email: state.user.email,
         urlPanier: routeUrl("/panier"),
+        urlCommandes: routeUrl("/compte/commandes"),
         urlCatalogue: routeUrl("/"),
       })
     );

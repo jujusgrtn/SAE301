@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use DateTimeImmutable;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Cart;
 use App\Model\OrderModel;
+use App\Model\OrderStatus;
 use App\Model\StockException;
 use App\Model\UserModel;
 
 /**
- * Validation et consultation d'une réservation (US CMD-a).
+ * Validation, historique et consultation des réservations (US CMD-a, SUI-b).
  *
  * Réservé au client connecté : son identifiant est lu dans la session, jamais
  * dans la requête. Le contenu de la réservation vient du panier de la session
@@ -81,6 +83,54 @@ final class OrderController
     }
 
     /**
+     * GET /api/commandes (?statut=…&du=…&au=…&page=…) : l'historique du client.
+     *
+     * Les réservations du client connecté, les plus récentes d'abord, dix par
+     * page. `du` et `au` (AAAA-MM-JJ, jours inclus) bornent la date de validation.
+     *
+     * Réponse : { commandes: [{ numero, statut, date, total, nombreArticles }],
+     *             total, page, parPage, pages,
+     *             effectifs: { 'en cours': n, 'disponible': n, 'retirée': n, 'annulée': n } }
+     * Les effectifs portent sur toutes les réservations du client, filtre ou non.
+     * Erreurs : 401 si le client n'est pas connecté, 400 si le statut, une date ou la page est
+     * invalide, ou si `du` est après `au`.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function index(Request $request): void
+    {
+        $userId = $this->requireUserId();
+
+        $status = $request->parametre('statut');
+        if ($status !== null && !OrderStatus::isValid($status)) {
+            Response::erreur('Statut inconnu.', 400);
+            return;
+        }
+
+        $from  = $this->readDate($request, 'du');
+        $until = $this->readDate($request, 'au');
+        if ($from === false || $until === false) {
+            Response::erreur('Date invalide : utilisez le format AAAA-MM-JJ.', 400);
+            return;
+        }
+        if ($from !== null && $until !== null && $from > $until) {
+            Response::erreur('La date de début doit précéder la date de fin.', 400);
+            return;
+        }
+
+        $page = $request->parametre('page') ?? '1';
+        if (preg_match('/^[1-9]\d{0,5}$/', $page) !== 1) {
+            Response::erreur('Numéro de page invalide.', 400);
+            return;
+        }
+
+        Response::json(
+            $this->orders->findPageForUser($userId, $status, $from, $until, (int) $page)
+            + ['effectifs' => $this->orders->countByStatusForUser($userId)]
+        );
+    }
+
+    /**
      * GET /api/commande?numero=MC-2026-00042 : une réservation du client.
      *
      * Erreurs : 401 si le client n'est pas connecté, 400 si le numéro est mal
@@ -107,6 +157,27 @@ final class OrderController
         }
 
         Response::json(['commande' => $order]);
+    }
+
+    /**
+     * Lit un paramètre de date AAAA-MM-JJ.
+     *
+     * @param Request $request Requête entrante.
+     * @param string  $name    Nom du paramètre.
+     * @return string|false|null La date si elle est valide, null si le paramètre est absent ou vide, false si elle est invalide.
+     */
+    private function readDate(Request $request, string $name): string|false|null
+    {
+        $value = $request->parametre($name);
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        // La comparaison avec format() refuse 2026-02-31, que createFromFormat accepterait en le décalant.
+        return $date !== false && $date->format('Y-m-d') === $value ? $value : false;
     }
 
     /**

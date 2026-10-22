@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use DateTimeImmutable;
 use PDO;
 use Throwable;
 
@@ -21,6 +22,9 @@ final class OrderModel
 
     /** Libellé de la variante d'un bijou sans option : il n'est pas recopié. */
     private const SINGLE_VARIANT_LABEL = 'Modèle unique';
+
+    /** Nombre de réservations par page dans l'historique du client (US SUI-b). */
+    public const PER_PAGE = 10;
 
     /** Longueur de la colonne ligne_commande.nom_produit. */
     private const PRODUCT_NAME_MAX_LENGTH = 120;
@@ -159,6 +163,142 @@ final class OrderModel
             'total'  => (int) $order['total'],
             'lignes' => $lines,
         ];
+    }
+
+    /**
+     * Une page de l'historique du client, les plus récentes d'abord (US SUI-b).
+     *
+     * Les filtres se cumulent. La page demandée est ramenée à la dernière page
+     * existante : un lien devenu trop loin (réservations supprimées, filtre
+     * changé) affiche la fin de la liste plutôt qu'une page vide.
+     *
+     * @param int         $userId Client connecté : seules ses réservations sont lues.
+     * @param string|null $status Un des statuts de OrderStatus (déjà validé), ou null pour tous.
+     * @param string|null $from   Premier jour inclus, au format AAAA-MM-JJ (déjà validé), ou null.
+     * @param string|null $until  Dernier jour inclus, au format AAAA-MM-JJ (déjà validé), ou null.
+     * @param int         $page   Numéro de page demandé, à partir de 1.
+     * @return array{commandes: array<int, array<string, mixed>>, total: int, page: int, parPage: int, pages: int}
+     *         commandes : [{ numero, statut, date, total, nombreArticles }] ; total : réservations qui
+     *         correspondent aux filtres, toutes pages confondues.
+     */
+    public function findPageForUser(int $userId, ?string $status, ?string $from, ?string $until, int $page): array
+    {
+        [$where, $bindings] = self::buildHistoryFilter($userId, $status, $from, $until);
+
+        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM commande WHERE {$where}");
+        self::bindAll($statement, $bindings);
+        $statement->execute();
+
+        $total = (int) $statement->fetchColumn();
+        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        $page  = min(max(1, $page), $pages);
+
+        $statement = $this->pdo->prepare(
+            "SELECT commande.numero, commande.statut, commande.total, commande.date_commande,
+                    (SELECT COALESCE(SUM(ligne_commande.quantite), 0)
+                       FROM ligne_commande
+                      WHERE ligne_commande.commande_id = commande.id) AS nombre_articles
+               FROM commande
+              WHERE {$where}
+           ORDER BY commande.date_commande DESC, commande.id DESC
+              LIMIT :limite OFFSET :decalage"
+        );
+        self::bindAll($statement, $bindings);
+        $statement->bindValue(':limite', self::PER_PAGE, PDO::PARAM_INT);
+        $statement->bindValue(':decalage', ($page - 1) * self::PER_PAGE, PDO::PARAM_INT);
+        $statement->execute();
+
+        $orders = array_map(function (array $row): array {
+            return [
+                'numero'         => $row['numero'],
+                'statut'         => $row['statut'],
+                'date'           => $row['date_commande'],
+                'total'          => (int) $row['total'],
+                'nombreArticles' => (int) $row['nombre_articles'],
+            ];
+        }, $statement->fetchAll());
+
+        return [
+            'commandes' => $orders,
+            'total'     => $total,
+            'page'      => $page,
+            'parPage'   => self::PER_PAGE,
+            'pages'     => $pages,
+        ];
+    }
+
+    /**
+     * Le nombre de réservations du client par statut, pour les filtres.
+     * Tous les statuts sont présents, à 0 s'il n'y en a aucune.
+     *
+     * @param int $userId Client connecté.
+     * @return array<string, int> { 'en cours' => 2, 'disponible' => 0, … }
+     */
+    public function countByStatusForUser(int $userId): array
+    {
+        $counts = array_fill_keys(OrderStatus::all(), 0);
+
+        $statement = $this->pdo->prepare(
+            'SELECT statut, COUNT(*) AS nombre FROM commande WHERE utilisateur_id = :utilisateur_id GROUP BY statut'
+        );
+        $statement->bindValue(':utilisateur_id', $userId, PDO::PARAM_INT);
+        $statement->execute();
+        $rows = $statement->fetchAll();
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $counts[$rows[$i]['statut']] = (int) $rows[$i]['nombre'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Condition SQL et valeurs liées de l'historique d'un client.
+     *
+     * Les jours sont comparés à la date de validation : « jusqu'au 20 » inclut
+     * toute la journée du 20, donc la borne haute est le 21 à minuit, exclu.
+     *
+     * @param int         $userId Client connecté.
+     * @param string|null $status Statut, ou null.
+     * @param string|null $from   Premier jour inclus (AAAA-MM-JJ), ou null.
+     * @param string|null $until  Dernier jour inclus (AAAA-MM-JJ), ou null.
+     * @return array{0: string, 1: array<string, array{0: string|int, 1: int}>}
+     *         La condition, puis { marqueur => [valeur, type PDO] }.
+     */
+    private static function buildHistoryFilter(int $userId, ?string $status, ?string $from, ?string $until): array
+    {
+        $conditions = ['commande.utilisateur_id = :utilisateur_id'];
+        $bindings   = [':utilisateur_id' => [$userId, PDO::PARAM_INT]];
+
+        if ($status !== null) {
+            $conditions[] = 'commande.statut = :statut';
+            $bindings[':statut'] = [$status, PDO::PARAM_STR];
+        }
+        if ($from !== null) {
+            $conditions[] = 'commande.date_commande >= :debut';
+            $bindings[':debut'] = [$from . ' 00:00:00', PDO::PARAM_STR];
+        }
+        if ($until !== null) {
+            $conditions[] = 'commande.date_commande < :fin';
+            $bindings[':fin'] = [(new DateTimeImmutable($until))->modify('+1 day')->format('Y-m-d') . ' 00:00:00', PDO::PARAM_STR];
+        }
+
+        return [implode(' AND ', $conditions), $bindings];
+    }
+
+    /**
+     * Lie à une requête préparée toutes les valeurs de buildHistoryFilter().
+     *
+     * @param \PDOStatement                                    $statement Requête préparée.
+     * @param array<string, array{0: string|int, 1: int}>      $bindings  { marqueur => [valeur, type PDO] }.
+     */
+    private static function bindAll(\PDOStatement $statement, array $bindings): void
+    {
+        $names = array_keys($bindings);
+
+        for ($i = 0; $i < count($names); $i++) {
+            $statement->bindValue($names[$i], $bindings[$names[$i]][0], $bindings[$names[$i]][1]);
+        }
     }
 
     /**

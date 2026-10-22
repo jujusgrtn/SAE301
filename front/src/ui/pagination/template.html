@@ -1,11 +1,7 @@
-<nav class="mt-10 flex items-center justify-center gap-4">
-  <button type="button" data-action="precedente" class="h-9 rounded-md border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:border-zinc-800 dark:hover:bg-zinc-800">
-    Précédent
-  </button>
+<nav aria-label="Pagination" class="mt-8 flex items-center justify-between gap-4">
+  <a href="{{hrefPrecedente}}" data-link data-zone="precedente" class="inline-flex h-11 items-center justify-center rounded-md border border-line px-5 text-sm font-medium transition-colors hover:border-primary aria-disabled:pointer-events-none aria-disabled:opacity-50">← Précédent</a>
 
-  <span class="text-sm text-zinc-500 dark:text-zinc-400">Page {{page}} sur {{pagesTotal}}</span>
+  <p class="text-sm text-muted">Page {{page}} sur {{pagesTotal}}</p>
 
-  <button type="button" data-action="suivante" class="h-9 rounded-md border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:border-zinc-800 dark:hover:bg-zinc-800">
-    Suivant
-  </button>
+  <a href="{{hrefSuivante}}" data-link data-zone="suivante" class="inline-flex h-11 items-center justify-center rounded-md border border-line px-5 text-sm font-medium transition-colors hover:border-primary aria-disabled:pointer-events-none aria-disabled:opacity-50">Suivant →</a>
 </nav>
