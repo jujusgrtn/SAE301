@@ -17,6 +17,7 @@ import { AdminProductFormPage } from "./pages/admin-produit/page.js";
 import { AdminCategoriesPage } from "./pages/admin-categories/page.js";
 import { AdminCategoryFormPage } from "./pages/admin-categorie/page.js";
 import { AdminOrdersPage } from "./pages/admin-commandes/page.js";
+import { AdminJournalPage } from "./pages/admin-journal/page.js";
 import { AdminStatsPage } from "./pages/admin-statistiques/page.js";
 import { AdminOrderPage } from "./pages/admin-commande/page.js";
 import { The404Page } from "./pages/404/page.js";
@@ -45,6 +46,7 @@ router.addRoute("/admin/categories", AdminCategoriesPage);
 router.addRoute("/admin/categories/nouveau", AdminCategoryFormPage);
 router.addRoute("/admin/categories/:id/modifier", AdminCategoryFormPage);
 router.addRoute("/admin/statistiques", AdminStatsPage);
+router.addRoute("/admin/journal", AdminJournalPage);
 router.addRoute("/admin/commandes", AdminOrdersPage);
 router.addRoute("/admin/commandes/:numero", AdminOrderPage);
 

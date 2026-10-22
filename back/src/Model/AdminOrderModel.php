@@ -13,10 +13,29 @@ use Throwable;
  * Lecture de toutes les réservations (de tous les clients) et changement de
  * statut. Une annulation rend au stock ce que la réservation en avait retiré,
  * dans la même transaction que le changement de statut : le statut et le
- * stock ne peuvent pas se contredire.
+ * stock ne peuvent pas se contredire. Chaque changement est aussi écrit dans le
+ * journal des administrateurs (journal_admin), dans la même transaction : la
+ * modification et sa trace n'existent jamais l'une sans l'autre.
  */
 final class AdminOrderModel
 {
+    /** Nombre maximal de réservations traitées par une action en lot. */
+    public const BATCH_MAX = 100;
+
+    /**
+     * Tris permis de la liste : nom envoyé par le front => colonne SQL. Liste blanche : une
+     * valeur absente d'ici est refusée par le contrôleur, jamais recopiée dans la requête.
+     * Le tri par statut suit l'ordre du parcours (en cours, disponible, retirée, annulée).
+     */
+    public const SORTS = [
+        'date'    => 'commande.date_commande',
+        'statut'  => 'commande.statut',
+        'montant' => 'commande.total',
+    ];
+
+    /** Sens de tri permis. */
+    public const DIRECTIONS = ['asc' => 'ASC', 'desc' => 'DESC'];
+
     /** Connexion à la base, fournie à la construction. */
     private PDO $pdo;
 
@@ -34,13 +53,15 @@ final class AdminOrderModel
     }
 
     /**
-     * Les réservations, les plus récentes d'abord.
+     * Les réservations, triées par date (les plus récentes d'abord par défaut), statut ou montant.
      *
-     * @param string|null $status Un des statuts de OrderStatus (déjà validé par le contrôleur), ou null pour toutes.
+     * @param string|null $status    Un des statuts de OrderStatus (déjà validé par le contrôleur), ou null pour toutes.
+     * @param string      $sort      Une clé de SORTS (déjà validée).
+     * @param string      $direction Une clé de DIRECTIONS (déjà validée).
      * @return array<int, array<string, mixed>>
      *         [{ numero, statut, date, total, nombreArticles, client: { prenom, nom, email } }]
      */
-    public function findAll(?string $status): array
+    public function findAll(?string $status, string $sort = 'date', string $direction = 'desc'): array
     {
         $sql = 'SELECT commande.numero, commande.statut, commande.total, commande.date_commande,
                        utilisateur.prenom, utilisateur.nom, utilisateur.email,
@@ -50,7 +71,8 @@ final class AdminOrderModel
                   FROM commande
             INNER JOIN utilisateur ON utilisateur.id = commande.utilisateur_id'
             . ($status === null ? '' : ' WHERE commande.statut = :statut')
-            . ' ORDER BY commande.date_commande DESC, commande.id DESC';
+            . ' ORDER BY ' . self::SORTS[$sort] . ' ' . self::DIRECTIONS[$direction]
+            . ', commande.date_commande DESC, commande.id DESC';
 
         $statement = $this->pdo->prepare($sql);
         if ($status !== null) {
@@ -139,12 +161,14 @@ final class AdminOrderModel
      * deux fois. Une annulation rend au stock ce que la réservation avait
      * retiré (StockModel::refundOrder), dans la même transaction.
      *
-     * @param string $number    Numéro déjà validé par le contrôleur.
-     * @param string $newStatus Un des statuts de OrderStatus (déjà validé).
+     * @param string      $number    Numéro déjà validé par le contrôleur.
+     * @param string      $newStatus Un des statuts de OrderStatus (déjà validé).
+     * @param array{id: int, identifiant: string} $admin Administrateur à l'origine du changement (journal).
+     * @param string|null $batch     Repère de l'action en lot, ou null pour un changement isolé.
      * @return array{stockRendu: int}|null Le nombre d'exemplaires remis en stock, ou null si la réservation n'existe pas.
      * @throws OrderTransitionException Si le passage n'est pas permis depuis le statut actuel.
      */
-    public function changeStatus(string $number, string $newStatus): ?array
+    public function changeStatus(string $number, string $newStatus, array $admin, ?string $batch = null): ?array
     {
         $this->pdo->beginTransaction();
 
@@ -170,6 +194,8 @@ final class AdminOrderModel
 
             $refunded = $newStatus === OrderStatus::CANCELLED ? $this->stock->refundOrder((int) $row['id']) : 0;
 
+            $this->writeJournal($admin, $number, $row['statut'], $newStatus, $refunded, $batch);
+
             $this->pdo->commit();
         } catch (Throwable $e) {
             $this->pdo->rollBack();
@@ -177,6 +203,76 @@ final class AdminOrderModel
         }
 
         return ['stockRendu' => $refunded];
+    }
+
+    /**
+     * Change le statut de plusieurs réservations (action en lot).
+     *
+     * Chaque réservation est traitée dans sa propre transaction : une réservation refusée
+     * (passage non permis, introuvable) n'empêche pas les autres, et le résultat dit pour
+     * chacune ce qui s'est passé. Toutes partagent le même repère de lot dans le journal.
+     *
+     * @param array<int, string> $numbers   Numéros déjà validés par le contrôleur, sans doublon.
+     * @param string             $newStatus Un des statuts de OrderStatus (déjà validé).
+     * @param array{id: int, identifiant: string} $admin Administrateur à l'origine de l'action.
+     * @return array<int, array{numero: string, ok: bool, message: string|null, stockRendu: int}>
+     */
+    public function changeStatusBatch(array $numbers, string $newStatus, array $admin): array
+    {
+        $batch   = bin2hex(random_bytes(8));
+        $results = [];
+
+        for ($i = 0; $i < count($numbers); $i++) {
+            $result = ['numero' => $numbers[$i], 'ok' => false, 'message' => null, 'stockRendu' => 0];
+
+            try {
+                $done = $this->changeStatus($numbers[$i], $newStatus, $admin, $batch);
+
+                if ($done === null) {
+                    $result['message'] = 'Réservation introuvable.';
+                } else {
+                    $result['ok']         = true;
+                    $result['stockRendu'] = $done['stockRendu'];
+                }
+            } catch (OrderTransitionException $e) {
+                $result['message'] = $e->getMessage();
+            }
+
+            $results[] = $result;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Écrit une ligne dans le journal des administrateurs, dans la transaction en cours.
+     *
+     * @param array{id: int, identifiant: string} $admin Administrateur à l'origine du changement.
+     * @param string      $number   Numéro de la réservation.
+     * @param string      $before   Statut avant.
+     * @param string      $after    Statut après.
+     * @param int         $refunded Exemplaires remis en stock (0 hors annulation).
+     * @param string|null $batch    Repère de l'action en lot, ou null.
+     */
+    private function writeJournal(array $admin, string $number, string $before, string $after, int $refunded, ?string $batch): void
+    {
+        $detail = $after === OrderStatus::CANCELLED
+            ? 'stock rendu : ' . $refunded . ($refunded > 1 ? ' exemplaires' : ' exemplaire')
+            : '';
+
+        $statement = $this->pdo->prepare(
+            'INSERT INTO journal_admin (administrateur_id, identifiant, action, cible, statut_avant, statut_apres, detail, lot)
+             VALUES (:administrateur_id, :identifiant, :action, :cible, :avant, :apres, :detail, :lot)'
+        );
+        $statement->bindValue(':administrateur_id', $admin['id'], PDO::PARAM_INT);
+        $statement->bindValue(':identifiant', $admin['identifiant'], PDO::PARAM_STR);
+        $statement->bindValue(':action', 'commande.statut', PDO::PARAM_STR);
+        $statement->bindValue(':cible', $number, PDO::PARAM_STR);
+        $statement->bindValue(':avant', $before, PDO::PARAM_STR);
+        $statement->bindValue(':apres', $after, PDO::PARAM_STR);
+        $statement->bindValue(':detail', $detail, PDO::PARAM_STR);
+        $statement->bindValue(':lot', $batch, $batch === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $statement->execute();
     }
 
     /**

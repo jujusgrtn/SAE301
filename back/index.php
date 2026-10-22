@@ -27,6 +27,7 @@ use App\Controller\AdminProductController;
 use App\Controller\AdminCategoryController;
 use App\Controller\AdminOrderController;
 use App\Controller\AdminStatsController;
+use App\Controller\AdminJournalController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
@@ -37,6 +38,7 @@ use App\Model\AdminProductModel;
 use App\Model\AdminCategoryModel;
 use App\Model\AdminOrderModel;
 use App\Model\AdminStatsModel;
+use App\Model\AdminJournalModel;
 use App\Model\ProductImageStorage;
 use App\Model\AdminModel;
 use App\Model\FilmModel;
@@ -98,6 +100,7 @@ try {
         AdminCategoryController::class => new AdminCategoryController(new AdminModel($pdo), new AdminCategoryModel($pdo)),
         AdminOrderController::class => new AdminOrderController(new AdminModel($pdo), new AdminOrderModel($pdo, new StockModel($pdo))),
         AdminStatsController::class => new AdminStatsController(new AdminModel($pdo), new AdminStatsModel($pdo)),
+        AdminJournalController::class => new AdminJournalController(new AdminModel($pdo), new AdminJournalModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

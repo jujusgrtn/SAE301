@@ -17,10 +17,20 @@ let AdminOrderData = {};
  * Les effectifs portent sur toutes les réservations, même quand un filtre est appliqué.
  *
  * @param {string|null} status - Un des quatre statuts, ou null pour toutes.
+ * @param {string} sort - « date », « statut » ou « montant ».
+ * @param {string} direction - « asc » ou « desc ».
  * @returns {Promise<Object>}
  */
-AdminOrderData.fetchAll = async function (status) {
-  return getRequest(status === null ? "admin/commandes" : `admin/commandes?statut=${encodeURIComponent(status)}`);
+AdminOrderData.fetchAll = async function (status, sort, direction) {
+  let params = new URLSearchParams();
+
+  if (status !== null) {
+    params.set("statut", status);
+  }
+  params.set("tri", sort);
+  params.set("ordre", direction);
+
+  return getRequest(`admin/commandes?${params.toString()}`);
 };
 
 /**
@@ -48,6 +58,20 @@ AdminOrderData.fetchOne = async function (number) {
  */
 AdminOrderData.changeStatus = async function (number, status) {
   return postRequest("admin/commandes/statut", { numero: number, statut: status });
+};
+
+/**
+ * Change le statut de plusieurs réservations : POST /api/admin/commandes/lot
+ * Chaque réservation est traitée séparément : le résultat dit, pour chacune, si elle a été
+ * modifiée ou pourquoi elle a été refusée.
+ * { resultats: [{ numero, ok, message, stockRendu }], reussies, refusees }
+ *
+ * @param {Array<string>} numbers - Numéros de réservation.
+ * @param {string} status - Nouveau statut : « disponible », « retirée » ou « annulée ».
+ * @returns {Promise<Object>}
+ */
+AdminOrderData.changeBatch = async function (numbers, status) {
+  return postRequest("admin/commandes/lot", { numeros: numbers, statut: status });
 };
 
 export { AdminOrderData };

@@ -13,6 +13,7 @@ use App\Controller\AdminProductController;
 use App\Controller\AdminCategoryController;
 use App\Controller\AdminOrderController;
 use App\Controller\AdminStatsController;
+use App\Controller\AdminJournalController;
 
 /**
  * Table des routes de l'API.
@@ -60,6 +61,8 @@ return [
     'GET  /api/admin/commandes'            => [AdminOrderController::class, 'index'],
     'GET  /api/admin/commande'             => [AdminOrderController::class, 'show'],
     'POST /api/admin/commandes/statut'     => [AdminOrderController::class, 'changeStatus'],
+    'POST /api/admin/commandes/lot'        => [AdminOrderController::class, 'changeStatusBatch'],
+    'GET  /api/admin/journal'              => [AdminJournalController::class, 'index'],
     'GET  /api/admin/statistiques'         => [AdminStatsController::class, 'index'],
     'GET  /api/admin/statistiques/export'  => [AdminStatsController::class, 'export'],
 ];
