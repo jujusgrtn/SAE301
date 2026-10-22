@@ -345,6 +345,7 @@ V.createContentFragment = function (state) {
         urlCommandes: routeUrl("/admin/commandes"),
         urlStatistiques: routeUrl("/admin/statistiques"),
         urlJournal: routeUrl("/admin/journal"),
+        urlCodesPromo: routeUrl("/admin/codes-promo"),
       }));
   }
   return V.createFormFragment(state);

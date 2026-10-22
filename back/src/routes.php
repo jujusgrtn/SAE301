@@ -14,6 +14,7 @@ use App\Controller\AdminCategoryController;
 use App\Controller\AdminOrderController;
 use App\Controller\AdminStatsController;
 use App\Controller\AdminJournalController;
+use App\Controller\AdminPromoController;
 
 /**
  * Table des routes de l'API.
@@ -65,6 +66,10 @@ return [
     'POST /api/admin/commandes/statut'     => [AdminOrderController::class, 'changeStatus'],
     'POST /api/admin/commandes/lot'        => [AdminOrderController::class, 'changeStatusBatch'],
     'GET  /api/admin/journal'              => [AdminJournalController::class, 'index'],
+    'GET  /api/admin/codes-promo'          => [AdminPromoController::class, 'index'],
+    'POST /api/admin/codes-promo/creer'    => [AdminPromoController::class, 'create'],
+    'POST /api/admin/codes-promo/modifier' => [AdminPromoController::class, 'update'],
+    'POST /api/admin/codes-promo/supprimer' => [AdminPromoController::class, 'remove'],
     'GET  /api/admin/statistiques'         => [AdminStatsController::class, 'index'],
     'GET  /api/admin/statistiques/export'  => [AdminStatsController::class, 'export'],
 ];

@@ -1,0 +1,9 @@
+<form data-form="modifier" data-id="{{id}}" novalidate class="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-md bg-surface-soft p-3">
+  <div class="flex flex-col gap-1">
+    <label for="modifier-pourcentage-{{id}}" class="text-[0.8125rem] text-muted">Réduction de {{code}} (%)</label>
+    <input id="modifier-pourcentage-{{id}}" name="pourcentage" type="number" required min="1" max="100" step="1" inputmode="numeric" value="{{pourcentage}}" class="h-10 w-28 rounded-md border border-line bg-transparent px-3 text-sm">
+  </div>
+  <label class="flex h-10 items-center gap-2 text-sm"><input type="checkbox" name="actif" {{coche}} class="size-4 accent-[var(--clr-primary-text)]"> Actif</label>
+  <button type="submit" class="h-10 rounded-md bg-button px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60">Enregistrer</button>
+  <button type="button" data-action="annuler" class="h-10 rounded-md border border-line px-4 text-sm font-medium transition-colors hover:border-primary">Annuler</button>
+</form>
