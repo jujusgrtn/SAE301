@@ -446,6 +446,7 @@ que le compilateur les détecte.
 | `POST /api/compte/mot-de-passe` | `AccountController::changePassword` | client | JSON `{ motDePasseActuel, nouveauMotDePasse }` : le mot de passe **actuel est exigé** (401 ; 400 actuel faux, nouveau invalide ou identique) ; l'identifiant de session est renouvelé |
 | `GET /api/commandes` (`?statut=&du=&au=&page=`) | `OrderController::index` | client | historique **du client connecté**, récentes d'abord, 10 par page ; `du` et `au` (AAAA-MM-JJ, jours inclus) bornent la date ; renvoie `total`, `page`, `pages` et les effectifs par statut (401 ; 400 statut, date ou page invalide, ou `du` après `au`) ; une page trop loin est ramenée à la dernière |
 | `POST /api/commandes` | `OrderController::create` | client | valide le panier en une transaction (401, 400 panier vide, 409 stock) |
+| `POST /api/commandes/reutiliser` | `OrderController::reorder` | client | JSON `{ numero }` : « Commander à nouveau », ajoute au panier ce qui est disponible d'une réservation **du client** ; renvoie `panier` et `resultat` (une ligne par bijou : `ajoutee`, `partielle`, `limite`, `epuisee`, `retiree`, avec l'ancien et le nouveau prix s'il a changé) (401 ; 400 numéro mal formé ; 404 absente ou d'un autre client) |
 | `GET /api/commande?numero=` | `OrderController::show` | client | une réservation **du client connecté** (404 si elle appartient à un autre) |
 | `GET /api/admin/compte` | `AdminController::show` | admin (401 sinon) | administrateur connecté |
 | `POST /api/admin/connexion` | `AdminController::login` | public | connexion au back-office |
@@ -472,7 +473,7 @@ que le compilateur les détecte.
 | `CategoryController` | `CategoryModel` | arbre du menu |
 | `CartController` | `VariantModel`, `Cart` | `Cart` : panier en session (quantités, limite de 10, résumé) ; `VariantModel` : prix et stock lus en base |
 | `AccountController` | `UserModel` | comptes clients (mot de passe haché bcrypt), profil et changement de mot de passe |
-| `OrderController` | `OrderModel`, `UserModel` | `OrderModel` : transaction de réservation, historique paginé et filtré du client |
+| `OrderController` | `OrderModel`, `UserModel`, `VariantModel` | `OrderModel` : transaction de réservation, historique paginé et filtré du client, lignes à réutiliser ; `VariantModel` : relecture du panier après un transfert |
 | `AdminController` | `AdminModel` | comptes administrateurs |
 | `AdminAreaController` (abstrait) | `AdminModel` | `requireAdmin()` : accès décidé par la session **et** la base à chaque requête |
 | `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos |
@@ -483,7 +484,7 @@ Modèles transverses : `StockModel` (décrément à la réservation, ajustement 
 dans la même transaction que l'opération), `Stock` (règle unique de disponibilité : seuil de stock faible),
 `StockException` (stock insuffisant → **409**), `CategoryInUseException` (catégorie encore utilisée → **409**), `OrderStatus` (statuts et transitions permises, seule source
 de ces règles) et `OrderTransitionException` (passage de statut non permis → **409**),
-`Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
+`Reorder` (règle de « Commander à nouveau » : quoi transférer au panier selon le stock, la limite par bijou et les bijoux supprimés), `Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
 (contrôle, conversion et suppression des photos envoyées).
 
 ### 6.7 Session, accès et codes HTTP
@@ -629,7 +630,7 @@ Fournis un résumé clair et expliqué avec :
    respectant toujours l'ordre qui doit être suivi ;
 4. les éventuels impacts sur le reste de l'application.
 5. Les commandes a exécuter pour add, commit et push les modifications.
-6. Ce qui a été ajouté ou corrigé dans `MEMOIRE.md` (§12), le cas échéant.
+6. Ce qu'il faudrait ajouter dans `AGENTS.md`, `SKILL.md` et `MEMOIRE.md` (§12), sans les modifier : la personne qui développe les met à jour elle-même, sur `main`.
 
 ## 12. Mémoire du projet (`MEMOIRE.md`)
 
@@ -640,7 +641,7 @@ ni `SKILL.md` (la méthode).
 | Quand | Obligation |
 | --- | --- |
 | Début de session, avant toute tâche non triviale | lire `MEMOIRE.md` en entier |
-| Fin de chaque tâche, avec le compte rendu du §11 | y consigner ce qui servira plus tard : décision prise, préférence exprimée, piège rencontré, point laissé en attente, avancement d'une US ; mettre à jour la date en tête |
+| Fin de chaque tâche, avec le compte rendu du §11 | **ne pas modifier** `MEMOIRE.md` (ni `AGENTS.md`, ni `SKILL.md`) pendant une US : ils vivent sur `main`, pas sur les branches d'US ; lister dans le compte rendu ce qui servira plus tard (décision, préférence, piège, point en attente, avancement). Les mettre à jour seulement sur demande, avec la date en tête |
 
 Règles de contenu :
 
@@ -653,7 +654,7 @@ Règles de contenu :
 
 Check-list de fin de tâche :
 
-- [ ] une décision, une préférence ou un piège nouveau → ajouté à la bonne section de `MEMOIRE.md`
+- [ ] une décision, une préférence ou un piège nouveau → listé dans le compte rendu (et ajouté à la bonne section de `MEMOIRE.md` seulement sur demande)
 - [ ] l'avancement (§5) et les points en attente (§7) reflètent l'état réel
 - [ ] la date « Dernière mise à jour » est celle du jour
 - [ ] `MEMOIRE.md` ne contient aucun secret

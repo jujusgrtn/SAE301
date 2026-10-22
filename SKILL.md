@@ -1,6 +1,6 @@
 ---
 name: realiser-us
-description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-a, GOF-c, PIL-b, SUI-c et SUI-b. À utiliser pour toute nouvelle US (SUI-a, OPT-…) ou toute fonctionnalité qui touche à la fois le back et le front.
+description: Méthode pour réaliser une user story du projet SAE301 Matira Création (click & collect) de bout en bout — SQL, API PHP, module data/, page front en M/V/C, tests et compte rendu — en reprenant les patterns déjà en place dans DEC-b, DEC-a, DEC-c, CMD-b, CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-a, GOF-c, PIL-b, SUI-c, SUI-b et SUI-a. À utiliser pour toute nouvelle US (OPT-…) ou toute fonctionnalité qui touche à la fois le back et le front.
 ---
 
 # Réaliser une user story — SAE301 Matira Création
@@ -147,7 +147,7 @@ le code se lit sans connaître ce détail.
 'GET  /api/commande'            => [OrderController::class, 'show'],
 
 // back/index.php — les dépendances sont créées explicitement
-OrderController::class => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo)),
+OrderController::class => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo)),
 ```
 
 ### 4.5 Session : clés, identité, panier
@@ -314,6 +314,7 @@ export function CategoryPage(params) {
 | Suppression : confirmation **sur la ligne** (pas de `confirm()`), focus sur « Annuler » puis rendu au bouton d'origine ; une seule suppression à la fois | `pages/admin-produits/page.js` |
 | Une page à deux modes (création / modification) : un seul module, l'identifiant vient de l'adresse (`/…/nouveau`, `/…/:id/modifier`) | `AdminProductFormPage` |
 | Annonce après une action sur une autre page : `?notice=cree`, traduit par une **liste blanche** (`Object.hasOwn`), jamais affiché tel quel | `NOTICES` de `pages/admin-produits/page.js` |
+| Action « tout ou partie » (transfert d'une ancienne réservation) : une règle pure (`Reorder`) rend **un résultat par ligne** (statut, quantité demandée, quantité faite) au lieu de lever une exception ; l'écran le traduit en phrases (`ReorderResultView.formatOneLine`), annonce le total dans le titre et reçoit le focus | `Reorder::apply()`, `ui/resultat-reutilisation` |
 | Réponse arrivée après un changement de page : un compteur de visite (`M.visit`) la fait ignorer | `M.fetchForm()`, `M.submit()` |
 | Liste filtrée et paginée : filtres et page **dans l'adresse**, liens construits par `M.buildPath()` (un filtre qui change revient à la page 1), formulaire de période envoyé par `C.handler_submitPeriod` puis navigation `pushState` + `popstate` ; le serveur ramène une page trop loin à la dernière | `pages/mes-commandes/page.js`, `OrderModel::findPageForUser()` |
 | Pagination : des **liens** (une adresse par page), le lien sans destination perd `href` et `data-link` et porte `role="link"` + `aria-disabled` | `ui/pagination` |
@@ -499,10 +500,8 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
 | GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
 | PIL-b gestion des réservations | `/admin/commandes` (`?statut=`), `/admin/commandes/:numero` | `GET /api/admin/commandes`, `GET /api/admin/commande?numero=`, `POST /api/admin/commandes/statut` | `OrderStatus` (transitions), `AdminOrderModel`, `StockModel::refundOrder`, `AdminOrderController`, `ui/badge-statut`, `pages/admin-commandes`, `pages/admin-commande` |
-<<<<<<< Updated upstream
-=======
 | SUI-c historique des réservations (livrée sous le nom SUI-b) | `/compte/commandes` (`?statut=&du=&au=&page=`), `/compte/commandes/:numero` | `GET /api/commandes` (filtres + pagination), `GET /api/commande?numero=` | `OrderModel::findPageForUser` (filtre SQL commun au `COUNT` et à la page), `OrderController::index` (dates validées strictement), `ui/pagination` (liens, `aria-disabled`), `ui/badge-statut`, `pages/mes-commandes`, `pages/ma-commande` |
+| SUI-a commander à nouveau | `/compte/commandes` et `/compte/commandes/:numero` (bouton « Commander à nouveau ») | `POST /api/commandes/reutiliser` | `Reorder` (règle pure, un résultat par ligne), `OrderModel::findLinesForReorder`, `OrderController::reorder`, `ui/resultat-reutilisation`, `pages/mes-commandes`, `pages/ma-commande` |
 | SUI-b espace personnel | `/compte`, `/compte/profil` (`/connexion` y renvoie un client connecté) | `GET /api/compte`, `POST /api/compte/{modifier,mot-de-passe}` | `UserModel::updateProfile/updatePassword`, `AccountController::update/changePassword` (mot de passe actuel exigé), `ui/navigation-compte`, `pages/espace-client`, `pages/profil` |
->>>>>>> Stashed changes
 | GOF-c gestion des catégories | `/admin/categories`, `/admin/categories/nouveau?parent=`, `/admin/categories/:id/modifier` | `GET /api/admin/categories`, `POST /api/admin/categories/{creer,modifier,deplacer,supprimer}` | `AdminCategoryModel` (transactions, ordre réécrit de 1 à n), `CategoryInUseException`, `AdminCategoryController`, `pages/admin-categories`, `pages/admin-categorie` |
 | GOF-a gestion des produits | `/admin/produits`, `/admin/produits/nouveau`, `/admin/produits/:id/modifier` | `GET /api/admin/produits`, `GET /api/admin/produit?id=`, `POST /api/admin/produits/{creer,modifier,supprimer}` | `AdminProductModel`, `ProductImageStorage`, `Slug`, `StockModel::adjust`, `AdminProductController`, `lib/image.js`, `pages/admin-produits`, `pages/admin-produit` |
