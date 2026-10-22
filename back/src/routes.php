@@ -36,6 +36,8 @@ return [
     'POST /api/compte/connexion'    => [AccountController::class, 'login'],
     'POST /api/compte/inscription'  => [AccountController::class, 'register'],
     'POST /api/compte/deconnexion'  => [AccountController::class, 'logout'],
+    'POST /api/compte/modifier'     => [AccountController::class, 'update'],
+    'POST /api/compte/mot-de-passe' => [AccountController::class, 'changePassword'],
     'GET  /api/commandes'           => [OrderController::class, 'index'],
     'POST /api/commandes'           => [OrderController::class, 'create'],
     'GET  /api/commande'            => [OrderController::class, 'show'],

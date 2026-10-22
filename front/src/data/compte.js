@@ -1,7 +1,7 @@
 import { getRequest, postRequest } from "../lib/api-request.js";
 
 /**
- * Compte client (US CMD-c).
+ * Compte client (US CMD-c, SUI-b).
  *
  * La connexion est portée par la session du serveur : le front ne stocke ni
  * jeton ni rôle. Chaque appel renvoie l'état de connexion :
@@ -51,6 +51,32 @@ AccountData.register = async function (values) {
     email: values.email,
     motDePasse: values.motDePasse,
   });
+};
+
+/**
+ * Modification du profil : POST /api/compte/modifier
+ * Réponse : l'état de connexion à jour. Un champ refusé lève une ErreurApi 400,
+ * un e-mail déjà pris par un autre compte une ErreurApi 409, une session
+ * expirée une ErreurApi 401.
+ *
+ * @param {{prenom: string, nom: string, email: string}} values - Champs du formulaire.
+ * @returns {Promise<Object>}
+ */
+AccountData.updateProfile = async function (values) {
+  return postRequest("compte/modifier", { prenom: values.prenom, nom: values.nom, email: values.email });
+};
+
+/**
+ * Changement de mot de passe : POST /api/compte/mot-de-passe
+ * Le mot de passe actuel est exigé ; un mot de passe actuel faux ou un nouveau
+ * mot de passe refusé lève une ErreurApi 400.
+ *
+ * @param {string} currentPassword - Mot de passe actuel.
+ * @param {string} newPassword - Nouveau mot de passe.
+ * @returns {Promise<Object>}
+ */
+AccountData.changePassword = async function (currentPassword, newPassword) {
+  return postRequest("compte/mot-de-passe", { motDePasseActuel: currentPassword, nouveauMotDePasse: newPassword });
 };
 
 /**

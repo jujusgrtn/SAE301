@@ -3,6 +3,7 @@ import { formatDate, formatPrice } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { PaginationView } from "../../ui/pagination/index.js";
 import { StatusBadgeView } from "../../ui/badge-statut/index.js";
+import { AccountNavigationView } from "../../ui/navigation-compte/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
@@ -321,16 +322,17 @@ let V = {};
 V.root = null; // élément racine de la page affichée
 
 /**
- * Crée la structure de la page, mémorise sa racine et écoute l'envoi du
- * formulaire de période (délégation : le formulaire est recréé à chaque rendu).
+ * Crée la structure de la page, y place la navigation de l'espace, mémorise sa racine
+ * et écoute l'envoi du formulaire de période (délégation : le formulaire est recréé à chaque rendu).
  * . aucun paramètre
  * > DocumentFragment de la page
  *
  * @returns {DocumentFragment}
  */
 V.init = function () {
-  let fragment = htmlToFragment(genericRenderer(template, { urlCompte: routeUrl("/connexion") }));
+  let fragment = htmlToFragment(template);
   V.root = fragment.firstElementChild;
+  fragment.querySelector('slot[name="navigation"]').replaceWith(AccountNavigationView.dom());
   V.root.addEventListener("submit", C.handler_submitPeriod);
   return fragment;
 };

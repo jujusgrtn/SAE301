@@ -1,5 +1,4 @@
 import { AccountData, ACCOUNT_CHANGED_EVENT } from "../../data/compte.js";
-import { CART_CHANGED_EVENT } from "../../data/panier.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
@@ -7,14 +6,14 @@ import templateLoadError from "./erreur-chargement.html?raw";
 import templateForms from "./formulaires.html?raw";
 import templateError from "./erreur.html?raw";
 import templateNotice from "./annonce.html?raw";
-import templateConnected from "./connecte.html?raw";
 
 /**
- * Page « Mon compte » (US CMD-c) : /connexion.
+ * Page « Connexion » (US CMD-c) : /connexion.
  *
  * Déconnecté, le client voit deux formulaires : connexion et inscription.
- * Connecté, il voit son identité et peut se déconnecter. C'est toujours la
- * réponse du serveur qui dit si le client est connecté.
+ * Un client déjà connecté, ou qui vient de se connecter, est envoyé vers son
+ * espace personnel (/compte), où se trouve aussi la déconnexion. C'est toujours
+ * la réponse du serveur qui dit si le client est connecté.
  */
 
 // ---------------------------------------------------------------------------
@@ -24,7 +23,7 @@ import templateConnected from "./connecte.html?raw";
 let M = {
   status: "loading", // "loading" | "ready" | "error"
   user: null, // { prenom, nom, email } du client connecté, ou null
-  pending: null, // action en cours : "connexion" | "inscription" | "deconnexion"
+  pending: null, // action en cours : "connexion" | "inscription"
   loadError: null, // texte si l'état du compte n'a pas pu être chargé
   loginError: null, // texte de l'erreur du formulaire de connexion
   registerError: null, // texte de l'erreur du formulaire d'inscription
@@ -37,18 +36,19 @@ let M = {
 
 /**
  * Remet les messages à zéro avant un nouvel affichage de la page.
- * . aucun paramètre
+ * . isLoggedOut : vrai si le client arrive de sa déconnexion (?deconnecte=1)
  * > aucune valeur de retour
  *
+ * @param {boolean} isLoggedOut
  * @returns {void}
  */
-M.reset = function () {
+M.reset = function (isLoggedOut) {
   M.status = "loading";
   M.pending = null;
   M.loadError = null;
   M.loginError = null;
   M.registerError = null;
-  M.notice = null;
+  M.notice = isLoggedOut ? "Vous êtes déconnecté. Votre panier a été vidé." : null;
 };
 
 /**
@@ -83,7 +83,7 @@ M.canSubmit = function () {
 
 /**
  * Passe une action en cours et efface les messages précédents.
- * . action : "connexion" | "inscription" | "deconnexion"
+ * . action : "connexion" | "inscription"
  * > aucune valeur de retour
  *
  * @param {string} action
@@ -146,29 +146,6 @@ M.register = async function (values) {
 };
 
 /**
- * Déconnexion : le serveur détruit la session, panier compris.
- * . aucun paramètre
- * > Promise<boolean> : vrai si le client est déconnecté
- *
- * @returns {Promise<boolean>}
- */
-M.logout = async function () {
-  let isDone = false;
-
-  try {
-    await AccountData.logout();
-    M.user = null;
-    M.notice = "Vous êtes déconnecté. Votre panier a été vidé.";
-    isDone = true;
-  } catch (error) {
-    M.notice = `La déconnexion a échoué : ${error.message}`;
-  }
-
-  M.pending = null;
-  return isDone;
-};
-
-/**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
  * > { status, user, pending, loadError, loginError, registerError, notice,
@@ -205,6 +182,11 @@ let C = {};
  */
 C.loadAccount = async function () {
   await M.fetchAccount();
+
+  if (M.user !== null) {
+    V.redirect("/compte");
+    return;
+  }
   V.renderPage(M.getState());
 };
 
@@ -237,39 +219,14 @@ C.handler_submitForm = async function (ev) {
 
   let isDone = action === "connexion" ? await M.login(values) : await M.register(values);
 
-  V.renderPage(M.getState());
   if (isDone) {
     V.notifyAccountChanged(M.getState().user);
-    V.focusWelcome();
-  } else {
-    V.focusError(action);
-  }
-};
-
-/**
- * Clic sur « Se déconnecter ».
- * . ev : événement click, délégué depuis la racine de la page
- * > Promise<void>
- *
- * @param {MouseEvent} ev
- * @returns {Promise<void>}
- */
-C.handler_clickOnLogout = async function (ev) {
-  if (ev.target.closest('[data-action="deconnexion"]') === null || !M.canSubmit()) {
+    V.redirect("/compte");
     return;
   }
 
-  M.startAction("deconnexion");
-  V.renderBusy(M.getState());
-
-  let isDone = await M.logout();
-
   V.renderPage(M.getState());
-  if (isDone) {
-    V.notifyAccountChanged(null);
-    V.notifyCartChanged(0);
-  }
-  V.focusTitle();
+  V.focusError(action);
 };
 
 /**
@@ -281,7 +238,7 @@ C.handler_clickOnLogout = async function (ev) {
  * @returns {DocumentFragment}
  */
 C.init = function () {
-  M.reset();
+  M.reset(V.readLoggedOutFlag());
   let fragment = V.init();
   V.renderPage(M.getState());
   C.loadAccount();
@@ -297,8 +254,8 @@ let V = {};
 V.root = null; // élément racine de la page affichée
 
 /**
- * Crée la structure de la page, mémorise sa racine et y délègue les
- * événements des formulaires et du bouton de déconnexion.
+ * Crée la structure de la page, mémorise sa racine et y délègue l'envoi
+ * des formulaires.
  * . aucun paramètre
  * > DocumentFragment de la page
  *
@@ -308,8 +265,33 @@ V.init = function () {
   let fragment = htmlToFragment(template);
   V.root = fragment.firstElementChild;
   V.root.addEventListener("submit", C.handler_submitForm);
-  V.root.addEventListener("click", C.handler_clickOnLogout);
   return fragment;
+};
+
+/**
+ * Indique si le client arrive de sa déconnexion (?deconnecte=1).
+ * . aucun paramètre
+ * > booléen
+ *
+ * @returns {boolean}
+ */
+V.readLoggedOutFlag = function () {
+  return new URLSearchParams(window.location.search).get("deconnecte") === "1";
+};
+
+/**
+ * Change d'adresse sans empiler l'historique et sans recharger le navigateur.
+ * Le routeur n'écoute que popstate : on remplace l'adresse, puis on le
+ * prévient, comme le ferait le bouton Précédent du navigateur.
+ * . path : chemin de route
+ * > aucune valeur de retour
+ *
+ * @param {string} path
+ * @returns {void}
+ */
+V.redirect = function (path) {
+  window.history.replaceState(null, "", routeUrl(path));
+  window.dispatchEvent(new PopStateEvent("popstate"));
 };
 
 /**
@@ -367,8 +349,7 @@ V.createFormsFragment = function (state) {
 };
 
 /**
- * Contenu correspondant à l'état : chargement, erreur, client connecté ou
- * formulaires.
+ * Contenu correspondant à l'état : chargement, erreur ou formulaires.
  * . state : état renvoyé par M.getState()
  * > DocumentFragment
  *
@@ -381,17 +362,6 @@ V.createContentFragment = function (state) {
   }
   if (state.status === "error") {
     return htmlToFragment(genericRenderer(templateLoadError, { texte: state.loadError }));
-  }
-  if (state.user !== null) {
-    return htmlToFragment(
-      genericRenderer(templateConnected, {
-        prenom: state.user.prenom,
-        email: state.user.email,
-        urlPanier: routeUrl("/panier"),
-        urlCommandes: routeUrl("/compte/commandes"),
-        urlCatalogue: routeUrl("/"),
-      })
-    );
   }
   return V.createFormsFragment(state);
 };
@@ -423,9 +393,8 @@ V.renderBusy = function (state) {
   let selectors = {
     connexion: 'form[data-form="connexion"] [type="submit"]',
     inscription: 'form[data-form="inscription"] [type="submit"]',
-    deconnexion: '[data-action="deconnexion"]',
   };
-  let labels = { connexion: "Connexion…", inscription: "Création du compte…", deconnexion: "Déconnexion…" };
+  let labels = { connexion: "Connexion…", inscription: "Création du compte…" };
   let button = V.root.querySelector(selectors[state.pending]);
 
   button.setAttribute("aria-disabled", "true");
@@ -450,36 +419,6 @@ V.focusError = function (action) {
 };
 
 /**
- * Place le focus sur le message de bienvenue après une connexion réussie.
- * . aucun paramètre
- * > aucune valeur de retour
- *
- * @returns {void}
- */
-V.focusWelcome = function () {
-  let welcome = V.root.querySelector('[data-zone="bienvenue"]');
-
-  if (welcome !== null) {
-    welcome.focus();
-  }
-};
-
-/**
- * Place le focus sur le premier champ après une déconnexion.
- * . aucun paramètre
- * > aucune valeur de retour
- *
- * @returns {void}
- */
-V.focusTitle = function () {
-  let field = V.root.querySelector("#connexion-email");
-
-  if (field !== null) {
-    field.focus();
-  }
-};
-
-/**
  * Annonce au layout le nouveau client connecté (null après déconnexion).
  * . user : { prenom, nom, email } ou null
  * > aucune valeur de retour
@@ -489,18 +428,6 @@ V.focusTitle = function () {
  */
 V.notifyAccountChanged = function (user) {
   document.dispatchEvent(new CustomEvent(ACCOUNT_CHANGED_EVENT, { detail: { utilisateur: user } }));
-};
-
-/**
- * Annonce au layout le nouveau nombre d'articles du panier.
- * . count : nombre d'articles
- * > aucune valeur de retour
- *
- * @param {number} count
- * @returns {void}
- */
-V.notifyCartChanged = function (count) {
-  document.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT, { detail: { nombreArticles: count } }));
 };
 
 /**

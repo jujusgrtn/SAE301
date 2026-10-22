@@ -1,0 +1,54 @@
+<div class="grid gap-6 md:grid-cols-2 md:gap-8 md:items-start">
+  <section aria-labelledby="titre-profil" class="rounded-md border border-line p-5 sm:p-6">
+    <h2 id="titre-profil" class="text-lg font-semibold">Mes informations</h2>
+
+    <form data-form="profil" class="mt-4 flex flex-col gap-4">
+      <slot name="message-profil"></slot>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-1.5">
+          <label for="profil-prenom" class="text-sm font-medium">Prénom</label>
+          <input id="profil-prenom" name="prenom" type="text" required maxlength="60" autocomplete="given-name" value="{{prenom}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="profil-nom" class="text-sm font-medium">Nom</label>
+          <input id="profil-nom" name="nom" type="text" required maxlength="60" autocomplete="family-name" value="{{nom}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="profil-email" class="text-sm font-medium">E-mail</label>
+        <input id="profil-email" name="email" type="email" required maxlength="190" autocomplete="email" value="{{email}}" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60 sm:self-start">Enregistrer</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="titre-mot-de-passe" class="rounded-md border border-line p-5 sm:p-6">
+    <h2 id="titre-mot-de-passe" class="text-lg font-semibold">Mot de passe</h2>
+    <p class="mt-1 text-sm text-muted">Votre mot de passe actuel est demandé pour en choisir un nouveau.</p>
+
+    <form data-form="mot-de-passe" class="mt-4 flex flex-col gap-4">
+      <slot name="message-mot-de-passe"></slot>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="mdp-actuel" class="text-sm font-medium">Mot de passe actuel</label>
+        <input id="mdp-actuel" name="motDePasseActuel" type="password" required autocomplete="current-password" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="mdp-nouveau" class="text-sm font-medium">Nouveau mot de passe</label>
+        <input id="mdp-nouveau" name="nouveauMotDePasse" type="password" required minlength="8" autocomplete="new-password" aria-describedby="aide-nouveau-mdp" class="h-11 rounded-md border border-line bg-transparent px-3">
+        <p id="aide-nouveau-mdp" class="text-[0.8125rem] text-muted">8 caractères minimum.</p>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label for="mdp-confirmation" class="text-sm font-medium">Confirmer le nouveau mot de passe</label>
+        <input id="mdp-confirmation" name="confirmation" type="password" required minlength="8" autocomplete="new-password" class="h-11 rounded-md border border-line bg-transparent px-3">
+      </div>
+
+      <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60 sm:self-start">Changer le mot de passe</button>
+    </form>
+  </section>
+</div>
