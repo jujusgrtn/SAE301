@@ -13,8 +13,10 @@ use PDO;
  * et chaque export montrent l'état du moment.
  *
  * Revenus : les réservations ne sont payées qu'au retrait, donc seules les
- * réservations « retirées » comptent. La base ne garde pas la date du retrait :
- * elles sont rangées par jour de **réservation**.
+ * réservations « retirées » comptent, rangées par jour de **retrait**. Ce jour est
+ * celui du passage à « retirée » inscrit au journal des administrateurs ; une
+ * réservation retirée avant l'existence du journal n'a pas cette date et reste
+ * rangée à son jour de réservation.
  */
 final class AdminStatsModel
 {
@@ -84,7 +86,7 @@ final class AdminStatsModel
 
     /**
      * Les revenus des derniers jours, jour par jour, y compris les jours sans retrait :
-     * seules les réservations retirées comptent.
+     * seules les réservations retirées comptent, au jour de leur retrait.
      *
      * Le jour « aujourd'hui » est celui de la base, comme la date des réservations :
      * les deux ne peuvent pas se décaler.
@@ -96,14 +98,22 @@ final class AdminStatsModel
         $days = self::REVENUE_DAYS;
 
         $statement = $this->pdo->prepare(
-            'SELECT DATE(date_commande) AS jour,
+            'SELECT DATE(COALESCE(retrait.date_retrait, commande.date_commande)) AS jour,
                     COUNT(*) AS nombre,
-                    SUM(total) AS total
+                    SUM(commande.total) AS total
                FROM commande
-              WHERE statut = :retiree
-                AND date_commande >= DATE_SUB(CURDATE(), INTERVAL ' . ($days - 1) . ' DAY)
-           GROUP BY DATE(date_commande)'
+          LEFT JOIN (SELECT cible, MAX(date_action) AS date_retrait
+                       FROM journal_admin
+                      WHERE action = :action AND statut_apres = :journal_retiree
+                   GROUP BY cible) AS retrait
+                 ON retrait.cible = commande.numero
+              WHERE commande.statut = :retiree
+                AND COALESCE(retrait.date_retrait, commande.date_commande)
+                    >= DATE_SUB(CURDATE(), INTERVAL ' . ($days - 1) . ' DAY)
+           GROUP BY jour'
         );
+        $statement->bindValue(':action', 'commande.statut', PDO::PARAM_STR);
+        $statement->bindValue(':journal_retiree', OrderStatus::PICKED_UP, PDO::PARAM_STR);
         $statement->bindValue(':retiree', OrderStatus::PICKED_UP, PDO::PARAM_STR);
         $statement->execute();
 

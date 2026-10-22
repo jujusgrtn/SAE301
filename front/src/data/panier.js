@@ -65,6 +65,27 @@ CartData.changeOptions = async function (variantId, newVariantId) {
 };
 
 /**
+ * Applique un code promotionnel : POST /api/panier/code
+ * Le panier renvoyé contient codePromo { code, pourcentage, reduction }, reduction et
+ * totalAPayer. Un code inconnu ou désactivé lève une ErreurApi 400.
+ *
+ * @param {string} code - Code saisi (le serveur ignore la casse).
+ * @returns {Promise<Object>}
+ */
+CartData.applyCode = async function (code) {
+  return postRequest("panier/code", { code: code });
+};
+
+/**
+ * Retire le code promotionnel : POST /api/panier/code/retirer
+ *
+ * @returns {Promise<Object>}
+ */
+CartData.removeCode = async function () {
+  return postRequest("panier/code/retirer");
+};
+
+/**
  * Retire une ligne : POST /api/panier/retirer
  *
  * @param {number} variantId - Identifiant de la variante.

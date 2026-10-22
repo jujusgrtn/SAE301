@@ -4,6 +4,10 @@ import { OrderData } from "../../data/commande.js";
 import { productImageUrl } from "../../lib/image.js";
 import { formatOptions, formatPrice, formatStockWarning } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
+import { TotalsView } from "../../ui/lignes-totaux/index.js";
+import templateCodeInput from "./code-saisie.html?raw";
+import templateCodeError from "./code-erreur.html?raw";
+import templateCodeApplied from "./code-applique.html?raw";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateInfo from "./info.html?raw";
@@ -34,6 +38,9 @@ let M = {
   loadError: null, // texte si la page n'a pas pu être chargée
   isSubmitting: false,
   submitError: null, // texte si la validation a échoué
+  isApplyingCode: false, // vrai pendant l'envoi du code promo
+  codeError: null, // texte si le code promo a été refusé
+  codeDraft: "", // code saisi, conservé si le serveur le refuse
 };
 
 /**
@@ -50,6 +57,9 @@ M.reset = function () {
   M.loadError = null;
   M.isSubmitting = false;
   M.submitError = null;
+  M.isApplyingCode = false;
+  M.codeError = null;
+  M.codeDraft = "";
 };
 
 /**
@@ -89,6 +99,59 @@ M.canSubmit = function () {
     M.cart.estReservable &&
     !M.isSubmitting
   );
+};
+
+/**
+ * Applique un code promotionnel au panier. Le serveur vérifie le code (il existe,
+ * il est actif) et renvoie le panier avec la réduction ; refusé, le message du
+ * serveur est conservé et le code saisi reste dans le champ.
+ * . code : code saisi
+ * > Promise<boolean> : vrai si le code est appliqué
+ *
+ * @param {string} code
+ * @returns {Promise<boolean>}
+ */
+M.applyCode = async function (code) {
+  M.codeDraft = code.trim();
+  M.codeError = null;
+  M.submitError = null;
+  M.isApplyingCode = true;
+  let isDone = false;
+
+  try {
+    M.cart = await CartData.applyCode(M.codeDraft);
+    M.codeDraft = "";
+    isDone = true;
+  } catch (error) {
+    M.codeError = error.message;
+  }
+
+  M.isApplyingCode = false;
+  return isDone;
+};
+
+/**
+ * Retire le code promotionnel du panier.
+ * . aucun paramètre
+ * > Promise<boolean> : vrai si le code est retiré
+ *
+ * @returns {Promise<boolean>}
+ */
+M.removeCode = async function () {
+  M.codeError = null;
+  M.submitError = null;
+  M.isApplyingCode = true;
+  let isDone = false;
+
+  try {
+    M.cart = await CartData.removeCode();
+    isDone = true;
+  } catch (error) {
+    M.codeError = `Le code n'a pas pu être retiré : ${error.message}`;
+  }
+
+  M.isApplyingCode = false;
+  return isDone;
 };
 
 /**
@@ -179,8 +242,8 @@ M.formatItemCount = function (count) {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, loadError, needsLogin, isEmpty, user, lines, itemCountLabel,
- *     total, isBookable, isSubmitting, submitError }
+ * > { status, loadError, needsLogin, isEmpty, user, lines, itemCountLabel, subtotal, promo,
+ *     reduction, total (à régler), isBookable, isSubmitting, submitError, isApplyingCode, codeError, codeDraft }
  *
  * @returns {Object}
  */
@@ -198,9 +261,15 @@ M.getState = function () {
     }),
     isBookable: M.cart !== null && M.cart.estReservable,
     itemCountLabel: M.formatItemCount(M.cart === null ? 0 : M.cart.nombreArticles),
-    total: M.cart === null ? 0 : M.cart.total,
+    subtotal: M.cart === null ? 0 : M.cart.total,
+    promo: M.cart === null ? null : M.cart.codePromo,
+    reduction: M.cart === null ? 0 : M.cart.reduction,
+    total: M.cart === null ? 0 : M.cart.totalAPayer,
     isSubmitting: M.isSubmitting,
     submitError: M.submitError,
+    isApplyingCode: M.isApplyingCode,
+    codeError: M.codeError,
+    codeDraft: M.codeDraft,
   };
 };
 
@@ -251,6 +320,54 @@ C.handler_clickOnSubmit = async function (ev) {
 };
 
 /**
+ * Envoi du formulaire du code promo : le serveur vérifie le code et renvoie le
+ * total avec la réduction. Refusé, le message s'affiche sous le champ, qui
+ * garde le focus.
+ * . ev : événement submit, délégué depuis la racine de la page
+ * > Promise<void>
+ *
+ * @param {SubmitEvent} ev
+ * @returns {Promise<void>}
+ */
+C.handler_submitCode = async function (ev) {
+  if (ev.target.closest('form[data-form="code-promo"]') === null) {
+    return;
+  }
+  ev.preventDefault();
+
+  if (M.isApplyingCode || M.isSubmitting) {
+    return;
+  }
+
+  let isDone = await M.applyCode(V.readCode(ev.target));
+
+  V.renderPage(M.getState());
+  if (isDone) {
+    V.focusCodeApplied();
+  } else {
+    V.focusCodeField();
+  }
+};
+
+/**
+ * Clic sur « Retirer le code » : le total revient à sa valeur sans réduction.
+ * . ev : événement click, délégué depuis la racine de la page
+ * > Promise<void>
+ *
+ * @param {MouseEvent} ev
+ * @returns {Promise<void>}
+ */
+C.handler_clickOnRemoveCode = async function (ev) {
+  if (ev.target.closest('[data-action="retirer-code"]') === null || M.isApplyingCode || M.isSubmitting) {
+    return;
+  }
+
+  await M.removeCode();
+  V.renderPage(M.getState());
+  V.focusCodeField();
+};
+
+/**
  * Point d'entrée : page en état de chargement, rendue au routeur, puis
  * chargement lancé sans l'attendre.
  * . aucun paramètre
@@ -285,6 +402,8 @@ V.init = function () {
   let fragment = htmlToFragment(template);
   V.root = fragment.firstElementChild;
   V.root.addEventListener("click", C.handler_clickOnSubmit);
+  V.root.addEventListener("click", C.handler_clickOnRemoveCode);
+  V.root.addEventListener("submit", C.handler_submitCode);
   return fragment;
 };
 
@@ -331,6 +450,45 @@ V.createLineFragment = function (line) {
 };
 
 /**
+ * Code promo : le champ de saisie, ou le code appliqué avec « Retirer le code »,
+ * puis les lignes sous-total et réduction au-dessus du total.
+ * . fragment : le récapitulatif, state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {DocumentFragment} fragment
+ * @param {Object} state
+ * @returns {void}
+ */
+V.fillPromo = function (fragment, state) {
+  let promoSlot = fragment.querySelector('slot[name="promo"]');
+
+  if (state.promo === null) {
+    let input = htmlToFragment(genericRenderer(templateCodeInput, { valeur: state.codeDraft }));
+    let errorSlot = input.querySelector('slot[name="erreur"]');
+
+    if (state.codeError === null) {
+      errorSlot.remove();
+    } else {
+      errorSlot.replaceWith(htmlToFragment(genericRenderer(templateCodeError, { texte: state.codeError })));
+    }
+    promoSlot.replaceWith(input);
+  } else {
+    promoSlot.replaceWith(
+      htmlToFragment(genericRenderer(templateCodeApplied, { code: state.promo.code, pourcentage: state.promo.pourcentage }))
+    );
+  }
+
+  fragment.querySelector('slot[name="reduction"]').replaceWith(
+    TotalsView.dom({
+      sousTotal: state.subtotal,
+      reduction: state.reduction,
+      codePromo: state.promo === null ? null : state.promo.code,
+      pourcentagePromo: state.promo === null ? null : state.promo.pourcentage,
+    })
+  );
+};
+
+/**
  * Récapitulatif complet : bijoux, retrait, client, total et bouton.
  * . state : état renvoyé par M.getState()
  * > DocumentFragment
@@ -364,6 +522,8 @@ V.createSummaryFragment = function (state) {
     blockedSlot.replaceWith(htmlToFragment(genericRenderer(templateBlocked, { urlPanier: routeUrl("/panier") })));
     fragment.querySelector('[data-action="valider"]').setAttribute("aria-disabled", "true");
   }
+
+  V.fillPromo(fragment, state);
 
   let errorSlot = fragment.querySelector('slot[name="erreur"]');
   if (state.submitError === null) {
@@ -446,6 +606,48 @@ V.renderBusy = function (state) {
   if (state.isSubmitting) {
     button.setAttribute("aria-disabled", "true");
     button.textContent = "Validation en cours…";
+  }
+};
+
+/**
+ * Valeur saisie dans le champ du code promo.
+ * . form : le formulaire du code
+ * > chaîne
+ *
+ * @param {HTMLFormElement} form
+ * @returns {string}
+ */
+V.readCode = function (form) {
+  return form.elements["code"].value;
+};
+
+/**
+ * Place le focus sur le champ du code promo (après un refus ou un retrait).
+ * . aucun paramètre
+ * > aucune valeur de retour
+ *
+ * @returns {void}
+ */
+V.focusCodeField = function () {
+  let field = V.root.querySelector("#code-promo");
+
+  if (field !== null) {
+    field.focus();
+  }
+};
+
+/**
+ * Place le focus sur l'annonce du code appliqué, pour qu'elle soit lue.
+ * . aucun paramètre
+ * > aucune valeur de retour
+ *
+ * @returns {void}
+ */
+V.focusCodeApplied = function () {
+  let message = V.root.querySelector('[data-zone="code-applique"]');
+
+  if (message !== null) {
+    message.focus();
   }
 };
 

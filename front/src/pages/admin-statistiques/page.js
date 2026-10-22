@@ -27,7 +27,7 @@ import templateStockBar from "./barre-stock.html?raw";
  * Page « Statistiques » du back-office (US PIL-a) : /admin/statistiques.
  *
  * Stock par bijou (histogramme), revenus des 7 derniers jours (réservations
- * retirées seulement, rangées par jour de réservation), réservations par
+ * retirées seulement, au jour du retrait), réservations par
  * statut, bijoux les plus réservés et alertes de stock. Les données sont relues
  * à chaque affichage et à chaque clic sur « Actualiser » ; l'export CSV est un
  * simple lien de téléchargement. L'accès est décidé par le serveur : un 401

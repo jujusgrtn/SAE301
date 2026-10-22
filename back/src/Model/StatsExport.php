@@ -47,7 +47,7 @@ final class StatsExport
         }
 
         $rows[] = [];
-        $rows[] = ['Revenus des ' . AdminStatsModel::REVENUE_DAYS . ' derniers jours (réservations retirées, par jour de réservation, en XPF)'];
+        $rows[] = ['Revenus des ' . AdminStatsModel::REVENUE_DAYS . ' derniers jours (réservations retirées, par jour de retrait, en XPF)'];
         $rows[] = ['Jour', 'Réservations retirées', 'Montant'];
         $days = $stats['revenus']['jours'];
         for ($i = 0; $i < count($days); $i++) {

@@ -22,9 +22,14 @@
     <p class="mt-1 text-sm">{{prenom}} {{nom}}</p>
     <p class="text-sm break-all text-muted">{{email}}</p>
 
-    <dl class="mt-4 flex items-baseline justify-between gap-4 border-t border-line pt-4">
-      <dt class="text-sm">Total ({{nombreArticles}})</dt>
-      <dd class="text-lg font-semibold">{{total}}</dd>
+    <slot name="promo"></slot>
+
+    <dl class="mt-4 space-y-1 border-t border-line pt-4">
+      <slot name="reduction"></slot>
+      <div class="flex items-baseline justify-between gap-4">
+        <dt class="text-sm">Total ({{nombreArticles}})</dt>
+        <dd class="text-lg font-semibold">{{total}}</dd>
+      </div>
     </dl>
     <p class="mt-1 text-[0.8125rem] text-muted">À régler en boutique : rien à payer en ligne.</p>
 

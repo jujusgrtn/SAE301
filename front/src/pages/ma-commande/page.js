@@ -4,6 +4,7 @@ import { formatDate, formatPrice, splitLineName } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { StatusBadgeView } from "../../ui/badge-statut/index.js";
 import { ReorderResultView } from "../../ui/resultat-reutilisation/index.js";
+import { TotalsView } from "../../ui/lignes-totaux/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
@@ -288,6 +289,7 @@ V.createOrderFragment = function (state) {
     );
   });
   fragment.querySelector('slot[name="lignes"]').replaceWith(...lines);
+  fragment.querySelector('slot[name="reduction"]').replaceWith(TotalsView.dom(order));
 
   return fragment;
 };

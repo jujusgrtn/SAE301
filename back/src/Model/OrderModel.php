@@ -60,13 +60,18 @@ final class OrderModel
      * unique par construction : deux validations simultanées ne peuvent pas
      * obtenir le même numéro.
      *
+     * Un code promotionnel (US PRO-a) réduit le total d'un pourcentage : la réservation
+     * enregistre le code, le pourcentage et la réduction accordée, et son total est le
+     * montant après réduction (la somme des lignes vaut total + réduction).
+     *
      * @param int             $userId Client connecté.
      * @param array<int, int> $items  Quantités indexées par identifiant de variante.
-     * @return array{numero: string, statut: string, total: int, nombreArticles: int}|null
+     * @param array{id: int, code: string, pourcentage: int}|null $promo Code vérifié par le contrôleur, ou null.
+     * @return array{numero: string, statut: string, total: int, reduction: int, codePromo: string|null, nombreArticles: int}|null
      *         La réservation créée, ou null si aucune variante du panier n'existe plus.
      * @throws StockException Si une ligne dépasse le stock : rien n'est enregistré.
      */
-    public function createFromItems(int $userId, array $items): ?array
+    public function createFromItems(int $userId, array $items, ?array $promo = null): ?array
     {
         $this->pdo->beginTransaction();
 
@@ -80,9 +85,11 @@ final class OrderModel
 
             self::checkStock($lines);
 
-            $total     = array_sum(array_column($lines, 'sousTotal'));
+            $subtotal  = array_sum(array_column($lines, 'sousTotal'));
             $itemCount = array_sum(array_column($lines, 'quantite'));
-            $orderId   = $this->insertOrder($userId, $total);
+            $reduction = $promo === null ? 0 : Promo::computeReduction($subtotal, $promo['pourcentage']);
+            $total     = $subtotal - $reduction;
+            $orderId   = $this->insertOrder($userId, $total, $promo, $reduction);
             $number    = sprintf('MC-%s-%05d', date('Y'), $orderId);
 
             $statement = $this->pdo->prepare('UPDATE commande SET numero = :numero WHERE id = :id');
@@ -106,6 +113,8 @@ final class OrderModel
             'numero'         => $number,
             'statut'         => self::INITIAL_STATUS,
             'total'          => $total,
+            'reduction'      => $reduction,
+            'codePromo'      => $promo === null ? null : $promo['code'],
             'nombreArticles' => $itemCount,
         ];
     }
@@ -118,12 +127,13 @@ final class OrderModel
      * @param string $number Numéro déjà validé par le contrôleur.
      * @param int    $userId Client connecté.
      * @return array<string, mixed>|null
-     *         { numero, statut, date, total, lignes: [{ nomProduit, prixUnitaire, quantite, sousTotal }] }
+     *         { numero, statut, date, total, reduction, sousTotal, codePromo, pourcentagePromo,
+     *           lignes: [{ nomProduit, prixUnitaire, quantite, sousTotal }] } ; total est après réduction
      */
     public function findByNumberForUser(string $number, int $userId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, numero, statut, total, date_commande
+            'SELECT id, numero, statut, total, date_commande, code_promo, pourcentage_promo, reduction
                FROM commande
               WHERE numero = :numero
                 AND utilisateur_id = :utilisateur_id'
@@ -161,6 +171,10 @@ final class OrderModel
             'statut' => $order['statut'],
             'date'   => $order['date_commande'],
             'total'  => (int) $order['total'],
+            'reduction'   => (int) $order['reduction'],
+            'sousTotal'   => (int) $order['total'] + (int) $order['reduction'],
+            'codePromo'   => $order['code_promo'],
+            'pourcentagePromo' => $order['pourcentage_promo'] === null ? null : (int) $order['pourcentage_promo'],
             'lignes' => $lines,
         ];
     }
@@ -434,15 +448,21 @@ final class OrderModel
      * numéro définitif dès que l'identifiant est connu.
      *
      * @param int $userId Client connecté.
-     * @param int $total  Total de la réservation, en XPF.
+     * @param int $total  Total de la réservation après réduction, en XPF.
+     * @param array{id: int, code: string, pourcentage: int}|null $promo Code appliqué, ou null.
+     * @param int $reduction Réduction accordée, en XPF (0 sans code).
      * @return int Identifiant de la réservation.
      */
-    private function insertOrder(int $userId, int $total): int
+    private function insertOrder(int $userId, int $total, ?array $promo, int $reduction): int
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO commande (numero, utilisateur_id, statut, total)
-             VALUES (:numero, :utilisateur_id, :statut, :total)'
+            'INSERT INTO commande (numero, utilisateur_id, statut, total, code_promo_id, code_promo, pourcentage_promo, reduction)
+             VALUES (:numero, :utilisateur_id, :statut, :total, :code_promo_id, :code_promo, :pourcentage, :reduction)'
         );
+        $statement->bindValue(':code_promo_id', $promo === null ? null : $promo['id'], $promo === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $statement->bindValue(':code_promo', $promo === null ? null : $promo['code'], $promo === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $statement->bindValue(':pourcentage', $promo === null ? null : $promo['pourcentage'], $promo === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $statement->bindValue(':reduction', $reduction, PDO::PARAM_INT);
         $statement->bindValue(':numero', 'TMP-' . bin2hex(random_bytes(8)), PDO::PARAM_STR);
         $statement->bindValue(':utilisateur_id', $userId, PDO::PARAM_INT);
         $statement->bindValue(':statut', self::INITIAL_STATUS, PDO::PARAM_STR);

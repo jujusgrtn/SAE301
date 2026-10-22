@@ -9,7 +9,8 @@
 --   - « Gérer les stocks » (STK-a) : mouvement_stock ;
 --   - « Personnaliser » (OPT-c) : option_produit, valeur_option, variante_valeur ;
 --   - « Gérer l'offre » (GOF-b) : administrateur ;
---   - « Piloter » (PIL-b) : journal_admin.
+--   - « Piloter » (PIL-b) : journal_admin ;
+--   - « Promouvoir » (PRO-a, PRO-b) : code_promo et colonnes de promotion de commande.
 -- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
 -- sont pas créées ici.
 --
@@ -29,6 +30,7 @@ DROP TABLE IF EXISTS administrateur;
 DROP TABLE IF EXISTS mouvement_stock;
 DROP TABLE IF EXISTS ligne_commande;
 DROP TABLE IF EXISTS commande;
+DROP TABLE IF EXISTS code_promo;
 DROP TABLE IF EXISTS utilisateur;
 DROP TABLE IF EXISTS variante_valeur;
 DROP TABLE IF EXISTS valeur_option;
@@ -305,6 +307,29 @@ CREATE TABLE IF NOT EXISTS journal_admin (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Codes promotionnels (PRO-a, PRO-b)
+--
+-- code : saisi par le client, comparé sans tenir compte des majuscules (stocké en
+--        majuscules). pourcentage : réduction sur le total de la réservation, de 1 à 100.
+-- actif : un code désactivé reste dans la base (et dans les statistiques) mais
+--        n'est plus accepté.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS code_promo (
+    id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code          VARCHAR(30)       NOT NULL,
+    pourcentage   TINYINT UNSIGNED  NOT NULL,
+    actif         TINYINT(1)        NOT NULL DEFAULT 1,
+    date_creation DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_code_promo_code (code),
+
+    CONSTRAINT ck_code_promo_pourcentage CHECK (pourcentage BETWEEN 1 AND 100)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Commandes (CMD-a)
 --
 -- numero : identifiant unique montré au client, par exemple MC-2026-00042.
@@ -319,15 +344,28 @@ CREATE TABLE commande (
     statut         ENUM('en cours', 'disponible', 'retirée', 'annulée')
                                  NOT NULL DEFAULT 'en cours',
     total          INT UNSIGNED  NOT NULL,
+    -- Code promo utilisé (PRO-a) : le code et le pourcentage sont recopiés, la réduction
+    -- accordée est en XPF. total est le montant après réduction ; la somme des lignes
+    -- vaut total + reduction. code_promo_id passe à NULL si le code est supprimé.
+    code_promo_id  SMALLINT UNSIGNED NULL,
+    code_promo     VARCHAR(30)   NULL,
+    pourcentage_promo TINYINT UNSIGNED NULL,
+    reduction      INT UNSIGNED  NOT NULL DEFAULT 0,
     date_commande  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_commande_numero (numero),
     KEY idx_commande_utilisateur (utilisateur_id),
+    KEY idx_commande_code_promo (code_promo_id),
 
     CONSTRAINT fk_commande_utilisateur
         FOREIGN KEY (utilisateur_id) REFERENCES utilisateur (id)
         ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_commande_code_promo
+        FOREIGN KEY (code_promo_id) REFERENCES code_promo (id)
+        ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -611,6 +649,12 @@ INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
       JOIN valeur_option ON valeur_option.option_id = @perle
                         AND variante.libelle LIKE CONCAT('% · ', valeur_option.valeur)
      WHERE variante.produit_id = @p;
+
+-- Codes d'exemple (PRO-a) : un code actif à 10 %, un à 15 %, un désactivé.
+INSERT INTO code_promo (code, pourcentage, actif) VALUES
+    ('BIENVENUE10', 10, 1),
+    ('TAHITI15', 15, 1),
+    ('ARCHIVE5', 5, 0);
 
 -- Compte client de test (CMD-c) : client@matira.test / Matira2026!
 -- L'empreinte a été produite par password_hash('Matira2026!', PASSWORD_BCRYPT).

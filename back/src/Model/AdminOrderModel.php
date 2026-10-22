@@ -113,6 +113,7 @@ final class AdminOrderModel
     {
         $statement = $this->pdo->prepare(
             'SELECT commande.id, commande.numero, commande.statut, commande.total, commande.date_commande,
+                    commande.code_promo, commande.pourcentage_promo, commande.reduction,
                     utilisateur.prenom, utilisateur.nom, utilisateur.email,
                     (SELECT COALESCE(SUM(ligne_commande.quantite), 0)
                        FROM ligne_commande
@@ -140,6 +141,10 @@ final class AdminOrderModel
         $lines->execute();
 
         return self::formatOrder($row) + [
+            'reduction'        => (int) $row['reduction'],
+            'sousTotal'        => (int) $row['total'] + (int) $row['reduction'],
+            'codePromo'        => $row['code_promo'],
+            'pourcentagePromo' => $row['pourcentage_promo'] === null ? null : (int) $row['pourcentage_promo'],
             'transitions' => OrderStatus::nextOf($row['statut']),
             'lignes'      => array_map(function (array $line): array {
                 return [

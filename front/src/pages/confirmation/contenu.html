@@ -10,9 +10,12 @@
   <ul class="mt-3 divide-y divide-line border-y border-line">
     <slot name="lignes"></slot>
   </ul>
-  <dl class="mt-4 flex items-baseline justify-between gap-4">
-    <dt class="text-sm">Total à régler en boutique</dt>
-    <dd class="text-lg font-semibold">{{total}}</dd>
+  <dl class="mt-4 space-y-1">
+    <slot name="reduction"></slot>
+    <div class="flex items-baseline justify-between gap-4">
+      <dt class="text-sm">Total à régler en boutique</dt>
+      <dd class="text-lg font-semibold">{{total}}</dd>
+    </div>
   </dl>
 </section>
 

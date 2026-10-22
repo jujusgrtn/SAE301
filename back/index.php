@@ -31,6 +31,7 @@ use App\Controller\AdminJournalController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
+use App\Model\PromoModel;
 use App\Model\UserModel;
 use App\Model\OrderModel;
 use App\Model\StockModel;
@@ -85,9 +86,9 @@ try {
         CatalogueController::class => new CatalogueController(new FilmModel($pdo), $config['chemin']),
         ProductController::class   => new ProductController(new ProductModel($pdo), new CategoryModel($pdo)),
         CategoryController::class  => new CategoryController(new CategoryModel($pdo)),
-        CartController::class      => new CartController(new VariantModel($pdo)),
+        CartController::class      => new CartController(new VariantModel($pdo), new PromoModel($pdo)),
         AccountController::class   => new AccountController(new UserModel($pdo)),
-        OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo)),
+        OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo), new PromoModel($pdo)),
         AdminController::class     => new AdminController(new AdminModel($pdo)),
         AdminProductController::class => new AdminProductController(
             new AdminModel($pdo),

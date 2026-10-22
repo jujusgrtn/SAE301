@@ -34,6 +34,8 @@ return [
     'POST /api/panier/ajouter'  => [CartController::class, 'add'],
     'POST /api/panier/modifier' => [CartController::class, 'update'],
     'POST /api/panier/retirer'  => [CartController::class, 'remove'],
+    'POST /api/panier/code'     => [CartController::class, 'applyCode'],
+    'POST /api/panier/code/retirer' => [CartController::class, 'removeCode'],
     'POST /api/panier/changer-options' => [CartController::class, 'changeOptions'],
     'GET  /api/compte'              => [AccountController::class, 'show'],
     'POST /api/compte/connexion'    => [AccountController::class, 'login'],

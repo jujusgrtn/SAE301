@@ -3,6 +3,7 @@ import { formatDate, formatPrice, splitLineName } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { MessageView } from "../../ui/message/index.js";
 import { StatusBadgeView } from "../../ui/badge-statut/index.js";
+import { TotalsView } from "../../ui/lignes-totaux/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
@@ -477,6 +478,7 @@ V.createDetailFragment = function (state) {
     );
   });
   fragment.querySelector('slot[name="lignes"]').replaceWith(...lines);
+  fragment.querySelector('slot[name="reduction"]').replaceWith(TotalsView.dom(order));
   fragment.querySelector('slot[name="actions"]').replaceWith(V.createActionsFragment(state));
 
   return fragment;

@@ -10,6 +10,7 @@ use App\Core\Response;
 use App\Model\Cart;
 use App\Model\OrderModel;
 use App\Model\OrderStatus;
+use App\Model\PromoModel;
 use App\Model\Reorder;
 use App\Model\StockException;
 use App\Model\UserModel;
@@ -37,16 +38,21 @@ final class OrderController
     /** Le modèle des variantes, pour relire prix et stock du panier après un transfert. */
     private VariantModel $variants;
 
+    /** Le modèle des codes promotionnels, pour revérifier le code à la validation. */
+    private PromoModel $promos;
+
     /**
      * @param OrderModel   $orders   Modèle des réservations.
      * @param UserModel    $users    Modèle des comptes clients.
      * @param VariantModel $variants Modèle des variantes.
+     * @param PromoModel   $promos   Modèle des codes promotionnels.
      */
-    public function __construct(OrderModel $orders, UserModel $users, VariantModel $variants)
+    public function __construct(OrderModel $orders, UserModel $users, VariantModel $variants, PromoModel $promos)
     {
         $this->orders   = $orders;
         $this->users    = $users;
         $this->variants = $variants;
+        $this->promos   = $promos;
     }
 
     /**
@@ -56,9 +62,13 @@ final class OrderController
      * clic) trouve donc un panier vide et ne crée pas de doublon : PHP
      * traite les requêtes d'une même session l'une après l'autre.
      *
-     * Réponse 201 : { commande: { numero, statut, total, nombreArticles } }
+     * Si un code promotionnel est appliqué au panier (US PRO-a), il est revérifié ici :
+     * la réservation enregistre le code, son pourcentage et la réduction accordée.
+     *
+     * Réponse 201 : { commande: { numero, statut, total, reduction, codePromo, nombreArticles } }
      * Erreurs : 401 si le client n'est pas connecté, 400 si le panier est vide,
-     * 409 si une ligne dépasse le stock (STK-c).
+     * 409 si une ligne dépasse le stock (STK-c) ou si le code promo n'est plus valable
+     * (il est alors retiré du panier et rien n'est enregistré).
      */
     public function create(): void
     {
@@ -72,8 +82,21 @@ final class OrderController
             return;
         }
 
+        $promo = null;
+        $code  = $_SESSION[CartController::PROMO_SESSION_KEY] ?? null;
+
+        if (is_string($code)) {
+            $promo = $this->promos->findActiveByCode($code);
+
+            if ($promo === null) {
+                unset($_SESSION[CartController::PROMO_SESSION_KEY]);
+                Response::erreur('Votre code promo n\'est plus valable : il a été retiré. Vérifiez le total, puis validez à nouveau.', 409);
+                return;
+            }
+        }
+
         try {
-            $order = $this->orders->createFromItems($userId, $cart->toArray());
+            $order = $this->orders->createFromItems($userId, $cart->toArray(), $promo);
         } catch (StockException $e) {
             // Le panier est conservé : le client l'ajuste puis revalide.
             Response::erreur($e->getMessage(), 409);
@@ -86,7 +109,7 @@ final class OrderController
             return;
         }
 
-        unset($_SESSION[CartController::SESSION_KEY]);
+        unset($_SESSION[CartController::SESSION_KEY], $_SESSION[CartController::PROMO_SESSION_KEY]);
         Response::json(['commande' => $order], 201);
     }
 
