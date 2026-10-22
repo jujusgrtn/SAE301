@@ -10,11 +10,14 @@ use App\Core\Response;
 use App\Model\Cart;
 use App\Model\OrderModel;
 use App\Model\OrderStatus;
+use App\Model\Reorder;
 use App\Model\StockException;
 use App\Model\UserModel;
+use App\Model\VariantModel;
 
 /**
- * Validation, historique et consultation des réservations (US CMD-a, SUI-b).
+ * Validation, historique, consultation et réutilisation des réservations
+ * (US CMD-a, SUI-c, SUI-a).
  *
  * Réservé au client connecté : son identifiant est lu dans la session, jamais
  * dans la requête. Le contenu de la réservation vient du panier de la session
@@ -31,14 +34,19 @@ final class OrderController
     /** Le modèle des comptes, pour vérifier que le client existe toujours. */
     private UserModel $users;
 
+    /** Le modèle des variantes, pour relire prix et stock du panier après un transfert. */
+    private VariantModel $variants;
+
     /**
-     * @param OrderModel $orders Modèle des réservations.
-     * @param UserModel  $users  Modèle des comptes clients.
+     * @param OrderModel   $orders   Modèle des réservations.
+     * @param UserModel    $users    Modèle des comptes clients.
+     * @param VariantModel $variants Modèle des variantes.
      */
-    public function __construct(OrderModel $orders, UserModel $users)
+    public function __construct(OrderModel $orders, UserModel $users, VariantModel $variants)
     {
-        $this->orders = $orders;
-        $this->users  = $users;
+        $this->orders   = $orders;
+        $this->users    = $users;
+        $this->variants = $variants;
     }
 
     /**
@@ -128,6 +136,59 @@ final class OrderController
             $this->orders->findPageForUser($userId, $status, $from, $until, (int) $page)
             + ['effectifs' => $this->orders->countByStatusForUser($userId)]
         );
+    }
+
+    /**
+     * POST /api/commandes/reutiliser : { numero } transfère une ancienne
+     * réservation du client dans son panier (« Commander à nouveau »).
+     *
+     * Le panier existant est conservé : les exemplaires s'y ajoutent. Seul ce
+     * qui est disponible est transféré (voir Reorder) ; le reste est signalé
+     * ligne par ligne, sans erreur. L'option choisie à l'époque est conservée
+     * (la ligne désigne sa variante) et les prix sont ceux d'aujourd'hui. La
+     * disponibilité définitive est revérifiée à la validation du panier.
+     *
+     * Réponse : { panier: { lignes, nombreArticles, total, estReservable },
+     *             resultat: { lignes: [...], articlesDemandes, articlesAjoutes } }
+     * Erreurs : 401 si le client n'est pas connecté, 400 si le numéro est mal formé,
+     * 404 si la réservation n'existe pas ou appartient à un autre client.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function reorder(Request $request): void
+    {
+        $userId = $this->requireUserId();
+        $number = $request->corps()['numero'] ?? null;
+
+        if (!is_string($number) || preg_match(self::NUMBER_PATTERN, $number) !== 1) {
+            Response::erreur('Numéro de réservation invalide.', 400);
+            return;
+        }
+
+        $lines = $this->orders->findLinesForReorder($number, $userId);
+
+        if ($lines === null) {
+            Response::erreur('Réservation introuvable.', 404);
+            return;
+        }
+
+        $items = $_SESSION[CartController::SESSION_KEY] ?? [];
+        $cart  = new Cart(is_array($items) ? $items : []);
+
+        $results = Reorder::apply($cart, $lines);
+
+        $variants = $this->variants->findForCart($cart->variantIds());
+        $cart->keepOnly(array_keys($variants));
+        $_SESSION[CartController::SESSION_KEY] = $cart->toArray();
+
+        Response::json([
+            'panier'   => $cart->summarize($variants),
+            'resultat' => [
+                'lignes'           => $results,
+                'articlesDemandes' => array_sum(array_column($results, 'quantiteDemandee')),
+                'articlesAjoutes'  => array_sum(array_column($results, 'quantiteAjoutee')),
+            ],
+        ]);
     }
 
     /**

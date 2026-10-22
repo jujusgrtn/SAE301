@@ -1,7 +1,7 @@
 import { getRequest, postRequest } from "../lib/api-request.js";
 
 /**
- * Réservations click & collect (US CMD-a, SUI-b).
+ * Réservations click & collect (US CMD-a, SUI-c, SUI-a).
  *
  * Le front n'envoie rien à la validation : le serveur lit le panier de la
  * session et les prix en base. Il faut être connecté (sinon ErreurApi 401).
@@ -16,6 +16,22 @@ let OrderData = {};
  */
 OrderData.create = async function () {
   return postRequest("commandes");
+};
+
+/**
+ * « Commander à nouveau » : transfère une ancienne réservation dans le panier,
+ * POST /api/commandes/reutiliser
+ * Réponse : { panier: { lignes, nombreArticles, total, estReservable },
+ *             resultat: { lignes: [{ nomProduit, quantiteDemandee, quantiteAjoutee, statut,
+ *                                    ancienPrix?, nouveauPrix? }], articlesDemandes, articlesAjoutes } }
+ * statut : « ajoutee », « partielle », « limite », « epuisee » ou « retiree ».
+ * Une réservation inconnue (ou d'un autre client) lève une ErreurApi 404.
+ *
+ * @param {string} number - Numéro de réservation, par exemple MC-2026-00042.
+ * @returns {Promise<Object>}
+ */
+OrderData.reorder = async function (number) {
+  return postRequest("commandes/reutiliser", { numero: number });
 };
 
 /**

@@ -40,6 +40,7 @@ return [
     'POST /api/compte/mot-de-passe' => [AccountController::class, 'changePassword'],
     'GET  /api/commandes'           => [OrderController::class, 'index'],
     'POST /api/commandes'           => [OrderController::class, 'create'],
+    'POST /api/commandes/reutiliser' => [OrderController::class, 'reorder'],
     'GET  /api/commande'            => [OrderController::class, 'show'],
     'GET  /api/admin/compte'        => [AdminController::class, 'show'],
     'POST /api/admin/connexion'     => [AdminController::class, 'login'],

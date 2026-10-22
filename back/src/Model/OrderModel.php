@@ -166,6 +166,55 @@ final class OrderModel
     }
 
     /**
+     * Les lignes d'une réservation du client, comparées au catalogue actuel
+     * (US SUI-a « Commander à nouveau »).
+     *
+     * Une variante supprimée depuis donne `variantId` et `stock` à null (la
+     * colonne passe à NULL à la suppression du bijou). Le nom figé de la ligne
+     * porte l'option choisie : il sert à nommer le bijou même disparu.
+     *
+     * @param string $number Numéro déjà validé par le contrôleur.
+     * @param int    $userId Client connecté : une réservation d'un autre client n'existe pas pour lui.
+     * @return array<int, array{variantId: int|null, nomProduit: string, prixUnitaire: int,
+     *         quantite: int, stock: int|null, prixActuel: int|null}>|null
+     *         Null si la réservation n'existe pas ou appartient à un autre client.
+     */
+    public function findLinesForReorder(string $number, int $userId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT ligne_commande.variante_id, ligne_commande.nom_produit, ligne_commande.prix_unitaire,
+                    ligne_commande.quantite, variante.stock, produit.prix AS prix_actuel
+               FROM commande
+         INNER JOIN ligne_commande ON ligne_commande.commande_id = commande.id
+          LEFT JOIN variante ON variante.id = ligne_commande.variante_id
+          LEFT JOIN produit ON produit.id = variante.produit_id
+              WHERE commande.numero = :numero
+                AND commande.utilisateur_id = :utilisateur_id
+           ORDER BY ligne_commande.id'
+        );
+        $statement->bindValue(':numero', $number, PDO::PARAM_STR);
+        $statement->bindValue(':utilisateur_id', $userId, PDO::PARAM_INT);
+        $statement->execute();
+
+        $rows = $statement->fetchAll();
+
+        if (count($rows) === 0) {
+            return null;
+        }
+
+        return array_map(function (array $row): array {
+            return [
+                'variantId'    => $row['variante_id'] === null ? null : (int) $row['variante_id'],
+                'nomProduit'   => $row['nom_produit'],
+                'prixUnitaire' => (int) $row['prix_unitaire'],
+                'quantite'     => (int) $row['quantite'],
+                'stock'        => $row['stock'] === null ? null : (int) $row['stock'],
+                'prixActuel'   => $row['prix_actuel'] === null ? null : (int) $row['prix_actuel'],
+            ];
+        }, $rows);
+    }
+
+    /**
      * Une page de l'historique du client, les plus récentes d'abord (US SUI-b).
      *
      * Les filtres se cumulent. La page demandée est ramenée à la dernière page

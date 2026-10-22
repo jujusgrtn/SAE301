@@ -1,7 +1,9 @@
+import { CART_CHANGED_EVENT } from "../../data/panier.js";
 import { OrderData } from "../../data/commande.js";
 import { formatDate, formatPrice } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import { StatusBadgeView } from "../../ui/badge-statut/index.js";
+import { ReorderResultView } from "../../ui/resultat-reutilisation/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
@@ -36,6 +38,7 @@ let M = {
   status: "loading", // "loading" | "unauthorized" | "notFound" | "error" | "ready"
   order: null, // { numero, statut, date, total, lignes }
   loadError: null, // texte si la réservation n'a pas pu être chargée
+  reorder: { pending: null, result: null, error: null }, // « Commander à nouveau » : numéro en cours, résultat ou erreur
 };
 
 /**
@@ -52,6 +55,7 @@ M.reset = function (number) {
   M.status = "loading";
   M.order = null;
   M.loadError = null;
+  M.reorder = { pending: null, result: null, error: null };
 };
 
 /**
@@ -88,6 +92,47 @@ M.fetchOrder = async function () {
 };
 
 /**
+ * Indique si « Commander à nouveau » peut partir : une seule demande à la
+ * fois, un double clic ne transfère pas deux fois la réservation.
+ * . aucun paramètre
+ * > booléen
+ *
+ * @returns {boolean}
+ */
+M.canReorder = function () {
+  return M.reorder.pending === null;
+};
+
+/**
+ * Transfère cette réservation dans le panier. Le détail (ce qui est ajouté,
+ * ce qui ne l'est pas) est gardé dans l'état pour l'affichage.
+ * . aucun paramètre
+ * > Promise<number|null> : nombre d'articles du panier après le transfert, null si la demande a échoué
+ *
+ * @returns {Promise<number|null>}
+ */
+M.reorderOrder = async function () {
+  let visit = M.visit;
+  M.reorder = { pending: M.number, result: null, error: null };
+
+  try {
+    let response = await OrderData.reorder(M.number);
+    if (visit !== M.visit) {
+      return null;
+    }
+    M.reorder = { pending: null, result: response.resultat, error: null };
+    return response.panier.nombreArticles;
+  } catch (error) {
+    if (visit !== M.visit) {
+      return null;
+    }
+    let text = error.statut === 401 ? "Connectez-vous pour commander à nouveau." : error.message;
+    M.reorder = { pending: null, result: null, error: text };
+    return null;
+  }
+};
+
+/**
  * Nombre d'exemplaires de la réservation, écrit pour un total : « 3 articles ».
  * . aucun paramètre
  * > chaîne
@@ -105,7 +150,7 @@ M.formatArticleCount = function () {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, order, indication, articles, loadError }
+ * > { status, order, indication, articles, loadError, reorderResult, reorderError }
  *
  * @returns {Object}
  */
@@ -116,6 +161,8 @@ M.getState = function () {
     indication: M.order === null ? "" : (STATUS_HINTS[M.order.statut] ?? ""),
     articles: M.order === null ? "" : M.formatArticleCount(),
     loadError: M.loadError,
+    reorderResult: M.reorder.result,
+    reorderError: M.reorder.error,
   };
 };
 
@@ -140,6 +187,32 @@ C.loadOrder = async function () {
     return;
   }
   V.renderPage(M.getState());
+};
+
+/**
+ * Clic sur « Commander à nouveau » : transfère la réservation dans le panier,
+ * affiche le détail du transfert et prévient l'en-tête du nouveau compteur.
+ * . ev : événement click, délégué depuis la racine de la page
+ * > Promise<void>
+ *
+ * @param {MouseEvent} ev
+ * @returns {Promise<void>}
+ */
+C.handler_clickOnReorder = async function (ev) {
+  let button = ev.target.closest('[data-action="reutiliser"]');
+
+  if (button === null || !M.canReorder()) {
+    return;
+  }
+
+  V.markReorderBusy(button);
+  let count = await M.reorderOrder();
+  V.markReorderIdle(button);
+  V.renderReorder(M.getState());
+
+  if (count !== null) {
+    V.notifyCartChanged(count);
+  }
 };
 
 /**
@@ -177,6 +250,7 @@ V.root = null; // élément racine de la page affichée
 V.init = function () {
   let fragment = htmlToFragment(genericRenderer(template, { urlListe: routeUrl("/compte/commandes") }));
   V.root = fragment.firstElementChild;
+  V.root.addEventListener("click", C.handler_clickOnReorder);
   return fragment;
 };
 
@@ -254,6 +328,67 @@ V.renderPage = function (state) {
   let zone = V.root.querySelector('[data-zone="contenu"]');
   zone.setAttribute("aria-busy", String(state.status === "loading"));
   zone.replaceChildren(V.createContentFragment(state));
+};
+
+/**
+ * Affiche le résultat de « Commander à nouveau » (ou son erreur) sous le lien
+ * de retour et y place le focus, pour qu'il soit lu.
+ * . state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {Object} state
+ * @returns {void}
+ */
+V.renderReorder = function (state) {
+  let zone = V.root.querySelector('[data-zone="reutilisation"]');
+
+  if (state.reorderResult !== null) {
+    zone.replaceChildren(ReorderResultView.dom(state.reorderResult, routeUrl("/panier")));
+  } else if (state.reorderError !== null) {
+    zone.replaceChildren(ReorderResultView.domError(state.reorderError));
+  } else {
+    zone.replaceChildren();
+    return;
+  }
+  zone.querySelector('[data-zone="resultat-reutilisation"]').focus();
+};
+
+/**
+ * Marque le bouton « Commander à nouveau » comme occupé.
+ * . button : le bouton cliqué
+ * > aucune valeur de retour
+ *
+ * @param {HTMLElement} button
+ * @returns {void}
+ */
+V.markReorderBusy = function (button) {
+  button.setAttribute("aria-disabled", "true");
+  button.textContent = "Ajout au panier…";
+};
+
+/**
+ * Rend son état normal au bouton « Commander à nouveau ».
+ * . button : le bouton cliqué
+ * > aucune valeur de retour
+ *
+ * @param {HTMLElement} button
+ * @returns {void}
+ */
+V.markReorderIdle = function (button) {
+  button.removeAttribute("aria-disabled");
+  button.textContent = "Commander à nouveau";
+};
+
+/**
+ * Annonce au layout le nouveau nombre d'articles du panier.
+ * . count : nombre d'articles
+ * > aucune valeur de retour
+ *
+ * @param {number} count
+ * @returns {void}
+ */
+V.notifyCartChanged = function (count) {
+  document.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT, { detail: { nombreArticles: count } }));
 };
 
 /**

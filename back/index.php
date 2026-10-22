@@ -83,7 +83,7 @@ try {
         CategoryController::class  => new CategoryController(new CategoryModel($pdo)),
         CartController::class      => new CartController(new VariantModel($pdo)),
         AccountController::class   => new AccountController(new UserModel($pdo)),
-        OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo)),
+        OrderController::class     => new OrderController(new OrderModel($pdo, new StockModel($pdo)), new UserModel($pdo), new VariantModel($pdo)),
         AdminController::class     => new AdminController(new AdminModel($pdo)),
         AdminProductController::class => new AdminProductController(
             new AdminModel($pdo),
