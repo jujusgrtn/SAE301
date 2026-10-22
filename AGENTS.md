@@ -85,7 +85,117 @@ Le chemin du projet `/~segrestan1/SAE301-Starter/` apparaît à deux
 endroits seulement et doit y rester identique : `BASE` dans
 `front/vite.config.js` et `chemin` dans `back/config/config.php`.
 
-Voir README.md
+### 2.1 Arborescence du dépôt
+
+```text
+SAE301-Starter/                 racine du dépôt = racine déployée sur le serveur
+├── AGENTS.md                   règles du projet (ce document)
+├── SKILL.md                    méthode de réalisation d'une US, avec exemples
+├── README.md                   présentation du starter d'origine (films), en partie obsolète
+├── .htaccess                   point d'entrée HTTP
+├── .gitignore                  node_modules, dist, config.php et uploads/produits exclus de Git
+├── uploads/
+│   ├── .htaccess               n'autorise que les fichiers .webp
+│   └── produits/               photos envoyées depuis le back-office (créé à l'exécution, non versionné)
+├── sql/
+│   └── import.sql              schéma et données initiales
+├── back/                       API PHP, ne renvoie que du JSON (voir 6.2)
+│   ├── index.php               point d'entrée unique
+│   ├── config/
+│   │   ├── config.php          identifiants MySQL réels (non versionné)
+│   │   ├── config.example.php  modèle versionné, sans identifiants
+│   │   └── .htaccess           interdit l'accès depuis le navigateur
+│   └── src/
+│       ├── Core/               Request, Response, Router, Database
+│       ├── Controller/         validation et orchestration
+│       ├── Model/              accès à la base, règles métier, stockage des photos
+│       ├── routes.php          table des routes de l'API
+│       └── .htaccess           interdit l'accès depuis le navigateur
+└── front/                      SPA Vite + Tailwind
+    ├── index.html              document HTML initial
+    ├── vite.config.js          chemin du projet, proxy de développement
+    ├── public/images/produits/ photos du catalogue d'origine (800 px et 400 px)
+    ├── src/
+    │   ├── main.js             routes et layout
+    │   ├── global.css          Tailwind, tokens de la charte, thème sombre
+    │   ├── layouts/            structures de page (en-tête, menu, compteur du panier)
+    │   ├── pages/              une page par route : page.js (M/V/C) + templates .html
+    │   ├── ui/                 composants réutilisables : index.js + template.html
+    │   ├── data/               appels à l'API, un module par ressource
+    │   └── lib/                routeur, rendu des templates, requêtes, formats, images
+    └── dist/                   résultat de npm run build (non versionné)
+```
+
+### 2.2 Installation, développement et déploiement
+
+**Installation**
+
+1. Importer `sql/import.sql` dans la base depuis phpMyAdmin (base sélectionnée,
+   onglet « Importer »). ⚠️ L'import est rejouable parce qu'il commence par des
+   `DROP TABLE` : il **supprime et recrée** toutes les tables du projet
+   (comptes, réservations et stocks compris). Ne jamais le rejouer sur une base
+   qui contient des données à conserver ; pour ajouter une table, exécuter
+   seulement son `CREATE TABLE` dans l'onglet « SQL ». Les tables `film` et
+   `genre` du starter ne sont pas touchées.
+2. Copier `back/config/config.example.php` en `back/config/config.php`, puis y
+   renseigner les identifiants MySQL et le chemin du projet
+   (`/~votre_login/SAE301-Starter/`).
+3. Dans `front/vite.config.js`, donner à `BASE` **exactement** le même chemin.
+4. Dans `front/` : `npm install`.
+
+**Développement**
+
+```bash
+cd front
+npm run dev
+```
+
+Le front est servi par Vite à `http://localhost:5173/~votre_login/SAE301-Starter/`.
+Le proxy de `vite.config.js` relaie `/api` et `/uploads` vers l'API déployée sur
+`mmi.unilim.fr`, sous le même chemin : pour le navigateur, front et API sont un
+seul site, donc les cookies de session sont acceptés et renvoyés. Utiliser
+Chrome ou Firefox : les cookies sont `Secure`, et Safari peut les refuser sur
+`http://localhost`.
+
+**Déploiement**
+
+```bash
+cd front
+npm run build
+```
+
+Le dépôt est déployé tel quel dans `~/public_html/SAE301-Starter/` : `.htaccess`,
+`back/`, `uploads/.htaccess` et `front/dist/` (jamais `front/node_modules/`). Le
+`.htaccess` sert les fichiers de `front/dist/` et répond `front/dist/index.html`
+à toute autre adresse : c'est le routeur du front qui affiche la bonne page ou
+la 404.
+
+⚠️ Sur le serveur de l'IUT, le dossier de travail **est** le dossier déployé :
+toute modification de `back/` est en production dès qu'elle est enregistrée. Une
+route qui dépend d'une table absente répond 500 tant que la table n'est pas
+créée ; le front, lui, n'est mis à jour qu'après `npm run build`.
+
+**Comptes de test** (jeu de données de `sql/import.sql`)
+
+| Compte | Identifiant | Mot de passe | Où se connecter |
+| --- | --- | --- | --- |
+| client (table `utilisateur`) | `client@matira.test` | `Matira2026!` | `/connexion` |
+| administrateur (table `administrateur`) | `admin` | `MatiraAdmin2026!` | `/admin` |
+
+### 2.3 Diagnostic rapide
+
+| Symptôme | Cause probable et vérifications |
+| --- | --- |
+| « Not Found » ou liste de dossier sur la racine | `.htaccess` non déposé, ou `front/dist/` absent : lancer `npm run build` depuis `front/` |
+| Page blanche, assets en 404 | `BASE` de `vite.config.js` différent du dossier de dépôt ; relancer `npm run build` |
+| Route front (`/admin`…) en 404 après rechargement | `.htaccess` ne renvoie pas vers `front/dist/index.html` |
+| API en 404 en développement | proxy Vite, ou back absent du serveur ; vérifier `BASE` |
+| Catalogue vide ou erreur de chargement | identifiants de `back/config/config.php`, base non importée |
+| Connexion ou panier perdus à chaque requête | `chemin` de `config.php` différent de `BASE` (le cookie de session n'est pas renvoyé) |
+| Erreur 500 juste après une US qui touche au SQL | table ou colonne absente de la base : exécuter son `CREATE TABLE` (voir 2.2) |
+| Photo envoyée cassée (image absente) | règle `uploads/` du `.htaccess`, ou dossier `uploads/produits/` non inscriptible par PHP |
+| `npm` introuvable `package.json` | se placer dans `front/` avant `npm run dev` ou `npm run build` |
+| `git push` : `ECONNREFUSED …vscode-git-….sock` | terminal ouvert dans une ancienne session VS Code : en ouvrir un nouveau |
 
 ## 3. MVC strict
 
@@ -264,6 +374,8 @@ que le compilateur les détecte.
 
 ## 6. Back-end PHP
 
+### 6.1 Règles de code
+
 - `declare(strict_types=1)` dans chaque fichier PHP.
 - Conserve `back/index.php` comme point d'entrée unique : autoload,
   configuration, connexion, session, contrôleurs et routeur.
@@ -279,10 +391,150 @@ que le compilateur les détecte.
 - Ne renvoie jamais de HTML depuis l'API : les réponses restent JSON via
   `Response::json()` ou `Response::erreur()`.
 
+### 6.2 Les couches du back
+
+| Couche | Dossier | Rôle | Ne fait pas |
+| --- | --- | --- | --- |
+| Point d'entrée | `back/index.php` | autoload, configuration, connexion, assemblage des dépendances, session, routeur | aucune logique métier |
+| Routes | `back/src/routes.php` | table `'MÉTHODE /api/chemin' => [Contrôleur::class, 'méthode']` | — |
+| Core | `back/src/Core/` | abstractions HTTP, base et routage, sans règle métier | connaître un bijou, un panier ou une commande |
+| Contrôleurs | `back/src/Controller/` | valident la requête, vérifient les droits, orchestrent, choisissent le code HTTP | écrire du SQL |
+| Modèles | `back/src/Model/` | requêtes préparées, transactions, règles métier, stockage des photos | lire la requête HTTP ou répondre |
+
+### 6.3 Démarrage d'une requête (`back/index.php`)
+
+1. `declare(strict_types=1)`, puis autoload des classes `App\` depuis `back/src/`.
+2. Chargement de `back/config/config.php` (`chemin`, `bdd`, `debug`).
+3. Dans un `try` : toute exception non prévue devient une réponse JSON **500**
+   (détaillée si `debug` vaut `true`, générique sinon) ; `display_errors` reste à `0`
+   pour ne jamais casser le JSON.
+4. Connexion PDO (`Database::connexion`), puis **assemblage explicite** des
+   contrôleurs : chaque contrôleur reçoit ses modèles dans son constructeur,
+   chaque modèle reçoit le PDO. Aucune injection automatique : tout se lit dans
+   `index.php`.
+5. Chargement de `routes.php`.
+6. Réglage **unique** du cookie de session (`Path` = `chemin`, `HttpOnly`,
+   `Secure`, `SameSite=Lax`), puis `session_start()`.
+7. `Router::traiter(Request::depuisGlobals())`.
+
+### 6.4 `Core/`
+
+| Classe | Rôle et points à connaître |
+| --- | --- |
+| `Request` | méthode, chemin à partir de `/api/`, paramètres de requête (`parametre()`), corps (`corps()`) : le **JSON** reçu, ou les champs d'un formulaire **multipart** ; `fichier('photo')` donne un fichier envoyé ; `envoiRefuse()` signale un corps rejeté par PHP (au-delà de `post_max_size`, `$_POST` et `$_FILES` arrivent vides sans erreur) |
+| `Response` | `json($donnees, $statut)` et `erreur($message, $statut)` terminent le script par `exit` : le code écrit après n'est jamais exécuté. Cookies à poser **avant** |
+| `Router` | compare `MÉTHODE /api/chemin` à la table des routes ; **pas de paramètre dans le chemin** : l'identifiant ou le slug passent en paramètre de requête (`/api/produit?slug=…`) ou dans le corps ; route inconnue → 404 JSON |
+| `Database` | PDO en `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, `utf8mb4`, et `ATTR_EMULATE_PREPARES` à `false` : **un même marqueur nommé ne peut pas apparaître deux fois** dans une requête (utiliser deux noms distincts) |
+
+### 6.5 Routes de l'API
+
+| Route | Contrôleur::méthode | Accès | Effet |
+| --- | --- | --- | --- |
+| `GET /api/produits` (`?categorie=slug`) | `ProductController::index` | public | catalogue, ou bijoux d'une catégorie (400 slug mal formé, 404 inconnu) |
+| `GET /api/produit?slug=` | `ProductController::show` | public | fiche d'un bijou : photos, variantes, stock |
+| `GET /api/categories` | `CategoryController::index` | public | arbre catégories → sous-catégories |
+| `GET /api/panier` | `CartController::show` | session | contenu du panier, recalculé depuis la base |
+| `POST /api/panier/ajouter` | `CartController::add` | session | ajoute des exemplaires (400 requête invalide, 404 variante absente, 409 stock insuffisant) |
+| `POST /api/panier/modifier` | `CartController::update` | session | fixe la quantité d'une ligne, 0 la retire (404 ligne absente, 409 si la hausse dépasse le stock) |
+| `POST /api/panier/retirer` | `CartController::remove` | session | retire une ligne |
+| `GET /api/compte` | `AccountController::show` | public | client connecté, ou `connecte: false` (toujours 200) |
+| `POST /api/compte/connexion` | `AccountController::login` | public | connexion (401 sans préciser si c'est l'e-mail ou le mot de passe) |
+| `POST /api/compte/inscription` | `AccountController::register` | public | crée le compte et connecte (201 ; 400 champ refusé, 409 e-mail déjà utilisé) |
+| `POST /api/compte/deconnexion` | `AccountController::logout` | public | détruit la session, panier compris |
+| `POST /api/commandes` | `OrderController::create` | client | valide le panier en une transaction (401, 400 panier vide, 409 stock) |
+| `GET /api/commande?numero=` | `OrderController::show` | client | une réservation **du client connecté** (404 si elle appartient à un autre) |
+| `GET /api/admin/compte` | `AdminController::show` | admin (401 sinon) | administrateur connecté |
+| `POST /api/admin/connexion` | `AdminController::login` | public | connexion au back-office |
+| `POST /api/admin/deconnexion` | `AdminController::logout` | public | ferme la session d'administration |
+| `GET /api/admin/produits` | `AdminProductController::index` | admin | liste des bijoux |
+| `GET /api/admin/produit?id=` | `AdminProductController::show` | admin | un bijou pour le formulaire de modification |
+| `POST /api/admin/produits/creer` | `AdminProductController::create` | admin | crée un bijou ; multipart : champs + photo facultative (201) |
+| `POST /api/admin/produits/modifier` | `AdminProductController::update` | admin | modifie un bijou ; multipart, avec `id` (404 absent, 409 plusieurs options) |
+| `POST /api/admin/produits/supprimer` | `AdminProductController::remove` | admin | suppression en cascade (JSON `{ id }`) |
+| `GET /api/admin/categories` | `AdminCategoryController::index` | admin | arbre des catégories avec le nombre de sous-catégories et de bijoux |
+| `POST /api/admin/categories/creer` | `AdminCategoryController::create` | admin | JSON `{ nom, description?, parentId? }` : catégorie principale, ou sous-catégorie si `parentId` (201 ; 400 champ refusé ou parent qui n'est pas une catégorie principale) |
+| `POST /api/admin/categories/modifier` | `AdminCategoryController::update` | admin | JSON `{ id, nom, description? }` ; le slug et la place ne changent pas (404 absente) |
+| `POST /api/admin/categories/deplacer` | `AdminCategoryController::move` | admin | JSON `{ id, sens }`, `sens` = `haut` ou `bas` : échange avec la voisine du même niveau, renvoie l'arbre à jour (404 absente) |
+| `POST /api/admin/categories/supprimer` | `AdminCategoryController::remove` | admin | refusée (409) tant que la catégorie contient des sous-catégories ou des bijoux ; renvoie l'arbre à jour |
+
+### 6.6 Contrôleurs, modèles et dépendances
+
+| Contrôleur | Modèles utilisés | Rôle des modèles |
+| --- | --- | --- |
+| `ProductController` | `ProductModel`, `CategoryModel` | lecture des bijoux ; résolution du slug de catégorie |
+| `CategoryController` | `CategoryModel` | arbre du menu |
+| `CartController` | `VariantModel`, `Cart` | `Cart` : panier en session (quantités, limite de 10, résumé) ; `VariantModel` : prix et stock lus en base |
+| `AccountController` | `UserModel` | comptes clients (mot de passe haché bcrypt) |
+| `OrderController` | `OrderModel`, `UserModel` | `OrderModel` : transaction de réservation |
+| `AdminController` | `AdminModel` | comptes administrateurs |
+| `AdminAreaController` (abstrait) | `AdminModel` | `requireAdmin()` : accès décidé par la session **et** la base à chaque requête |
+| `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos |
+| `AdminCategoryController` (hérite de `AdminAreaController`) | `AdminCategoryModel` | arbre avec effectifs, création, modification, ordre, suppression |
+
+Modèles transverses : `StockModel` (décrément à la réservation, ajustement manuel, **journal** `mouvement_stock`
+dans la même transaction que l'opération), `Stock` (règle unique de disponibilité : seuil de stock faible),
+`StockException` (stock insuffisant → **409**), `CategoryInUseException` (catégorie encore utilisée → **409**),
+`Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
+(contrôle, conversion et suppression des photos envoyées).
+
+### 6.7 Session, accès et codes HTTP
+
+| Clé de `$_SESSION` | Contenu | Écrite par |
+| --- | --- | --- |
+| `panier` | `{ variantId => quantité }` | `CartController` |
+| `clientId` | identifiant du client connecté | `AccountController` |
+| `adminId` | identifiant de l'administrateur connecté | `AdminController` |
+
+- Seul un **identifiant** est rangé en session ; l'identité est relue en base à chaque requête.
+- Connexion : `session_regenerate_id(true)` puis écriture de la clé. Déconnexion : session détruite.
+- Le front n'envoie jamais de prix ni d'identité : le serveur relit tout en base.
+
+| Code | Sens dans le projet |
+| --- | --- |
+| 200 / 201 | succès / ressource créée |
+| 400 | requête mal formée ou champ refusé (message destiné à l'utilisateur) |
+| 401 | non connecté (client ou administrateur) |
+| 403 | connecté sans le droit |
+| 404 | ressource absente, **ou appartenant à un autre** (on ne révèle rien) |
+| 409 | conflit avec l'état du serveur : stock insuffisant, e-mail déjà utilisé, catégorie encore utilisée |
+| 500 | erreur interne |
+
+### 6.8 Base de données et fichiers
+
+| Table | Contenu | Effet de la suppression d'une ligne |
+| --- | --- | --- |
+| `categorie` | catégories (`parent_id` NULL) et sous-catégories | refusée (`RESTRICT`) tant qu'elle a des sous-catégories ou des bijoux |
+| `produit` | bijou : nom, slug, description, prix (entier XPF), sous-catégorie | supprime ses variantes et ses photos (`CASCADE`) |
+| `variante` | option du bijou (« Modèle unique »), **porte le stock** | les lignes de commande et le journal gardent leurs données, `variante_id` passe à `NULL` |
+| `image_produit` | photos ; `ordre` 0 = photo principale | — |
+| `utilisateur` · `administrateur` | comptes clients · comptes du back-office | un client est refusé (`RESTRICT`) tant qu'il a des réservations |
+| `commande` · `ligne_commande` | réservation (`MC-AAAA-NNNNN`) et lignes à nom et prix figés | supprime ses lignes (`CASCADE`) ; `commande_id` passe à `NULL` dans le journal |
+| `mouvement_stock` | journal : variation signée, stock résultant, motif (`reservation`, `annulation`, `ajustement`) | — |
+
+Photos : celles du catalogue d'origine sont dans `front/public/images/produits/` (nom simple dans
+`image_produit.fichier`) ; celles envoyées depuis le back-office sont dans `uploads/produits/`
+(`uploads/produits/nom` dans `fichier`), hors de `front/dist/` que `npm run build` vide. Chaque photo existe
+en deux tailles : `<fichier>.webp` (800 px) et `<fichier>-400.webp` (400 px).
+
+### 6.9 Ajouter une route
+
+- [ ] Méthode du modèle (requête préparée, ligne SQL → tableau typé) dans `back/src/Model/`.
+- [ ] Méthode du contrôleur : validation, droits, orchestration, `Response::json()` / `Response::erreur()`.
+- [ ] Ligne dans `back/src/routes.php`.
+- [ ] Contrôleur et modèles créés dans `back/index.php` s'ils sont nouveaux.
+- [ ] Table ou colonne nouvelle : `CREATE TABLE` ajouté à `sql/import.sql` **et** exécuté sur la base (2.2).
+- [ ] `php -l` sur les fichiers touchés ; essai avec une vraie session (voir `SKILL.md`, section 7).
+
+### 6.10 Héritage du starter (films)
+
+Le catalogue de films du starter subsiste : `CatalogueController`, `FilmModel` et la route `GET /api/films`.
+`AuthController` et `StatsController` ne sont plus ni routés ni enregistrés dans `index.php`. Ces fichiers sont
+à supprimer lorsque le domaine films sera retiré, sur demande.
+
 ## 7. Données, commandes et sécurité
 
-Le futur modèle métier doit préserver les décisions documentées dans
-l'analyse des user stories (README.md) :
+Le modèle métier préserve les décisions suivantes, issues de l'analyse des
+user stories :
 
 - tables `categorie`, `produit`, `variante`, `image_produit`, puis commandes ;
 - au moins 3 catégories de 4 bijoux, tirés du catalogue de matiracreation.com ;
@@ -317,8 +569,8 @@ Règles obligatoires :
 
 ## 8. Ordre de réalisation métier
 
-Respecte l'ordre défini dans l'analyse des user stories (README.md) sauf
-décision explicite :
+Respecte l'ordre suivant, issu de l'analyse des user stories, sauf décision
+explicite :
 
 1. Fondations : dépôt, schéma (catégories, produits, variantes, images),
    seeds Matira, layout et tokens de la charte ;
