@@ -58,6 +58,8 @@ jeton, identifiant réel) puisque le dépôt est sur GitHub.
 | Isolation entre sites | `localStorage` : une seule clé, `matira:<BASE_URL>:theme` ; jamais de panier, compte ni rôle côté navigateur ; le cookie a un nom et un `Path` propres | `lib/theme.js`, `front/index.html` |
 | Réservation | une transaction SQL ; numéro `MC-AAAA-NNNNN` tiré de l'id ; statut initial « en cours » ; nom et prix recopiés dans les lignes | `OrderModel` |
 | Stock | porté par la variante ; « faible » à 3 exemplaires ou moins ; 409 au-delà du stock ; décrément et journal `mouvement_stock` dans la même transaction que la réservation ; ajustement du back-office journalisé (motif `ajustement`) | `Stock`, `StockModel` |
+| Statuts d'une réservation | chaîne stricte validée le 2026-10-22 : « en cours » → « disponible » → « retirée » ; annulation possible tant que la réservation n'est pas retirée ; « retirée » et « annulée » sont définitifs ; passage vérifié sur le statut relu **dans la transaction** (ligne verrouillée), refus en 409 | `OrderStatus`, `AdminOrderModel::changeStatus()` |
+| Annulation et stock | le stock rendu est lu dans le **journal** (somme des sorties `reservation` de la réservation), pas dans ses lignes : une réservation antérieure au journal (`MC-2026-00001` et `00002`) rend 0 au lieu de gonfler le stock ; une seule restitution par réservation | `StockModel::refundOrder()` |
 | Photos envoyées | `uploads/produits/` à la racine (hors de `front/dist/` que le build vide) ; WebP 800 px et 400 px recadrés au carré ; `image_produit.fichier` = nom simple (catalogue d'origine) ou `uploads/produits/nom` | `ProductImageStorage`, `lib/image.js` |
 | Slugs | dérivés du nom, rendus uniques par suffixe, **jamais modifiés** ensuite ; slug d'une sous-catégorie préfixé par celui de sa catégorie principale | `Slug`, `AdminProductModel`, `AdminCategoryModel` |
 | Suppression d'un bijou | définitive ; variantes et photos supprimées en cascade ; les lignes de commande gardent nom et prix | `AdminProductModel::delete()` |
@@ -79,11 +81,11 @@ jeton, identifiant réel) puisque le dépôt est sur GitHub.
 | STK-b, STK-c, STK-a | affichage, contraintes et journal du stock | 2026-10-20 |
 | GOF-b | back-office : accès administrateur | 2026-10-20 |
 | GOF-a | gestion des produits, photos comprises | 2026-10-21 |
-| GOF-c | gestion des catégories | 2026-10-22 (branche `feature/GOF-c-categories`, à commiter) |
+| GOF-c | gestion des catégories | 2026-10-22 |
+| PIL-b | gestion des réservations, avec recrédit du stock à l'annulation | 2026-10-22 (branche `feature/PIL-b-commandes`, à commiter) |
 
-**Prochaines étapes, dans l'ordre** : PIL-b (gestion des commandes, avec le recrédit du stock à
-l'annulation : `StockModel::REASON_CANCELLATION` existe déjà), puis SUI-b, SUI-c, SUI-a, OPT-c, OPT-b,
-OPT-a, PIL-a, et PRO-a/b/c en bonus.
+**Prochaines étapes, dans l'ordre** : SUI-b, SUI-c (historique des réservations côté client : les statuts
+de PIL-b y seront affichés), SUI-a, OPT-c, OPT-b, OPT-a, PIL-a, et PRO-a/b/c en bonus.
 
 ## 6. Environnement et méthode de test
 
@@ -94,7 +96,8 @@ OPT-a, PIL-a, et PRO-a/b/c en bonus.
 | Tester l'API | `php -S` sur un **port libre** (le 8099 est déjà pris) avec un routeur qui imite le `.htaccess` ; le cookie est `Secure`, donc l'envoyer à la main avec `-H "Cookie: matira_session=…"` |
 | Tester le front | pas de navigateur : jsdom installé hors du dépôt, Vite en `ssrLoadModule`, `fetch` redirigé vers le serveur PHP local |
 | Base réelle | les tests écrivent dans la vraie base : relever l'état avant (empreinte), nommer les données `Test GOF-x…`, tout supprimer, restaurer, puis comparer l'empreinte |
-| À ne jamais faire en test | abaisser les compteurs de `commande` et `ligne_commande` (le numéro de réservation vient de l'id) ; laisser des lignes orphelines dans `mouvement_stock` ; laisser des fichiers dans `uploads/produits/` |
+| À ne jamais faire en test | modifier ou supprimer les réservations réelles (`MC-2026-00001`, `00002`, `00004`) ; remettre un compteur auto-incrémenté à `1` ou à `MAX(id)+1` : le numéro de réservation vient de l'id, il faut le restaurer à la valeur **relevée avant le test** ; laisser des lignes orphelines dans `mouvement_stock` ; laisser des fichiers dans `uploads/produits/` |
+| Tester avec des réservations | créer des réservations de test avec le compte client des seeds, puis tout restaurer à partir d'un instantané pris avant (compteurs, stocks, réservations, lignes, journal) et vérifier que l'état est identique |
 | PHP | 8.4 ; GD avec JPEG, PNG et WebP ; `exif` et `finfo` présents ; `upload_max_filesize` 2 Mo, `post_max_size` 8 Mo |
 | Comptes de test | voir `AGENTS.md` §2.2 |
 | Git, création de branche | ne pas faire `git switch -c x origin/main` : la branche suivrait `origin/main` et un `git push` partirait **vers `main`** ; faire `git switch -c x` depuis la branche locale, puis `git push -u origin x` |
@@ -122,7 +125,7 @@ Le détail des pièges de code déjà rencontrés est dans `SKILL.md`, section 8
 | 2026-10-19 | DEC-b (route et front), DEC-a, DEC-c, CMD-b |
 | 2026-10-20 | CMD-c, CMD-a, STK-b, STK-c, STK-a, GOF-b ; création de `SKILL.md` ; sortie du dossier `Base/` ; fusion de GOF-b dans `main` |
 | 2026-10-21 | GOF-a ; `ARCHITECTURE.md` supprimé ; isolation entre sites (clé de thème préfixée, cookie `matira_session`) |
-| 2026-10-22 | GOF-c ; correction du routeur (la chaîne de requête des liens `data-link` était perdue) ; restauration dans `AGENTS.md` de l'architecture du back, qui n'était jamais arrivée sur `main` ; création de `MEMOIRE.md` |
+| 2026-10-22 | GOF-c ; correction du routeur (la chaîne de requête des liens `data-link` était perdue) ; restauration dans `AGENTS.md` de l'architecture du back, qui n'était jamais arrivée sur `main` ; création de `MEMOIRE.md` ; PIL-b (suivi des réservations et annulation avec recrédit du stock) |
 
 ## 9. Diagnostic
 

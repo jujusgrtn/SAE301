@@ -457,6 +457,9 @@ que le compilateur les détecte.
 | `POST /api/admin/categories/modifier` | `AdminCategoryController::update` | admin | JSON `{ id, nom, description? }` ; le slug et la place ne changent pas (404 absente) |
 | `POST /api/admin/categories/deplacer` | `AdminCategoryController::move` | admin | JSON `{ id, sens }`, `sens` = `haut` ou `bas` : échange avec la voisine du même niveau, renvoie l'arbre à jour (404 absente) |
 | `POST /api/admin/categories/supprimer` | `AdminCategoryController::remove` | admin | refusée (409) tant que la catégorie contient des sous-catégories ou des bijoux ; renvoie l'arbre à jour |
+| `GET /api/admin/commandes` | `AdminOrderController::index` | admin | réservations de tous les clients, récentes d'abord ; `?statut=` filtre (400 statut inconnu) ; renvoie aussi les effectifs par statut |
+| `GET /api/admin/commande?numero=` | `AdminOrderController::show` | admin | une réservation avec client, lignes et statuts accessibles (`transitions`) |
+| `POST /api/admin/commandes/statut` | `AdminOrderController::changeStatus` | admin | JSON `{ numero, statut }` ; annuler rend au stock ce que le journal a enregistré (`stockRendu`) ; 409 si le passage n'est pas permis |
 
 ### 6.6 Contrôleurs, modèles et dépendances
 
@@ -471,10 +474,12 @@ que le compilateur les détecte.
 | `AdminAreaController` (abstrait) | `AdminModel` | `requireAdmin()` : accès décidé par la session **et** la base à chaque requête |
 | `AdminProductController` (hérite de `AdminAreaController`) | `ProductModel`, `AdminProductModel`, `CategoryModel`, `ProductImageStorage` | lecture, écriture, photos |
 | `AdminCategoryController` (hérite de `AdminAreaController`) | `AdminCategoryModel` | arbre avec effectifs, création, modification, ordre, suppression |
+| `AdminOrderController` (hérite de `AdminAreaController`) | `AdminOrderModel`, `StockModel` | réservations, changement de statut, recrédit du stock à l'annulation |
 
 Modèles transverses : `StockModel` (décrément à la réservation, ajustement manuel, **journal** `mouvement_stock`
 dans la même transaction que l'opération), `Stock` (règle unique de disponibilité : seuil de stock faible),
-`StockException` (stock insuffisant → **409**), `CategoryInUseException` (catégorie encore utilisée → **409**),
+`StockException` (stock insuffisant → **409**), `CategoryInUseException` (catégorie encore utilisée → **409**), `OrderStatus` (statuts et transitions permises, seule source
+de ces règles) et `OrderTransitionException` (passage de statut non permis → **409**),
 `Slug` (slug d'URL à partir d'un nom, longueur maximale selon la colonne), `ProductImageStorage`
 (contrôle, conversion et suppression des photos envoyées).
 
@@ -497,7 +502,7 @@ dans la même transaction que l'opération), `Stock` (règle unique de disponibi
 | 401 | non connecté (client ou administrateur) |
 | 403 | connecté sans le droit |
 | 404 | ressource absente, **ou appartenant à un autre** (on ne révèle rien) |
-| 409 | conflit avec l'état du serveur : stock insuffisant, e-mail déjà utilisé, catégorie encore utilisée |
+| 409 | conflit avec l'état du serveur : stock insuffisant, e-mail déjà utilisé, catégorie encore utilisée, changement de statut non permis |
 | 500 | erreur interne |
 
 ### 6.8 Base de données et fichiers

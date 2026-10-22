@@ -318,6 +318,10 @@ export function CategoryPage(params) {
 | Un lien `data-link` peut porter une chaîne de requête (`?parent=3`) : le routeur la conserve au clic **et** dans le `href` réécrit par `updateLinks()` (corrigé avec GOF-c : il la supprimait) | `lib/router.js` (`lien.search`) |
 | Réordonner : l'action renvoie l'arbre à jour, le focus revient au **même bouton**, le résultat est annoncé par une région `role="status"` masquée plutôt que par un `aria-live` sur toute la liste | `V.announce()` de `pages/admin-categories/page.js` |
 | Suppression refusée par le serveur (409) : afficher son message tel quel, ne rien retirer de la liste | `M.deleteCategory()` |
+| Page ouverte pendant que la donnée change ailleurs : le serveur annonce les actions possibles (`transitions`), refuse le reste en 409 ; la page affiche ce refus **puis se recharge** pour montrer l'état réel | `M.submitChange()` de `pages/admin-commande/page.js` |
+| Filtres d'une liste = liens `data-link` avec `?statut=` ; la page lit le filtre dans l'adresse, ignore une valeur inconnue et marque le lien actif avec `aria-current="page"` | `pages/admin-commandes/page.js` |
+| Une règle de statuts (transitions permises) vit dans **une seule classe côté serveur**, relue dans la transaction sous verrou ; le front ne fait qu'afficher ce que le serveur annonce | `Model/OrderStatus.php` |
+| Annulation : rendre au stock ce que le **journal** a enregistré, jamais ce que dit la ligne de commande (les réservations d'avant le journal n'ont rien retiré) | `StockModel::refundOrder()` |
 
 ### 5.4 Communication page → layout
 
@@ -490,5 +494,6 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-c contraintes de stock | — | 409 sur panier et réservation | `StockException`, `Cart::setQuantity`, `OrderModel::checkStock` |
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
 | GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
+| PIL-b gestion des réservations | `/admin/commandes` (`?statut=`), `/admin/commandes/:numero` | `GET /api/admin/commandes`, `GET /api/admin/commande?numero=`, `POST /api/admin/commandes/statut` | `OrderStatus` (transitions), `AdminOrderModel`, `StockModel::refundOrder`, `AdminOrderController`, `ui/badge-statut`, `pages/admin-commandes`, `pages/admin-commande` |
 | GOF-c gestion des catégories | `/admin/categories`, `/admin/categories/nouveau?parent=`, `/admin/categories/:id/modifier` | `GET /api/admin/categories`, `POST /api/admin/categories/{creer,modifier,deplacer,supprimer}` | `AdminCategoryModel` (transactions, ordre réécrit de 1 à n), `CategoryInUseException`, `AdminCategoryController`, `pages/admin-categories`, `pages/admin-categorie` |
 | GOF-a gestion des produits | `/admin/produits`, `/admin/produits/nouveau`, `/admin/produits/:id/modifier` | `GET /api/admin/produits`, `GET /api/admin/produit?id=`, `POST /api/admin/produits/{creer,modifier,supprimer}` | `AdminProductModel`, `ProductImageStorage`, `Slug`, `StockModel::adjust`, `AdminProductController`, `lib/image.js`, `pages/admin-produits`, `pages/admin-produit` |
