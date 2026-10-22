@@ -130,3 +130,19 @@ export function splitLineName(lineName) {
   }
   return { nom: lineName.slice(0, position), options: lineName.slice(position + separator.length) };
 }
+
+/**
+ * « 2026-10-22 » -> « jeu. 22 »
+ *
+ * @param {string} day - Jour au format AAAA-MM-JJ.
+ * @returns {string} Jour de la semaine abrégé et numéro du jour, ou la valeur reçue si elle est illisible.
+ */
+export function formatDay(day) {
+  const date = new Date(`${day}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(day);
+  }
+
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date);
+}

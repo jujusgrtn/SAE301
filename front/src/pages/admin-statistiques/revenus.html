@@ -1,0 +1,12 @@
+<section aria-labelledby="titre-revenus">
+  <h2 id="titre-revenus" class="text-lg font-semibold">Revenus des 7 derniers jours</h2>
+  <p class="mt-1 text-[0.8125rem] text-muted">Réservations retirées en boutique seulement, rangées par jour de réservation.</p>
+
+  <!-- Le graphique est décoratif : les mêmes valeurs sont écrites dans la liste dessous. -->
+  <ul aria-hidden="true" class="mt-4 flex h-44 items-end gap-2 border-b border-line">
+    <slot name="colonnes"></slot>
+  </ul>
+  <ul class="mt-3 divide-y divide-line text-sm">
+    <slot name="valeurs"></slot>
+  </ul>
+</section>
