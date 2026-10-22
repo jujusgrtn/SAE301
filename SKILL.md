@@ -22,7 +22,8 @@ la racine du dépôt (`~/public_html/SAE301-Starter/`).
 
 ### 2.1 Check-list de démarrage
 
-- [ ] L'utilisatrice a demandé cette US (« on continue », « US 7 »…). Sa numérotation compte
+- [ ] `MEMOIRE.md` lu en entier (décisions, préférences, points en attente) : `AGENTS.md` §12
+- [ ] La personne qui développe a demandé cette US (« on continue », « US 7 »…). La numérotation compte
       les US dans l'ordre de `AGENTS.md` §8, **sans** les fondations : US 1 = DEC-b, US 4 = CMD-b,
       US 7 = STK-b.
 - [ ] Les dépendances sont terminées (ordre `AGENTS.md` §8).
@@ -43,7 +44,7 @@ dès qu'un choix change fortement le code. Exemples déjà tranchés :
 | DEC-a | Menu des catégories en dur ou servi par l'API ? | `GET /api/categories` |
 | CMD-b | Panier en session PHP ou en `localStorage` ? | session PHP (le serveur fait foi) |
 | CMD-c | Comptes admin en base tout de suite ? Inscription ? Panier à la déconnexion ? | admin en dur jusqu'à GOF-b ; connexion + inscription ; panier vidé |
-| STK-a | Comment appliquer une nouvelle table SQL ? | l'agent écrit le SQL, **l'utilisatrice l'exécute** dans phpMyAdmin |
+| STK-a | Comment appliquer une nouvelle table SQL ? | l'agent écrit le SQL, **la personne qui développe l'exécute** dans phpMyAdmin |
 
 Ne **pas** demander pour un choix à convention évidente : le décider, puis le justifier
 dans le compte rendu (ex. seuil de stock faible à 3, numéro de commande déduit de l'id).
@@ -314,6 +315,9 @@ export function CategoryPage(params) {
 | Une page à deux modes (création / modification) : un seul module, l'identifiant vient de l'adresse (`/…/nouveau`, `/…/:id/modifier`) | `AdminProductFormPage` |
 | Annonce après une action sur une autre page : `?notice=cree`, traduit par une **liste blanche** (`Object.hasOwn`), jamais affiché tel quel | `NOTICES` de `pages/admin-produits/page.js` |
 | Réponse arrivée après un changement de page : un compteur de visite (`M.visit`) la fait ignorer | `M.fetchForm()`, `M.submit()` |
+| Un lien `data-link` peut porter une chaîne de requête (`?parent=3`) : le routeur la conserve au clic **et** dans le `href` réécrit par `updateLinks()` (corrigé avec GOF-c : il la supprimait) | `lib/router.js` (`lien.search`) |
+| Réordonner : l'action renvoie l'arbre à jour, le focus revient au **même bouton**, le résultat est annoncé par une région `role="status"` masquée plutôt que par un `aria-live` sur toute la liste | `V.announce()` de `pages/admin-categories/page.js` |
+| Suppression refusée par le serveur (409) : afficher son message tel quel, ne rien retirer de la liste | `M.deleteCategory()` |
 
 ### 5.4 Communication page → layout
 
@@ -352,10 +356,10 @@ Un nouveau besoin de couleur ajoute un token primitif **et** un token sémantiqu
 | --- | --- |
 | Lecture de tables existantes | rien à faire dans `sql/` |
 | Nouvelle table ou colonne | l'ajouter à `sql/import.sql` (+ `DROP TABLE IF EXISTS` dans l'ordre des dépendances) |
-| Appliquer à la base du serveur | donner la requête à l'utilisatrice, qui l'exécute dans phpMyAdmin (onglet SQL, base sélectionnée) ; vérifier ensuite en lecture seule via `information_schema` |
+| Appliquer à la base du serveur | donner la requête à la personne qui développe, pour qu'elle l'exécute dans phpMyAdmin (onglet SQL, base sélectionnée) ; vérifier ensuite en lecture seule via `information_schema` |
 
 Exemple STK-a : table `mouvement_stock` ajoutée à `import.sql`, requête fournie, exécutée
-par l'utilisatrice, structure vérifiée (7 colonnes, 2 clés étrangères).
+par la personne qui développe, structure vérifiée (7 colonnes, 2 clés étrangères).
 
 ⚠️ `back/` tourne directement depuis `~/public_html` : une route qui dépend d'une table
 absente répond **500 en production** tant que la migration n'est pas appliquée. Le dire en
@@ -417,10 +421,10 @@ envoyer un formulaire avec `dispatchEvent(new Event("submit", { bubbles: true, c
 | Ne supprimer que ce que le test a créé (filtre explicite) | réservations du seul compte `client@matira.test` |
 | Restaurer toute valeur modifiée | stock de la variante 5 remis à 2 |
 | Remettre le compteur auto-incrémenté à `MAX(id) + 1` **seulement pour les tables que le test a remplies** | `produit`, `variante`, `image_produit`, `mouvement_stock` |
-| **Jamais** `commande` ni `ligne_commande` : le numéro `MC-AAAA-NNNNN` vient de l'id, un compteur abaissé réutiliserait un numéro de réservation déjà donné | les réservations de l'utilisatrice sont réelles |
+| **Jamais** `commande` ni `ligne_commande` : le numéro `MC-AAAA-NNNNN` vient de l'id, un compteur abaissé réutiliserait un numéro de réservation déjà donné | les réservations déjà faites sont réelles |
 | Supprimer aussi les traces laissées dans le journal (`mouvement_stock` à `variante_id` NULL) | `db-state.php cleanup` |
 | Vider puis retirer le dossier `uploads/produits/` après un test d'envoi | aucun fichier de test laissé |
-| Ne jamais toucher aux données de l'utilisatrice | ses réservations `MC-2026-00001`/`00002` conservées |
+| Ne jamais toucher aux données réelles du projet | les réservations déjà faites (`MC-2026-00001`, `00002`…) conservées |
 | Tester un changement de schéma sans l'appliquer | `CREATE TEMPORARY TABLE` dans le script de test (sans clés étrangères) |
 
 Compte de test des seeds : `client@matira.test` / `Matira2026!`.
@@ -445,7 +449,7 @@ Suivre `AGENTS.md` §11, dans cet ordre :
 
 1. **Résultat en une phrase** et ce qui a été testé (tableau cas → résultat).
 2. **Fichiers** : tableau état (créé / modifié / supprimé) → chemin cliquable → rôle.
-3. **Choix faits** et leur raison, ou décisions de l'utilisatrice appliquées.
+3. **Choix faits** et leur raison, ou décisions de la personne qui développe appliquées.
 4. **Points d'attention** : migrations à appliquer (en premier), limites, US suivante dans
    l'ordre `AGENTS.md` §8.
 5. **Impacts** sur le reste de l'application (champs d'API ajoutés, nouveaux codes d'erreur).
@@ -468,7 +472,8 @@ git push -u origin feature/<CODE>-<sujet>
 - [ ] Aucun `foreach`, aucun `fn`, aucune fonction fléchée ; JSDoc / PHPDoc sur chaque fonction
 - [ ] `php -l`, `npm run build`, `check-mvc.js` passés (ou absence signalée)
 - [ ] API testée en session réelle ; front testé (jsdom ou navigateur) ; données de test nettoyées
-- [ ] À vérifier par l'utilisatrice : 320 / 768 / 1440 px et validateur W3C
+- [ ] À vérifier par la personne qui développe : 320 / 768 / 1440 px et validateur W3C
+- [ ] `MEMOIRE.md` mis à jour : avancement, décisions, pièges, points en attente, date (`AGENTS.md` §12)
 - [ ] Compte rendu complet avec les commandes Git
 
 ## Annexe — US déjà réalisées
@@ -485,4 +490,5 @@ git push -u origin feature/<CODE>-<sujet>
 | STK-c contraintes de stock | — | 409 sur panier et réservation | `StockException`, `Cart::setQuantity`, `OrderModel::checkStock` |
 | STK-a journal du stock | — | — | `StockModel::withdraw`, table `mouvement_stock` |
 | GOF-b back-office | `/admin` | `GET /api/admin/compte`, `POST /api/admin/{connexion,deconnexion}` | `AdminModel`, `AdminController`, `AdminAreaController` (héritage : `requireAdmin()`), `pages/admin` |
+| GOF-c gestion des catégories | `/admin/categories`, `/admin/categories/nouveau?parent=`, `/admin/categories/:id/modifier` | `GET /api/admin/categories`, `POST /api/admin/categories/{creer,modifier,deplacer,supprimer}` | `AdminCategoryModel` (transactions, ordre réécrit de 1 à n), `CategoryInUseException`, `AdminCategoryController`, `pages/admin-categories`, `pages/admin-categorie` |
 | GOF-a gestion des produits | `/admin/produits`, `/admin/produits/nouveau`, `/admin/produits/:id/modifier` | `GET /api/admin/produits`, `GET /api/admin/produit?id=`, `POST /api/admin/produits/{creer,modifier,supprimer}` | `AdminProductModel`, `ProductImageStorage`, `Slug`, `StockModel::adjust`, `AdminProductController`, `lib/image.js`, `pages/admin-produits`, `pages/admin-produit` |

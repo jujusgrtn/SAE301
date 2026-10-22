@@ -341,6 +341,7 @@ V.createContentFragment = function (state) {
     return htmlToFragment(genericRenderer(templateDashboard, {
         identifiant: state.admin.identifiant,
         urlProduits: routeUrl("/admin/produits"),
+        urlCategories: routeUrl("/admin/categories"),
       }));
   }
   return V.createFormFragment(state);

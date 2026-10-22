@@ -10,6 +10,7 @@ use App\Controller\AccountController;
 use App\Controller\OrderController;
 use App\Controller\AdminController;
 use App\Controller\AdminProductController;
+use App\Controller\AdminCategoryController;
 
 /**
  * Table des routes de l'API.
@@ -44,4 +45,9 @@ return [
     'POST /api/admin/produits/creer'     => [AdminProductController::class, 'create'],
     'POST /api/admin/produits/modifier'  => [AdminProductController::class, 'update'],
     'POST /api/admin/produits/supprimer' => [AdminProductController::class, 'remove'],
+    'GET  /api/admin/categories'         => [AdminCategoryController::class, 'index'],
+    'POST /api/admin/categories/creer'     => [AdminCategoryController::class, 'create'],
+    'POST /api/admin/categories/modifier'  => [AdminCategoryController::class, 'update'],
+    'POST /api/admin/categories/deplacer'  => [AdminCategoryController::class, 'move'],
+    'POST /api/admin/categories/supprimer' => [AdminCategoryController::class, 'remove'],
 ];

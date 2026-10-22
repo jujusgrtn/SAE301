@@ -24,6 +24,7 @@ use App\Controller\AccountController;
 use App\Controller\OrderController;
 use App\Controller\AdminController;
 use App\Controller\AdminProductController;
+use App\Controller\AdminCategoryController;
 use App\Model\ProductModel;
 use App\Model\CategoryModel;
 use App\Model\VariantModel;
@@ -31,6 +32,7 @@ use App\Model\UserModel;
 use App\Model\OrderModel;
 use App\Model\StockModel;
 use App\Model\AdminProductModel;
+use App\Model\AdminCategoryModel;
 use App\Model\ProductImageStorage;
 use App\Model\AdminModel;
 use App\Model\FilmModel;
@@ -89,6 +91,7 @@ try {
             // Photos envoyées : uploads/ à la racine du dépôt, hors de front/dist/ que le build vide.
             new ProductImageStorage(dirname(__DIR__) . '/uploads/produits')
         ),
+        AdminCategoryController::class => new AdminCategoryController(new AdminModel($pdo), new AdminCategoryModel($pdo)),
     ];
 
     $routes = require __DIR__ . '/src/routes.php';

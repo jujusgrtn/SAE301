@@ -1,0 +1,6 @@
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+  <button type="button" data-action="monter" data-id="{{id}}" class="inline-flex size-9 items-center justify-center rounded-md border border-line text-base transition-colors hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-40"><span aria-hidden="true">↑</span><span class="sr-only">Monter {{nom}}</span></button>
+  <button type="button" data-action="descendre" data-id="{{id}}" class="inline-flex size-9 items-center justify-center rounded-md border border-line text-base transition-colors hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-40"><span aria-hidden="true">↓</span><span class="sr-only">Descendre {{nom}}</span></button>
+  <a href="{{urlEdition}}" data-link class="inline-flex min-h-9 items-center text-sm font-medium text-primary-text underline underline-offset-2">Modifier<span class="sr-only">&nbsp;{{nom}}</span></a>
+  <button type="button" data-action="demander-suppression" data-id="{{id}}" class="min-h-9 text-sm text-muted underline underline-offset-2 hover:text-danger">Supprimer<span class="sr-only">&nbsp;{{nom}}</span></button>
+</div>

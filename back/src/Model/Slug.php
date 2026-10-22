@@ -35,15 +35,17 @@ final class Slug
     /**
      * Slug d'un texte.
      *
-     * @param string $text Nom saisi (un bijou, plus tard une catégorie).
+     * @param string $text      Nom saisi (un bijou, une catégorie).
+     * @param int    $maxLength Longueur maximale, à choisir selon la colonne qui recevra le slug
+     *                          (en laissant la place d'un suffixe « -2 »).
      * @return string Le slug, ou '' si le texte ne contient ni lettre ni chiffre.
      */
-    public static function fromText(string $text): string
+    public static function fromText(string $text, int $maxLength = self::MAX_LENGTH): string
     {
         $lower   = strtr(mb_strtolower($text), self::ACCENTS);
         $simple  = preg_replace('/[^a-z0-9]+/', '-', $lower) ?? '';
         $trimmed = trim($simple, '-');
 
-        return rtrim(substr($trimmed, 0, self::MAX_LENGTH), '-');
+        return rtrim(substr($trimmed, 0, $maxLength), '-');
     }
 }

@@ -1,0 +1,16 @@
+<li class="rounded-md border border-line">
+  <div class="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+    <div class="min-w-0">
+      <h2 class="text-base font-semibold">{{nom}}</h2>
+      <p class="text-[0.8125rem] text-muted">{{resume}} · <span class="break-all">/categorie/{{slug}}</span></p>
+      <p class="mt-1 text-sm text-muted">{{description}}</p>
+    </div>
+    <slot name="actions"></slot>
+  </div>
+
+  <ul data-zone="sous-categories" class="divide-y divide-line border-t border-line"></ul>
+
+  <div class="border-t border-line px-4 py-3">
+    <a href="{{urlNouvelleSousCategorie}}" data-link class="inline-flex min-h-9 items-center text-sm font-medium text-primary-text underline underline-offset-2">Ajouter une sous-catégorie<span class="sr-only">&nbsp;à {{nom}}</span></a>
+  </div>
+</li>

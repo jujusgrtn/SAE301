@@ -38,7 +38,9 @@ class Router {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
       e.preventDefault();
-      this.navigate(this.routePath(lien.pathname));
+      // La chaîne de requête fait partie du lien (/admin/categories/nouveau?parent=3) :
+      // la page la lit pour se préparer, il ne faut pas la perdre en route.
+      this.navigate(this.routePath(lien.pathname) + lien.search);
     });
   }
 
@@ -177,7 +179,7 @@ class Router {
   updateLinks(path) {
     for (const lien of this.root.querySelectorAll("a[data-link]")) {
       const route = this.routePath(lien.pathname);
-      lien.setAttribute("href", this.url(route));
+      lien.setAttribute("href", this.url(route) + lien.search);
 
       if (route === path) {
         lien.setAttribute("aria-current", "page");
