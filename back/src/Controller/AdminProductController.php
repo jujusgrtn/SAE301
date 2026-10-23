@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Model\AdminModel;
 use App\Model\AdminProductModel;
+use App\Model\Audience;
 use App\Model\CategoryModel;
 use App\Model\ProductImageStorage;
 use App\Model\ProductModel;
@@ -71,7 +72,7 @@ final class AdminProductController extends AdminAreaController
     /**
      * GET /api/admin/produits : tous les bijoux, dans l'ordre du catalogue.
      *
-     * Réponse : { produits: [{ id, nom, slug, prix, stock, disponibilite,
+     * Réponse : { produits: [{ id, nom, slug, prix, publicCible, stock, disponibilite,
      *             categorie, sousCategorie, image }], total }
      * Erreur : 401 sans connexion administrateur.
      */
@@ -87,7 +88,7 @@ final class AdminProductController extends AdminAreaController
     /**
      * GET /api/admin/produit?id=… : un bijou, pour le formulaire de modification.
      *
-     * Réponse : { produit: { id, nom, slug, description, prix, stock,
+     * Réponse : { produit: { id, nom, slug, description, prix, publicCible, stock,
      *             sousCategorie: { nom, slug }, nombreVariantes, variantes: [{ id, libelle, stock }], image } }
      * Erreurs : 401 sans connexion administrateur, 400 si id est invalide, 404 si le bijou n'existe pas.
      *
@@ -117,7 +118,7 @@ final class AdminProductController extends AdminAreaController
     /**
      * POST /api/admin/produits/creer : crée un bijou.
      *
-     * Champs : nom, description, prix, sousCategorie (slug), stock, et
+     * Champs : nom, description, prix, publicCible (femme, homme ou unisexe), sousCategorie (slug), stock, et
      * facultativement photo (fichier) et altPhoto. Un bijou naît avec une seule
      * variante : les options se rattachent ensuite.
      *
@@ -245,7 +246,7 @@ final class AdminProductController extends AdminAreaController
      * Répond 400 et termine le script au premier champ refusé.
      *
      * @param Request $request Requête entrante.
-     * @return array{data: array{nom: string, description: string, prix: int, categorieId: int, stock: int|null,
+     * @return array{data: array{nom: string, description: string, prix: int, publicCible: string, categorieId: int, stock: int|null,
      *                           variantStocks: array<int, int>|null},
      *               slug: string, altPhoto: string|null}
      */
@@ -262,6 +263,7 @@ final class AdminProductController extends AdminAreaController
         $stock       = self::readInt($body['stock'] ?? null);
         $variantStocks = self::readVariantStocks($body['stocks'] ?? null);
         $categorySlug = is_string($body['sousCategorie'] ?? null) ? $body['sousCategorie'] : '';
+        $audience    = $body['publicCible'] ?? null;
         $alt         = self::cleanLine($body['altPhoto'] ?? null);
 
         $error = null;
@@ -274,6 +276,8 @@ final class AdminProductController extends AdminAreaController
             $error = 'La description est trop longue (' . self::DESCRIPTION_MAX_LENGTH . ' caractères au plus).';
         } elseif ($price === null || $price < 1 || $price > self::PRICE_MAX) {
             $error = 'Saisissez un prix entier en XPF, de 1 à ' . self::PRICE_MAX . '.';
+        } elseif (!Audience::isValid($audience)) {
+            $error = 'Choisissez pour qui est ce bijou : femme, homme ou unisexe.';
         } elseif ($variantStocks === false || ($variantStocks === null && ($stock === null || $stock > self::STOCK_MAX))) {
             $error = 'Saisissez un stock entier, de 0 à ' . self::STOCK_MAX . ', pour le bijou ou pour chaque combinaison.';
         } elseif (mb_strlen($alt) > self::ALT_MAX_LENGTH) {
@@ -302,6 +306,7 @@ final class AdminProductController extends AdminAreaController
                 'nom'         => $name,
                 'description' => $description,
                 'prix'        => (int) $price,
+                'publicCible' => (string) $audience,
                 'categorieId' => $category['id'],
                 'stock'       => $stock === null || $stock > self::STOCK_MAX ? null : $stock,
                 'variantStocks' => $variantStocks === false ? null : $variantStocks,

@@ -213,6 +213,7 @@ M.getState = function () {
       prix: product === null ? "" : String(product.prix),
       stock: product === null ? "" : String(product.stock),
       sousCategorie: product === null ? "" : product.sousCategorie.slug,
+      publicCible: product === null ? "femme" : product.publicCible,
       altPhoto: product === null || product.image === null ? "" : product.image.alt,
     },
     variants: product !== null && product.nombreVariantes > 1 ? product.variantes : [],
@@ -456,6 +457,7 @@ V.createFormFragment = function (state) {
 
   V.fillCategories(fragment.querySelector('select[name="sousCategorie"]'), state.categories, state.values.sousCategorie);
   V.fillStock(fragment, state);
+  fragment.querySelector(`input[name="publicCible"][value="${state.values.publicCible}"]`).checked = true;
 
   let slot = fragment.querySelector('slot[name="photo-actuelle"]');
   if (state.currentImage === null) {

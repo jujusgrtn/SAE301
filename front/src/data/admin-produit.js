@@ -38,7 +38,7 @@ AdminProductData.fetchOne = async function (id) {
 /**
  * Crée un bijou : POST /api/admin/produits/creer
  *
- * @param {FormData} formData - Champs nom, description, prix, stock, sousCategorie,
+ * @param {FormData} formData - Champs nom, description, prix, publicCible, stock, sousCategorie,
  *   et facultativement photo (fichier) et altPhoto.
  * @returns {Promise<{produit: {id: number, slug: string}}>}
  */

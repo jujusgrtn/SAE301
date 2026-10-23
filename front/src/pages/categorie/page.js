@@ -28,7 +28,7 @@ let M = {
   subCategories: [], // [{ nom, slug }] de la catégorie principale
   products: [],
   message: null, // { titre, texte } en cas d'erreur
-  filters: { groupes: [], dispo: [], prix: [], tri: "nouveautes", page: 1 },
+  filters: { groupes: [], pour: [], prix: [], tri: "nouveautes", page: 1 },
 };
 
 /**
@@ -47,7 +47,7 @@ M.reset = function (slug) {
   M.subCategories = [];
   M.products = [];
   M.message = null;
-  M.filters = { groupes: [], dispo: [], prix: [], tri: "nouveautes", page: 1 };
+  M.filters = { groupes: [], pour: [], prix: [], tri: "nouveautes", page: 1 };
 };
 
 /**
@@ -145,7 +145,7 @@ M.setFiltersFromSearch = function (search) {
 
 /**
  * Coche ou décoche une valeur d'un filtre ; la pagination repart de la page 1.
- * . filter : « groupe », « dispo » ou « prix » ; value ; checked
+ * . filter : « groupe », « pour » ou « prix » ; value ; checked
  * > aucune valeur de retour
  *
  * @param {string} filter
@@ -196,7 +196,7 @@ M.setPage = function (page) {
  * @returns {void}
  */
 M.resetFilters = function () {
-  M.filters = { groupes: [], dispo: [], prix: [], tri: M.filters.tri, page: 1 };
+  M.filters = { groupes: [], pour: [], prix: [], tri: M.filters.tri, page: 1 };
 };
 
 /**

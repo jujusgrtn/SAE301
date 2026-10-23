@@ -1,1 +1,4 @@
-<li><a href="{{href}}" data-link class="inline-block py-2 text-sm font-semibold text-ink transition-colors hover:text-primary-text aria-[current=page]:text-primary-text">{{nom}}</a></li>
+<li data-item class="group flex items-center">
+  <a href="{{href}}" data-link class="inline-block py-2 text-sm font-semibold text-ink transition-colors hover:text-primary-text aria-[current=page]:text-primary-text">{{nom}}</a>
+  <slot name="panneau"></slot>
+</li>

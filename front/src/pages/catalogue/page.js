@@ -9,7 +9,7 @@ import templateLoading from "./chargement.html?raw";
 /**
  * Page « Nos bijoux » (US DEC-b) : tous les bijoux de Matira Création, avec
  * filtres par catégorie, disponibilité et prix, tri et pagination. Les filtres
- * s'écrivent dans l'adresse (?groupe=…&dispo=…).
+ * s'écrivent dans l'adresse (?groupe=…&pour=…).
  */
 
 // ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ let M = {
   status: "loading", // "loading" | "success" | "error"
   products: [], // bijoux renvoyés par GET /api/produits
   message: null, // { type, texte }, ou null
-  filters: { groupes: [], dispo: [], prix: [], tri: "nouveautes", page: 1 },
+  filters: { groupes: [], pour: [], prix: [], tri: "nouveautes", page: 1 },
 };
 
 /**
@@ -83,7 +83,7 @@ M.setFiltersFromSearch = function (search) {
 
 /**
  * Coche ou décoche une valeur d'un filtre ; la pagination repart de la page 1.
- * . filter : « groupe », « dispo » ou « prix » ; value ; checked
+ * . filter : « groupe », « pour » ou « prix » ; value ; checked
  * > aucune valeur de retour
  *
  * @param {string} filter
@@ -134,7 +134,7 @@ M.setPage = function (page) {
  * @returns {void}
  */
 M.resetFilters = function () {
-  M.filters = { groupes: [], dispo: [], prix: [], tri: M.filters.tri, page: 1 };
+  M.filters = { groupes: [], pour: [], prix: [], tri: M.filters.tri, page: 1 };
 };
 
 /**

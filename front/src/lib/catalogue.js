@@ -4,7 +4,7 @@ import { formatPrice } from "./format.js";
  * Règles du catalogue : filtres, tri et pagination d'une liste de bijoux déjà
  * chargée (page « Nos bijoux » et pages de catégorie). Ce sont des fonctions
  * pures : la liste vient de l'API, rien ici n'appelle le réseau. Les filtres
- * vivent dans l'adresse (?groupe=…&dispo=…&prix=…&tri=…&page=…) pour qu'une
+ * vivent dans l'adresse (?groupe=…&pour=…&prix=…&tri=…&page=…) pour qu'une
  * vue se partage et se retrouve.
  */
 
@@ -18,10 +18,11 @@ export const SORTS = [
   { valeur: "prix-decroissant", libelle: "prix décroissant" },
 ];
 
-/** Disponibilités filtrables (valeurs de `disponibilite` renvoyées par l'API). */
-export const AVAILABILITIES = [
-  { valeur: "en_stock", libelle: "En stock" },
-  { valeur: "stock_faible", libelle: "Bientôt épuisé" },
+/** Public filtrable (valeurs de `publicCible` renvoyées par l'API). */
+export const AUDIENCES = [
+  { valeur: "femme", libelle: "Femme" },
+  { valeur: "homme", libelle: "Homme" },
+  { valeur: "unisexe", libelle: "Unisexe" },
 ];
 
 /** Tranches de prix, en XPF (la borne haute de « moyen » est incluse). */
@@ -64,7 +65,7 @@ export function getEffectivePrice(product) {
  *
  * @param {string} search - Chaîne de requête (window.location.search).
  * @param {Array<string>} validGroups - Slugs des groupes proposés (catégories ou sous-catégories).
- * @returns {{groupes: Array<string>, dispo: Array<string>, prix: Array<string>, tri: string, page: number}}
+ * @returns {{groupes: Array<string>, pour: Array<string>, prix: Array<string>, tri: string, page: number}}
  */
 export function readFilters(search, validGroups) {
   let params = new URLSearchParams(search);
@@ -80,9 +81,9 @@ export function readFilters(search, validGroups) {
 
   return {
     groupes: keep("groupe", validGroups),
-    dispo: keep(
-      "dispo",
-      AVAILABILITIES.map(function (item) {
+    pour: keep(
+      "pour",
+      AUDIENCES.map(function (item) {
         return item.valeur;
       })
     ),
@@ -105,7 +106,7 @@ export function readFilters(search, validGroups) {
  * Écrit les filtres sous forme de chaîne de requête ; les valeurs par défaut
  * ne s'écrivent pas.
  *
- * @param {{groupes: Array<string>, dispo: Array<string>, prix: Array<string>, tri: string, page: number}} filters
+ * @param {{groupes: Array<string>, pour: Array<string>, prix: Array<string>, tri: string, page: number}} filters
  * @returns {string} Par exemple « ?groupe=bagues&page=2 », ou une chaîne vide.
  */
 export function buildSearch(filters) {
@@ -114,8 +115,8 @@ export function buildSearch(filters) {
   if (filters.groupes.length > 0) {
     params.set("groupe", filters.groupes.join(","));
   }
-  if (filters.dispo.length > 0) {
-    params.set("dispo", filters.dispo.join(","));
+  if (filters.pour.length > 0) {
+    params.set("pour", filters.pour.join(","));
   }
   if (filters.prix.length > 0) {
     params.set("prix", filters.prix.join(","));
@@ -137,7 +138,7 @@ export function buildSearch(filters) {
  * entre eux se cumulent.
  *
  * @param {Array<Object>} products - Bijoux de l'API.
- * @param {{groupes: Array<string>, dispo: Array<string>, prix: Array<string>}} filters
+ * @param {{groupes: Array<string>, pour: Array<string>, prix: Array<string>}} filters
  * @param {function(Object): string} groupOf - Slug du groupe d'un bijou.
  * @returns {Array<Object>}
  */
@@ -148,7 +149,7 @@ export function filterProducts(products, filters, groupOf) {
     if (filters.groupes.length > 0 && !filters.groupes.includes(groupOf(product))) {
       return false;
     }
-    if (filters.dispo.length > 0 && !filters.dispo.includes(product.disponibilite)) {
+    if (filters.pour.length > 0 && !filters.pour.includes(product.publicCible)) {
       return false;
     }
     if (filters.prix.length > 0) {
@@ -209,7 +210,7 @@ export function paginate(products, page) {
  * bijoux de la page, nombre total et pagination.
  *
  * @param {Array<Object>} products - Bijoux de la page « catalogue » ou « catégorie ».
- * @param {{groupes: Array<string>, dispo: Array<string>, prix: Array<string>, tri: string, page: number}} filters
+ * @param {{groupes: Array<string>, pour: Array<string>, prix: Array<string>, tri: string, page: number}} filters
  * @param {Array<{valeur: string, libelle: string}>} groups - Groupes proposés (peut être vide).
  * @param {string} groupTitle - Titre du bloc de groupes (« Catégorie », « Sous-catégorie »).
  * @param {function(Object): string} groupOf - Slug du groupe d'un bijou.
@@ -227,7 +228,7 @@ export function buildListState(products, filters, groups, groupTitle, groupOf) {
     total: `${result.total} ${result.total > 1 ? "bijoux" : "bijou"}`,
     groupTitle: groupTitle,
     groups: groups.map(checked(filters.groupes)),
-    availabilities: AVAILABILITIES.map(checked(filters.dispo)),
+    audiences: AUDIENCES.map(checked(filters.pour)),
     prices: PRICE_RANGES.map(function (range) {
       return { valeur: range.valeur, libelle: describePriceRange(range), checked: filters.prix.includes(range.valeur) };
     }),

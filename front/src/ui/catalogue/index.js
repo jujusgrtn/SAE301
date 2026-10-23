@@ -19,7 +19,7 @@ import templateList from "./liste.html?raw";
 // state : {
 //   total: texte « 21 bijoux »,
 //   groupTitle, groups: [{ valeur, libelle, checked }],
-//   availabilities: [...], prices: [...] (même forme),
+//   audiences: [...], prices: [...] (même forme),
 //   sorts: [{ valeur, libelle }], sort,
 //   items: bijoux de la page, page, pages
 // }
@@ -28,7 +28,7 @@ let CatalogueView = {
   /**
    * Une case à cocher du bloc de filtres.
    *
-   * @param {string} filter - « groupe », « dispo » ou « prix ».
+   * @param {string} filter - « groupe », « pour » ou « prix ».
    * @param {{valeur: string, libelle: string, checked: boolean}} item
    * @returns {DocumentFragment}
    */
@@ -130,7 +130,7 @@ let CatalogueView = {
     if (state.groups.length > 0) {
       filters.append(CatalogueView.createFilterGroup(state.groupTitle, "groupe", state.groups));
     }
-    filters.append(CatalogueView.createFilterGroup("Disponibilité", "dispo", state.availabilities));
+    filters.append(CatalogueView.createFilterGroup("Pour qui", "pour", state.audiences));
     filters.append(CatalogueView.createFilterGroup("Prix", "prix", state.prices));
     fragment.querySelector('slot[name="filtres"]').replaceWith(filters);
 

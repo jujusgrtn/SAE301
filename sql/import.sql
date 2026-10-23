@@ -85,6 +85,7 @@ CREATE TABLE produit (
     slug         VARCHAR(120)      NOT NULL,
     description  TEXT              NOT NULL,
     prix         INT UNSIGNED      NOT NULL,
+    public_cible ENUM('femme', 'homme', 'unisexe') NOT NULL DEFAULT 'femme',
     date_ajout   DATE              NOT NULL,
 
     PRIMARY KEY (id),
@@ -460,9 +461,7 @@ INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
     (3, NULL, 'Bracelets', 'bracelets',
         'Bracelets fins à porter seuls ou à accumuler.', 3),
     (4, NULL, 'Boucles d''oreilles', 'boucles-oreilles',
-        'Boucles d''oreilles pendantes et anneaux ornés de perles de Tahiti.', 4),
-    (5, NULL, 'Homme', 'homme',
-        'Cuir, argent et pierres naturelles : des bijoux masculins autour de la perle de Tahiti.', 5);
+        'Boucles d''oreilles pendantes et anneaux ornés de perles de Tahiti.', 4);
 
 -- Sous-menus.
 INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
@@ -481,63 +480,60 @@ INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
     (12, 4, 'Plaqué or 18 cts', 'boucles-oreilles-plaque-or',
         'Boucles d''oreilles en plaqué or 18 carats.', 1),
     (13, 4, 'Acier inoxydable', 'boucles-oreilles-acier',
-        'Boucles d''oreilles en acier inoxydable, inspirées du lagon et du tiare.', 2),
-    (14, 5, 'Bracelets', 'homme-bracelets',
-        'Bracelets homme en cuir et pierres naturelles.', 1),
-    (15, 5, 'Pendentifs', 'homme-pendentifs',
-        'Pendentifs homme en argent, symboles polynésiens et perle de Tahiti.', 2);
+        'Boucles d''oreilles en acier inoxydable, inspirées du lagon et du tiare.', 2);
 
--- 4 bijoux par catégorie principale, rattachés à leur sous-catégorie.
-INSERT INTO produit (id, categorie_id, nom, slug, description, prix, date_ajout) VALUES
+-- Bijoux rattachés à leur sous-catégorie (la matière). public_cible dit à qui
+-- ils s'adressent : femme, homme ou unisexe (filtre « Pour qui » du catalogue).
+INSERT INTO produit (id, categorie_id, nom, slug, description, prix, public_cible, date_ajout) VALUES
     -- Colliers
     (1,  6,  'Collier chaîne boulette et perle', 'collier-chaine-boulette-perle',
-        'Fine chaîne boulette en plaqué or 18 carats, ponctuée d''une perle de Tahiti en pendentif.', 14900, '2026-09-28'),
+        'Fine chaîne boulette en plaqué or 18 carats, ponctuée d''une perle de Tahiti en pendentif.', 14900, 'femme', '2026-09-28'),
     (2,  6,  'Collier double Palms et perle', 'collier-double-palms-perle',
-        'Double rang en plaqué or 18 carats, médaille feuille de palmier et perle de Tahiti.', 14500, '2026-08-30'),
+        'Double rang en plaqué or 18 carats, médaille feuille de palmier et perle de Tahiti.', 14500, 'femme', '2026-08-30'),
     (3,  7,  'Sautoir Tiare minimaliste', 'sautoir-tiare-minimaliste',
-        'Long sautoir en acier inoxydable rythmé de fleurs de tiare et de perles.', 12500, '2026-09-24'),
+        'Long sautoir en acier inoxydable rythmé de fleurs de tiare et de perles.', 12500, 'unisexe', '2026-09-24'),
     (4,  7,  'Sautoir Oursin gris', 'sautoir-oursin-gris',
-        'Sautoir en acier inoxydable aux perles grises, inspiré des oursins du lagon.', 14000, '2026-09-10'),
+        'Sautoir en acier inoxydable aux perles grises, inspiré des oursins du lagon.', 14000, 'femme', '2026-09-10'),
 
     -- Bagues
     (5,  8,  'Bague Toi et Moi 2 perles', 'bague-toi-et-moi-2-perles',
-        'Bague ouverte en plaqué or 18 carats, deux perles de Tahiti face à face.', 16000, '2026-10-02'),
+        'Bague ouverte en plaqué or 18 carats, deux perles de Tahiti face à face.', 16000, 'femme', '2026-10-02'),
     (6,  8,  'Bague Ginkgo et keishi', 'bague-ginkgo-keishi',
-        'Bague ouverte en plaqué or 18 carats, feuille de ginkgo et keishi.', 5900, '2026-09-20'),
+        'Bague ouverte en plaqué or 18 carats, feuille de ginkgo et keishi.', 5900, 'femme', '2026-09-20'),
     (7,  8,  'Bague martelée Toi et Moi keishis', 'bague-martelee-toi-et-moi-keishis',
-        'Anneau martelé en plaqué or 18 carats, terminé par deux keishis.', 7900, '2026-09-14'),
+        'Anneau martelé en plaqué or 18 carats, terminé par deux keishis.', 7900, 'femme', '2026-09-14'),
     (8,  9,  'Bague Rangiroa acier doré et perle', 'bague-rangiroa-acier-dore-perle',
-        'Bague ouverte en acier doré, deux anneaux entrelacés autour d''une perle de Tahiti.', 14900, '2026-08-20'),
+        'Bague ouverte en acier doré, deux anneaux entrelacés autour d''une perle de Tahiti.', 14900, 'femme', '2026-08-20'),
 
     -- Bracelets
     (9,  10, 'Bracelet pastilles et keishi blanc', 'bracelet-pastilles-keishi-blanc',
-        'Bracelet en plaqué or 18 carats bordé de pastilles rondes, avec un keishi blanc en breloque.', 5900, '2026-09-26'),
+        'Bracelet en plaqué or 18 carats bordé de pastilles rondes, avec un keishi blanc en breloque.', 5900, 'femme', '2026-09-26'),
     (10, 10, 'Bracelet chaîne serpent et perle de Tahiti', 'bracelet-chaine-serpent-perle-tahiti',
-        'Chaîne serpent en plaqué or 18 carats, centrée sur une perle de Tahiti.', 9900, '2026-09-12'),
+        'Chaîne serpent en plaqué or 18 carats, centrée sur une perle de Tahiti.', 9900, 'femme', '2026-09-12'),
     (11, 11, 'Bracelet Ape minimaliste', 'bracelet-ape-minimaliste-acier',
-        'Chaîne fine en acier inoxydable, feuille de ape ciselée et perle de Tahiti.', 4500, '2026-09-08'),
+        'Chaîne fine en acier inoxydable, feuille de ape ciselée et perle de Tahiti.', 4500, 'unisexe', '2026-09-08'),
     (12, 11, 'Bracelet chaîne et keishis', 'bracelet-keishis-chaine-acier',
-        'Chaîne en acier inoxydable ponctuée de keishis aux reflets argentés.', 6900, '2026-08-28'),
+        'Chaîne en acier inoxydable ponctuée de keishis aux reflets argentés.', 6900, 'unisexe', '2026-08-28'),
 
     -- Boucles d'oreilles
     (13, 12, 'Boucles d''oreilles chaîne serpent et perle', 'boucles-oreilles-chaine-serpent-perle',
-        'Pendantes en chaîne serpent plaquée or 18 carats, terminées par une perle de Tahiti.', 9500, '2026-09-12'),
+        'Pendantes en chaîne serpent plaquée or 18 carats, terminées par une perle de Tahiti.', 9500, 'femme', '2026-09-12'),
     (14, 13, 'Boucles d''oreilles Tiare et perle de Tahiti', 'boucles-oreilles-tiare-perle-tahiti',
-        'Fleur de tiare en acier inoxydable et perle de Tahiti, sur crochet.', 7000, '2026-09-24'),
+        'Fleur de tiare en acier inoxydable et perle de Tahiti, sur crochet.', 7000, 'femme', '2026-09-24'),
     (15, 13, 'Boucles d''oreilles serpent acier et perle', 'boucles-oreilles-serpent-acier-perle',
-        'Chaîne serpent en acier inoxydable terminée par une perle de Tahiti.', 7000, '2026-09-05'),
+        'Chaîne serpent en acier inoxydable terminée par une perle de Tahiti.', 7000, 'unisexe', '2026-09-05'),
     (16, 13, 'Boucles d''oreilles Rangiroa acier et perle', 'boucles-oreilles-rangiroa-acier-perle',
-        'Anneau en acier inoxydable habité d''une perle de Tahiti, comme un atoll.', 19900, '2026-08-20'),
+        'Anneau en acier inoxydable habité d''une perle de Tahiti, comme un atoll.', 19900, 'femme', '2026-08-20'),
 
-    -- Homme
-    (17, 14, 'Bracelet cuir tressé et perle de Tahiti', 'bracelet-cuir-tresse-perle-tahiti',
-        'Cuir fin tressé, fermoir aimanté en acier et perle de Tahiti.', 9000, '2026-09-18'),
-    (18, 14, 'Bracelet 3 tours noir et vert', 'bracelet-homme-3-tours-noir-vert',
-        'Trois tours de pierres naturelles noires et vertes autour d''une perle de Tahiti.', 10500, '2026-09-02'),
-    (19, 15, 'Pendentif hameçon argent et perle', 'pendentif-hamecon-argent-perle',
-        'Hameçon polynésien en argent, porte-bonheur des pêcheurs, avec sa perle de Tahiti.', 11900, '2026-08-25'),
-    (20, 15, 'Pendentif rame spirale argent et perle', 'pendentif-rame-spirale-argent-perle',
-        'Rame de pirogue en argent gravée d''une spirale, perle de Tahiti sertie.', 13900, '2026-08-25');
+    -- Bijoux pour homme, rangés par matière (acier) dans Bracelets et Colliers
+    (17, 11, 'Bracelet cuir tressé et perle de Tahiti', 'bracelet-cuir-tresse-perle-tahiti',
+        'Cuir fin tressé, fermoir aimanté en acier et perle de Tahiti.', 9000, 'homme', '2026-09-18'),
+    (18, 11, 'Bracelet 3 tours noir et vert', 'bracelet-homme-3-tours-noir-vert',
+        'Trois tours de pierres naturelles noires et vertes autour d''une perle de Tahiti.', 10500, 'homme', '2026-09-02'),
+    (19, 7,  'Pendentif hameçon argent et perle', 'pendentif-hamecon-argent-perle',
+        'Hameçon polynésien en argent, porte-bonheur des pêcheurs, avec sa perle de Tahiti.', 11900, 'homme', '2026-08-25'),
+    (20, 7,  'Pendentif rame spirale argent et perle', 'pendentif-rame-spirale-argent-perle',
+        'Rame de pirogue en argent gravée d''une spirale, perle de Tahiti sertie.', 13900, 'homme', '2026-08-25');
 
 -- Image principale de chaque bijou (ordre 0).
 INSERT INTO image_produit (produit_id, fichier, alt, ordre) VALUES

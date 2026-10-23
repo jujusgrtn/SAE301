@@ -181,6 +181,12 @@ class Router {
       const route = this.routePath(lien.pathname);
       lien.setAttribute("href", this.url(route) + lien.search);
 
+      // Un lien qui ne désigne pas la page elle-même (filtre d'une catégorie, par
+      // exemple « Moins de 8 000 XPF ») ne porte jamais aria-current.
+      if (lien.hasAttribute("data-no-current")) {
+        continue;
+      }
+
       if (route === path) {
         lien.setAttribute("aria-current", "page");
       } else {

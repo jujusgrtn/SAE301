@@ -43,14 +43,14 @@ final class AdminProductModel
      *
      * @param int $id Identifiant du bijou.
      * @return array<string, mixed>|null
-     *         { id, nom, slug, description, prix, stock, sousCategorie: { nom, slug },
+     *         { id, nom, slug, description, prix, publicCible, stock, sousCategorie: { nom, slug },
      *           nombreVariantes, variantes: [{ id, libelle, stock }], image: { fichier, alt } | null },
      *           ou null si le bijou n'existe pas.
      */
     public function findForEdit(int $id): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT produit.id, produit.nom, produit.slug, produit.description, produit.prix,
+            'SELECT produit.id, produit.nom, produit.slug, produit.description, produit.prix, produit.public_cible,
                     categorie.nom AS categorie_nom, categorie.slug AS categorie_slug,
                     (SELECT COALESCE(SUM(variante.stock), 0) FROM variante WHERE variante.produit_id = produit.id) AS stock,
                     (SELECT COUNT(*) FROM variante WHERE variante.produit_id = produit.id) AS nombre_variantes,
@@ -79,6 +79,7 @@ final class AdminProductModel
             'slug'            => $row['slug'],
             'description'     => $row['description'],
             'prix'            => (int) $row['prix'],
+            'publicCible'     => $row['public_cible'],
             'stock'           => (int) $row['stock'],
             'sousCategorie'   => ['nom' => $row['categorie_nom'], 'slug' => $row['categorie_slug']],
             'nombreVariantes' => (int) $row['nombre_variantes'],
@@ -97,7 +98,7 @@ final class AdminProductModel
      * Le slug de l'URL est dérivé du nom ; s'il existe déjà, un numéro est
      * ajouté (« bague-ginkgo-2 »).
      *
-     * @param array{nom: string, description: string, prix: int, categorieId: int, stock: int|null, variantStocks: array<int, int>|null} $data  Champs validés (stock est renseigné : le contrôleur l'exige).
+     * @param array{nom: string, description: string, prix: int, publicCible: string, categorieId: int, stock: int|null, variantStocks: array<int, int>|null} $data  Champs validés (stock est renseigné : le contrôleur l'exige).
      * @param string $slugBase Slug issu du nom.
      * @param array{fichier: string, alt: string}|null $image Photo déjà enregistrée sur le disque, ou null.
      * @return array{id: int, slug: string} Le bijou créé.
@@ -110,14 +111,15 @@ final class AdminProductModel
             $slug = $this->uniqueSlug($slugBase, null);
 
             $statement = $this->pdo->prepare(
-                'INSERT INTO produit (categorie_id, nom, slug, description, prix, date_ajout)
-                 VALUES (:categorie_id, :nom, :slug, :description, :prix, CURDATE())'
+                'INSERT INTO produit (categorie_id, nom, slug, description, prix, public_cible, date_ajout)
+                 VALUES (:categorie_id, :nom, :slug, :description, :prix, :public_cible, CURDATE())'
             );
             $statement->bindValue(':categorie_id', $data['categorieId'], PDO::PARAM_INT);
             $statement->bindValue(':nom', $data['nom'], PDO::PARAM_STR);
             $statement->bindValue(':slug', $slug, PDO::PARAM_STR);
             $statement->bindValue(':description', $data['description'], PDO::PARAM_STR);
             $statement->bindValue(':prix', $data['prix'], PDO::PARAM_INT);
+            $statement->bindValue(':public_cible', $data['publicCible'], PDO::PARAM_STR);
             $statement->execute();
 
             $productId = (int) $this->pdo->lastInsertId();
@@ -149,7 +151,7 @@ final class AdminProductModel
      * continuent de fonctionner.
      *
      * @param int   $id   Identifiant du bijou.
-     * @param array{nom: string, description: string, prix: int, categorieId: int, stock: int|null, variantStocks: array<int, int>|null} $data
+     * @param array{nom: string, description: string, prix: int, publicCible: string, categorieId: int, stock: int|null, variantStocks: array<int, int>|null} $data
      *        Champs validés : `stock` pour un bijou à une variante, `variantStocks` ({ variante => stock }) pour un bijou à options.
      * @param array{fichier: string, alt: string}|null $newImage Nouvelle photo déjà enregistrée sur le disque, ou null.
      * @param string|null $newAlt Nouveau texte alternatif de la photo actuelle, ou null pour ne pas y toucher.
@@ -174,13 +176,15 @@ final class AdminProductModel
 
             $statement = $this->pdo->prepare(
                 'UPDATE produit
-                    SET categorie_id = :categorie_id, nom = :nom, description = :description, prix = :prix
+                    SET categorie_id = :categorie_id, nom = :nom, description = :description, prix = :prix,
+                        public_cible = :public_cible
                   WHERE id = :id'
             );
             $statement->bindValue(':categorie_id', $data['categorieId'], PDO::PARAM_INT);
             $statement->bindValue(':nom', $data['nom'], PDO::PARAM_STR);
             $statement->bindValue(':description', $data['description'], PDO::PARAM_STR);
             $statement->bindValue(':prix', $data['prix'], PDO::PARAM_INT);
+            $statement->bindValue(':public_cible', $data['publicCible'], PDO::PARAM_STR);
             $statement->bindValue(':id', $id, PDO::PARAM_INT);
             $statement->execute();
 

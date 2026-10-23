@@ -2,6 +2,7 @@ import { CategoryData } from "../../data/categorie.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { AccountData, ACCOUNT_CHANGED_EVENT } from "../../data/compte.js";
 import { htmlToFragment } from "../../lib/utils.js";
+import { PRICE_RANGES, describePriceRange } from "../../lib/catalogue.js";
 import { CURRENCIES, CURRENCY_CHANGED_EVENT, getCurrency, isCurrencyLocked, setCurrency } from "../../lib/currency.js";
 import { HeaderView } from "../../ui/header/index.js";
 import { FooterView } from "../../ui/pied-de-page/index.js";
@@ -177,6 +178,20 @@ M.shouldFetch = function () {
 };
 
 /**
+ * Tranches de prix proposées dans le panneau de chaque catégorie, écrites dans
+ * la monnaie choisie.
+ * . aucun paramètre
+ * > [{ valeur, libelle }]
+ *
+ * @returns {Array<{valeur: string, libelle: string}>}
+ */
+M.getPriceLinks = function () {
+  return PRICE_RANGES.map(function (range) {
+    return { valeur: range.valeur, libelle: describePriceRange(range) };
+  });
+};
+
+/**
  * Mémorise la monnaie choisie.
  * . code : « XPF », « EUR » ou « USD »
  * > aucune valeur de retour
@@ -217,6 +232,7 @@ M.getState = function () {
     cartCount: M.cartCount,
     accountLabel: M.getAccountLabel(),
     currency: M.getCurrencyChoice(),
+    priceLinks: M.getPriceLinks(),
   };
 };
 
@@ -421,10 +437,10 @@ V.renderCartCount = function (state) {
 /**
  * Affiche le menu selon l'état : rien pendant le chargement (la zone garde sa
  * hauteur), les liens en cas de succès, un message en cas d'erreur.
- * . state : { status, categories }
+ * . state : { status, categories, priceLinks }
  * > aucune valeur de retour
  *
- * @param {{status: string, categories: Array<Object>}} state
+ * @param {{status: string, categories: Array<Object>, priceLinks: Array<Object>}} state
  * @returns {void}
  */
 V.renderMenu = function (state) {
@@ -435,7 +451,7 @@ V.renderMenu = function (state) {
   }
 
   let categories = state.status === "success" ? state.categories : null;
-  V.menuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname));
+  V.menuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname, false, state.priceLinks));
   V.mobileMenuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname, true));
 };
 

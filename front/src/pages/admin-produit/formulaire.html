@@ -19,6 +19,15 @@
     <select id="produit-categorie" name="sousCategorie" required class="h-11 rounded-md border border-line bg-transparent px-3"></select>
   </div>
 
+  <fieldset class="flex flex-col gap-2">
+    <legend class="mb-1 text-sm font-medium">Pour qui ?</legend>
+    <div class="flex flex-wrap gap-x-6 gap-y-2">
+      <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="radio" name="publicCible" value="femme" class="size-4 accent-primary-text">Femme</label>
+      <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="radio" name="publicCible" value="homme" class="size-4 accent-primary-text">Homme</label>
+      <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="radio" name="publicCible" value="unisexe" class="size-4 accent-primary-text">Unisexe</label>
+    </div>
+  </fieldset>
+
   <div class="grid gap-5 sm:grid-cols-2">
     <div class="flex flex-col gap-1.5">
       <label for="produit-prix" class="text-sm font-medium">Prix (XPF)</label>
