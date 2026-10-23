@@ -556,7 +556,7 @@ V.createEmptyFragment = function (state) {
   return htmlToFragment(
     genericRenderer(templateEmpty, {
       texte: "Vous n'avez pas encore de réservation.",
-      href: routeUrl("/"),
+      href: routeUrl("/bijoux"),
       lien: "Découvrir les bijoux",
     })
   );

@@ -8,6 +8,8 @@ import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
 import templateUnauthorized from "./non-connecte.html?raw";
 import templateEmpty from "./vide.html?raw";
+import templateFilter from "./filtre.html?raw";
+import templateNoResult from "./aucun-resultat.html?raw";
 import templateList from "./liste.html?raw";
 import templateRow from "./ligne.html?raw";
 import templateImage from "./image.html?raw";
@@ -22,6 +24,9 @@ import templateConfirm from "./confirmation-suppression.html?raw";
  * stock exact, et permet de les modifier ou de les supprimer (avec une
  * confirmation sur la ligne). L'accès est décidé par le serveur : un 401
  * affiche une invite à se connecter au back-office.
+ *
+ * Un filtre par catégorie (principale ou sous-catégorie) aide à retrouver un
+ * bijou ; il s'écrit dans l'adresse (?categorie=slug).
  *
  * Après une création ou une modification, la page du formulaire revient ici
  * avec ?notice=cree ou ?notice=modifie : seules ces valeurs connues sont
@@ -49,6 +54,7 @@ const NOTICES = {
 let M = {
   status: "loading", // "loading" | "unauthorized" | "error" | "ready"
   products: [], // bijoux renvoyés par l'API
+  categoryFilter: "", // slug de la catégorie ou sous-catégorie filtrée, "" pour toutes
   loadError: null, // texte si la liste n'a pas pu être chargée
   noticeKey: null, // clé de NOTICES à afficher, ou null
   actionError: null, // texte si une suppression a échoué
@@ -59,14 +65,17 @@ let M = {
 /**
  * Remet l'état à zéro avant un nouvel affichage de la page.
  * . noticeKey : valeur de ?notice= dans l'adresse, ou null
+ * . categoryFilter : valeur de ?categorie= dans l'adresse, ou null
  * > aucune valeur de retour
  *
  * @param {string|null} noticeKey
+ * @param {string|null} categoryFilter
  * @returns {void}
  */
-M.reset = function (noticeKey) {
+M.reset = function (noticeKey, categoryFilter) {
   M.status = "loading";
   M.products = [];
+  M.categoryFilter = categoryFilter === null ? "" : categoryFilter;
   M.loadError = null;
   M.noticeKey = noticeKey !== null && Object.hasOwn(NOTICES, noticeKey) ? noticeKey : null;
   M.actionError = null;
@@ -95,6 +104,71 @@ M.fetchProducts = async function () {
       M.loadError = `Impossible de charger les produits : ${error.message}`;
     }
   }
+};
+
+/**
+ * Catégories présentes dans la liste, avec leurs sous-catégories, dans l'ordre du catalogue.
+ * . aucun paramètre
+ * > [{ slug, nom, sousCategories: [{ slug, nom }] }]
+ *
+ * @returns {Array<{slug: string, nom: string, sousCategories: Array<{slug: string, nom: string}>}>}
+ */
+M.getCategoryGroups = function () {
+  let groups = [];
+
+  for (let i = 0; i < M.products.length; i++) {
+    let product = M.products[i];
+    let group = groups.find(function (candidate) {
+      return candidate.slug === product.categorie.slug;
+    });
+
+    if (group === undefined) {
+      group = { slug: product.categorie.slug, nom: product.categorie.nom, sousCategories: [] };
+      groups.push(group);
+    }
+    if (!group.sousCategories.some(function (sub) {
+      return sub.slug === product.sousCategorie.slug;
+    })) {
+      group.sousCategories.push({ slug: product.sousCategorie.slug, nom: product.sousCategorie.nom });
+    }
+  }
+  return groups;
+};
+
+/**
+ * Filtre effectivement appliqué : une valeur absente de la liste (adresse
+ * modifiée à la main, catégorie vidée) équivaut à « toutes les catégories ».
+ * . aucun paramètre
+ * > slug, ou "" pour toutes
+ *
+ * @returns {string}
+ */
+M.getActiveFilter = function () {
+  let isKnown = M.getCategoryGroups().some(function (group) {
+    return (
+      group.slug === M.categoryFilter ||
+      group.sousCategories.some(function (sub) {
+        return sub.slug === M.categoryFilter;
+      })
+    );
+  });
+
+  return isKnown ? M.categoryFilter : "";
+};
+
+/**
+ * Change le filtre par catégorie.
+ * . slug : catégorie ou sous-catégorie, "" pour toutes
+ * > aucune valeur de retour
+ *
+ * @param {string} slug
+ * @returns {void}
+ */
+M.setCategoryFilter = function (slug) {
+  M.categoryFilter = slug;
+  M.noticeKey = null;
+  M.actionError = null;
+  M.confirmingId = null;
 };
 
 /**
@@ -195,14 +269,20 @@ M.deleteProduct = async function () {
  * Photographie de l'état, transmise à la Vue. Chaque bijou indique si sa
  * suppression attend une confirmation ou est en cours.
  * . aucun paramètre
- * > { status, products, loadError, notice, actionError }
+ * > { status, products, totalCount, filter, loadError, notice, actionError }
  *
  * @returns {Object}
  */
 M.getState = function () {
+  let filter = M.getActiveFilter();
+
   return {
     status: M.status,
-    products: M.products.map(function (product) {
+    totalCount: M.products.length,
+    filter: { value: filter, groups: M.getCategoryGroups() },
+    products: M.products.filter(function (product) {
+      return filter === "" || product.categorie.slug === filter || product.sousCategorie.slug === filter;
+    }).map(function (product) {
       return {
         ...product,
         isConfirming: product.id === M.confirmingId,
@@ -231,6 +311,28 @@ let C = {};
 C.loadProducts = async function () {
   await M.fetchProducts();
   V.renderPage(M.getState());
+};
+
+/**
+ * Un autre choix dans le filtre par catégorie : la liste est recalculée et
+ * l'adresse mise à jour.
+ * . ev : événement change, délégué depuis la racine de la page
+ * > aucune valeur de retour
+ *
+ * @param {Event} ev
+ * @returns {void}
+ */
+C.handler_changeCategoryFilter = function (ev) {
+  let select = ev.target.closest('[data-action="filtre-categorie"]');
+
+  if (select === null) {
+    return;
+  }
+
+  M.setCategoryFilter(select.value);
+  V.writeCategoryFilter(select.value);
+  V.renderPage(M.getState());
+  V.focusFilter();
 };
 
 /**
@@ -285,7 +387,7 @@ C.handler_clickOnRowAction = async function (ev) {
  * @returns {DocumentFragment}
  */
 C.init = function () {
-  M.reset(V.readNoticeKey());
+  M.reset(V.readNoticeKey(), V.readCategoryFilter());
   let fragment = V.init();
   V.renderPage(M.getState());
   C.loadProducts();
@@ -317,6 +419,73 @@ V.init = function () {
   );
   V.root = fragment.firstElementChild;
   V.root.addEventListener("click", C.handler_clickOnRowAction);
+  V.root.addEventListener("change", C.handler_changeCategoryFilter);
+  return fragment;
+};
+
+/**
+ * Valeur de ?categorie= dans l'adresse.
+ * . aucun paramètre
+ * > chaîne, ou null si elle est absente
+ *
+ * @returns {string|null}
+ */
+V.readCategoryFilter = function () {
+  return new URLSearchParams(window.location.search).get("categorie");
+};
+
+/**
+ * Écrit le filtre dans l'adresse, sans ajouter d'entrée à l'historique.
+ * . slug : catégorie filtrée, "" pour toutes
+ * > aucune valeur de retour
+ *
+ * @param {string} slug
+ * @returns {void}
+ */
+V.writeCategoryFilter = function (slug) {
+  let search = slug === "" ? "" : `?categorie=${encodeURIComponent(slug)}`;
+
+  window.history.replaceState(window.history.state, "", window.location.pathname + search);
+};
+
+/**
+ * Menu du filtre par catégorie : « Toutes », puis chaque catégorie avec ses
+ * sous-catégories.
+ * . filter : { value, groups } de M.getState().filter
+ * > DocumentFragment
+ *
+ * @param {{value: string, groups: Array<Object>}} filter
+ * @returns {DocumentFragment}
+ */
+V.createFilterFragment = function (filter) {
+  let fragment = htmlToFragment(templateFilter);
+  let select = fragment.querySelector("select");
+  let all = document.createElement("option");
+
+  all.value = "";
+  all.textContent = "Toutes les catégories";
+  select.append(all);
+
+  for (let i = 0; i < filter.groups.length; i++) {
+    let group = document.createElement("optgroup");
+    let main = document.createElement("option");
+
+    group.label = filter.groups[i].nom;
+    main.value = filter.groups[i].slug;
+    main.textContent = `Tout : ${filter.groups[i].nom}`;
+    group.append(main);
+
+    for (let j = 0; j < filter.groups[i].sousCategories.length; j++) {
+      let sub = document.createElement("option");
+
+      sub.value = filter.groups[i].sousCategories[j].slug;
+      sub.textContent = filter.groups[i].sousCategories[j].nom;
+      group.append(sub);
+    }
+    select.append(group);
+  }
+
+  select.value = filter.value;
   return fragment;
 };
 
@@ -433,14 +602,15 @@ V.formatOneRow = function (product) {
 
 /**
  * Liste complète des bijoux reçus.
- * . products : bijoux de M.getState().products
+ * . products : bijoux de M.getState().products ; total : texte du nombre de bijoux
  * > DocumentFragment
  *
  * @param {Array<Object>} products
+ * @param {string} total
  * @returns {DocumentFragment}
  */
-V.createListFragment = function (products) {
-  let fragment = htmlToFragment(genericRenderer(templateList, { total: V.formatOneTotal(products.length) }));
+V.createListFragment = function (products, total) {
+  let fragment = htmlToFragment(genericRenderer(templateList, { total: total }));
   let list = fragment.querySelector('[data-zone="lignes"]');
 
   for (let i = 0; i < products.length; i++) {
@@ -489,7 +659,19 @@ V.createContentFragment = function (state) {
   }
 
   let fragment = V.createAnnouncementFragment(state);
-  fragment.append(state.products.length === 0 ? htmlToFragment(templateEmpty) : V.createListFragment(state.products));
+
+  if (state.totalCount === 0) {
+    fragment.append(htmlToFragment(templateEmpty));
+    return fragment;
+  }
+
+  let total = V.formatOneTotal(state.products.length);
+  if (state.products.length !== state.totalCount) {
+    total = `${total} sur ${state.totalCount}`;
+  }
+
+  fragment.append(V.createFilterFragment(state.filter));
+  fragment.append(state.products.length === 0 ? htmlToFragment(templateNoResult) : V.createListFragment(state.products, total));
   return fragment;
 };
 
@@ -505,6 +687,21 @@ V.renderPage = function (state) {
   let zone = V.root.querySelector('[data-zone="contenu"]');
   zone.setAttribute("aria-busy", String(state.status === "loading"));
   zone.replaceChildren(V.createContentFragment(state));
+};
+
+/**
+ * Rend le focus au filtre par catégorie après la reconstruction de la liste.
+ * . aucun paramètre
+ * > aucune valeur de retour
+ *
+ * @returns {void}
+ */
+V.focusFilter = function () {
+  let select = V.root.querySelector('[data-action="filtre-categorie"]');
+
+  if (select !== null) {
+    select.focus();
+  }
 };
 
 /**

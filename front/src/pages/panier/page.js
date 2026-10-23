@@ -890,10 +890,10 @@ V.createContentFragment = function (state) {
     return htmlToFragment(templateLoading);
   }
   if (state.status === "error") {
-    return htmlToFragment(genericRenderer(templateError, { texte: state.message, urlCatalogue: routeUrl("/") }));
+    return htmlToFragment(genericRenderer(templateError, { texte: state.message, urlCatalogue: routeUrl("/bijoux") }));
   }
   if (state.isEmpty) {
-    return htmlToFragment(genericRenderer(templateEmpty, { urlCatalogue: routeUrl("/") }));
+    return htmlToFragment(genericRenderer(templateEmpty, { urlCatalogue: routeUrl("/bijoux") }));
   }
   return V.createCartFragment(state);
 };

@@ -4,10 +4,10 @@ import template from "./template.html?raw";
 // Les classes sont écrites en entier, et non assemblées : Tailwind ne génère
 // que les classes qu'il trouve telles quelles dans le code.
 const STATUSES = {
-  "en cours": { texte: "En cours", couleurs: "text-primary-text" },
-  disponible: { texte: "Disponible au retrait", couleurs: "text-success" },
-  retirée: { texte: "Retirée", couleurs: "text-muted" },
-  annulée: { texte: "Annulée", couleurs: "text-danger" },
+  "en cours": { texte: "En cours", couleurs: "bg-info-soft text-info" },
+  disponible: { texte: "Disponible au retrait", couleurs: "bg-success-soft text-success" },
+  retirée: { texte: "Retirée", couleurs: "bg-grey-soft text-muted" },
+  annulée: { texte: "Annulée", couleurs: "bg-danger-soft text-danger" },
 };
 
 // Statut d'une réservation (valeur de commande.statut, renvoyée par l'API).
@@ -32,7 +32,7 @@ let StatusBadgeView = {
   html: function (status) {
     return genericRenderer(template, {
       texte: StatusBadgeView.formatOneLabel(status),
-      couleurs: STATUSES[status] === undefined ? "text-muted" : STATUSES[status].couleurs,
+      couleurs: STATUSES[status] === undefined ? "bg-grey-soft text-muted" : STATUSES[status].couleurs,
     });
   },
 

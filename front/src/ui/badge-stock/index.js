@@ -4,9 +4,9 @@ import template from "./template.html?raw";
 // Les classes sont écrites en entier, et non assemblées : Tailwind ne génère
 // que les classes qu'il trouve telles quelles dans le code.
 const COLORS = {
-  en_stock: "text-success",
-  stock_faible: "text-danger",
-  epuise: "text-muted",
+  en_stock: "bg-success-soft text-success",
+  stock_faible: "bg-warning-soft text-warning",
+  epuise: "bg-danger-soft text-danger",
 };
 
 // Disponibilité d'un bijou ou d'une variante, telle que la calcule le serveur

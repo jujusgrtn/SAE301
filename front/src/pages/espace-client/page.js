@@ -304,7 +304,7 @@ V.createActivityFragment = function (state) {
   }
   if (state.recent.length === 0) {
     return htmlToFragment(
-      genericRenderer(templateNoActivity, { resume: state.summary, urlCatalogue: routeUrl("/") })
+      genericRenderer(templateNoActivity, { resume: state.summary, urlCatalogue: routeUrl("/bijoux") })
     );
   }
 
@@ -345,7 +345,7 @@ V.createHomeFragment = function (state) {
       email: state.user.email,
       urlProfil: routeUrl("/compte/profil"),
       urlPanier: routeUrl("/panier"),
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
     })
   );
 

@@ -51,7 +51,11 @@ let M = {
   selectedVariantId: null, // variante qui correspond à la combinaison choisie, null si elle n'existe pas
   cartStatus: "idle", // "idle" | "adding" | "added" | "error"
   cartError: null, // message de l'API si l'ajout a échoué
+  cartQuantities: {}, // exemplaires déjà au panier : { variantId: quantité }
 };
+
+// Message affiché quand tous les exemplaires en stock sont déjà dans le panier.
+const SOLD_OUT_MESSAGE = "Épuisé : tous les exemplaires disponibles sont déjà dans votre panier.";
 
 /**
  * Remet l'état à zéro pour un nouveau bijou.
@@ -71,6 +75,25 @@ M.reset = function (slug) {
   M.selectedVariantId = null;
   M.cartStatus = "idle";
   M.cartError = null;
+  M.cartQuantities = {};
+};
+
+/**
+ * Range les quantités du panier reçu : elles servent à savoir si le stock est
+ * déjà entièrement réservé par la personne.
+ * . cart : panier renvoyé par l'API, { lignes: [{ variantId, quantite }] }
+ * > aucune valeur de retour
+ *
+ * @param {{lignes: Array<{variantId: number, quantite: number}>}} cart
+ * @returns {void}
+ */
+M.setCartQuantities = function (cart) {
+  let quantities = {};
+
+  for (let i = 0; i < cart.lignes.length; i++) {
+    quantities[cart.lignes[i].variantId] = cart.lignes[i].quantite;
+  }
+  M.cartQuantities = quantities;
 };
 
 /**
@@ -106,6 +129,17 @@ M.fetchProduct = async function (slug) {
     M.status = "error";
     M.message = message;
     return true;
+  }
+
+  try {
+    M.setCartQuantities(await CartData.fetch());
+  } catch (error) {
+    // Sans le panier, la fiche reste utilisable : le serveur refusera un ajout au-delà du stock.
+    M.cartQuantities = {};
+  }
+
+  if (slug !== M.slug) {
+    return false;
   }
 
   M.product = response.produit;
@@ -227,9 +261,22 @@ M.canAddToCart = function () {
 };
 
 /**
- * Indique si la variante choisie est épuisée (US STK-c). Le serveur refuse de
- * toute façon l'ajout ; le front l'évite pour ne pas proposer une action vouée
- * à l'échec.
+ * Indique si le panier contient déjà tous les exemplaires en stock de la
+ * variante choisie (le maximum atteint).
+ * . aucun paramètre
+ * > booléen
+ *
+ * @returns {boolean}
+ */
+M.isMaxInCart = function () {
+  let variant = M.getSelectedVariant();
+  return variant !== null && variant.stock > 0 && (M.cartQuantities[variant.id] ?? 0) >= variant.stock;
+};
+
+/**
+ * Indique si la variante choisie ne peut plus être ajoutée (US STK-c) : stock
+ * nul, ou maximum déjà au panier. Le serveur refuse de toute façon l'ajout ; le
+ * front l'évite pour ne pas proposer une action vouée à l'échec.
  * . aucun paramètre
  * > booléen
  *
@@ -237,7 +284,7 @@ M.canAddToCart = function () {
  */
 M.isSoldOut = function () {
   let variant = M.getSelectedVariant();
-  return variant !== null && variant.stock <= 0;
+  return variant !== null && (variant.stock <= 0 || M.isMaxInCart());
 };
 
 /**
@@ -271,8 +318,15 @@ M.addToCart = async function () {
   try {
     let cart = await CartData.add(M.selectedVariantId, 1);
     cartCount = cart.nombreArticles;
+    M.setCartQuantities(cart);
   } catch (error) {
-    errorMessage = `Impossible d'ajouter ce bijou au panier : ${error.message}`;
+    if (error.statut === 409) {
+      // Le serveur refuse parce que le panier contient déjà tout le stock : on le retient.
+      M.cartQuantities[M.selectedVariantId] = M.getSelectedVariant().stock;
+      errorMessage = SOLD_OUT_MESSAGE;
+    } else {
+      errorMessage = `Impossible d'ajouter ce bijou au panier : ${error.message}`;
+    }
   }
 
   if (slug !== M.slug) {
@@ -349,6 +403,8 @@ M.getState = function () {
     selectedVariant: M.getSelectedVariant(),
     isUnavailable: M.product !== null && M.product.options.length > 0 && M.selectedVariantId === null,
     isSoldOut: M.isSoldOut(),
+    isMaxInCart: M.isMaxInCart(),
+    soldOutMessage: SOLD_OUT_MESSAGE,
     cartStatus: M.cartStatus,
     cartError: M.cartError,
     canAddToCart: M.canAddToCart(),
@@ -611,6 +667,7 @@ V.renderAddToCart = function (state) {
     labelKey = "soldOut";
   }
   button.textContent = labels[labelKey];
+  button.dataset.epuise = String(labelKey === "soldOut" || labelKey === "unavailable");
   if (state.canAddToCart) {
     button.removeAttribute("aria-disabled");
   } else {
@@ -621,6 +678,8 @@ V.renderAddToCart = function (state) {
     feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddSuccess, { urlPanier: routeUrl("/panier") })));
   } else if (state.cartStatus === "error") {
     feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddError, { texte: state.cartError })));
+  } else if (state.cartStatus === "idle" && state.isMaxInCart) {
+    feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddError, { texte: state.soldOutMessage })));
   } else if (state.cartStatus === "idle" && state.selectedVariantId === null) {
     let text = state.isUnavailable
       ? "Cette combinaison d'options n'est pas proposée. Choisissez-en une autre."
@@ -721,7 +780,7 @@ V.createProductFragment = function (state) {
 
   let fragment = htmlToFragment(
     genericRenderer(templateSheet, {
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
       urlCategorie: routeUrl(`/categorie/${encodeURIComponent(product.categorie.slug)}`),
       urlSousCategorie: routeUrl(`/categorie/${encodeURIComponent(product.sousCategorie.slug)}`),
       categorie: product.categorie.nom,
@@ -753,7 +812,7 @@ V.createErrorFragment = function (message) {
     genericRenderer(templateError, {
       titre: message.titre,
       texte: message.texte,
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
     })
   );
 };

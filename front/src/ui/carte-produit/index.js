@@ -38,7 +38,6 @@ let ProductCardView = {
       categorie: product.categorie.nom,
       nom: product.nom,
       href: routeUrl(`/produit/${encodeURIComponent(product.slug)}`),
-      matiere: product.sousCategorie.nom,
     });
   },
 

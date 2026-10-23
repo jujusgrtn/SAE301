@@ -28,6 +28,7 @@ final class ProductModel
                        produit.slug,
                        produit.prix,
                        produit.description,
+                       produit.date_ajout,
                        (produit.id = ' . Promotion::PRODUCT_ID_SQL . ') AS en_promotion,
                        (SELECT COALESCE(SUM(variante.stock), 0)
                           FROM variante
@@ -264,7 +265,7 @@ final class ProductModel
      * MySQL renvoie les nombres sous forme de chaînes : ils sont convertis ici.
      *
      * @param array<string, mixed> $row Ligne renvoyée par findAll().
-     * @return array<string, mixed> { id, nom, slug, prix, prixPromo, promotion, stock, disponibilite, categorie, sousCategorie, image }
+     * @return array<string, mixed> { id, nom, slug, prix, dateAjout, prixPromo, promotion, stock, disponibilite, categorie, sousCategorie, image }
      *         prix est le prix du bijou avant promotion ; prixPromo le prix en promotion automatique (US PRO-c), ou null.
      */
     private static function formatProduct(array $row): array
@@ -283,6 +284,7 @@ final class ProductModel
             'nom'           => $row['nom'],
             'slug'          => $row['slug'],
             'prix'          => (int) $row['prix'],
+            'dateAjout'     => $row['date_ajout'],
             'prixPromo'     => (int) $row['en_promotion'] === 1 ? Promotion::discounted((int) $row['prix']) : null,
             'promotion'     => (int) $row['en_promotion'] === 1 ? ['pourcentage' => Promotion::PERCENT] : null,
         ] + Stock::describe((int) $row['stock']) + [

@@ -8,13 +8,15 @@ import templateLoadError from "./erreur-chargement.html?raw";
 import templateForm from "./formulaire.html?raw";
 import templateChoice from "./emplacement-choix.html?raw";
 import templateFixed from "./emplacement-fixe.html?raw";
+import templateMain from "./emplacement-principale.html?raw";
 import templateOption from "./option.html?raw";
 import templateError from "./erreur.html?raw";
 
 /**
  * Page « Catégorie » du back-office (US GOF-c) : formulaire de création
- * (/admin/categories/nouveau, avec ?parent=… pour une sous-catégorie) et de
- * modification (/admin/categories/:id/modifier).
+ * d'une catégorie principale (/admin/categories/nouveau), d'une sous-catégorie
+ * (/admin/categories/nouvelle-sous-categorie, avec ?parent=… pour présélectionner
+ * la catégorie principale) et de modification (/admin/categories/:id/modifier).
  *
  * Le serveur revalide chaque champ et décide de l'accès. En cas d'erreur du
  * serveur, le formulaire n'est pas reconstruit : la saisie reste en place.
@@ -27,6 +29,7 @@ import templateError from "./erreur.html?raw";
 let M = {
   visit: 0, // numéro de l'affichage, pour ignorer une réponse arrivée après un changement de page
   mode: "create", // "create" | "edit"
+  kind: "main", // "main" (catégorie principale) | "sub" (sous-catégorie), en création
   id: null, // identifiant de la catégorie en modification
   presetParent: null, // valeur brute de ?parent= dans l'adresse (création)
   status: "loading", // "loading" | "ready" | "unauthorized" | "notfound" | "error"
@@ -41,14 +44,17 @@ let M = {
  * Prépare l'état pour un nouvel affichage de la page.
  * . id : identifiant de la catégorie à modifier, ou null pour une création
  * . presetParent : valeur de ?parent= dans l'adresse, ou null
+ * . kind : "main" ou "sub" (utile seulement en création)
  * > aucune valeur de retour
  *
  * @param {number|null} id
  * @param {string|null} presetParent
+ * @param {string} kind
  * @returns {void}
  */
-M.reset = function (id, presetParent) {
+M.reset = function (id, presetParent, kind) {
   M.visit += 1;
+  M.kind = kind;
   M.mode = id === null ? "create" : "edit";
   M.id = id;
   M.presetParent = presetParent;
@@ -174,10 +180,15 @@ M.submit = async function (values) {
       await AdminCategoryData.update({ id: M.id, nom: values.nom, description: values.description });
       noticeKey = "modifie";
     } else {
-      let parentId = values.parentId === undefined || values.parentId === "" ? null : Number(values.parentId);
+      let hasParent = M.kind === "sub";
+
+      if (hasParent && (values.parentId === undefined || values.parentId === "")) {
+        throw new Error("Choisissez la catégorie principale de cette sous-catégorie.");
+      }
+      let parentId = hasParent ? Number(values.parentId) : null;
 
       await AdminCategoryData.create({ nom: values.nom, description: values.description, parentId: parentId });
-      noticeKey = "cree";
+      noticeKey = M.kind === "sub" ? "cree-sous-categorie" : "cree";
     }
   } catch (error) {
     M.submitError =
@@ -219,6 +230,7 @@ M.getPresetParentId = function () {
 M.getState = function () {
   return {
     mode: M.mode,
+    kind: M.kind,
     status: M.status,
     categories: M.categories,
     loadError: M.loadError,
@@ -296,15 +308,17 @@ C.handler_submitForm = async function (ev) {
  * Point d'entrée : formulaire en état de chargement, rendu au routeur, puis
  * chargement lancé sans l'attendre.
  * . id : identifiant lu dans l'adresse (« 12 »), ou undefined pour une création
+ * . kind : "main" ou "sub" (création d'une catégorie principale ou d'une sous-catégorie)
  *
  * @param {string|undefined} id
+ * @param {string} kind
  * @returns {DocumentFragment}
  */
-C.init = function (id) {
+C.init = function (id, kind) {
   let numericId = id === undefined ? null : Number(id);
 
-  M.reset(numericId, V.readPresetParent());
-  let fragment = V.init(M.mode);
+  M.reset(numericId, V.readPresetParent(), kind);
+  let fragment = V.init(M.mode, M.kind);
 
   if (numericId !== null && (!Number.isInteger(numericId) || numericId < 1)) {
     M.status = "notfound";
@@ -328,17 +342,18 @@ V.root = null; // élément racine de la page affichée
 /**
  * Crée la structure de la page, mémorise sa racine et y délègue l'envoi du
  * formulaire (qui n'existe pas encore pendant le chargement).
- * . mode : "create" | "edit"
+ * . mode : "create" | "edit" ; kind : "main" | "sub"
  * > DocumentFragment de la page
  *
  * @param {string} mode
+ * @param {string} kind
  * @returns {DocumentFragment}
  */
-V.init = function (mode) {
+V.init = function (mode, kind) {
   let fragment = htmlToFragment(
     genericRenderer(template, {
       urlListe: routeUrl("/admin/categories"),
-      titre: mode === "edit" ? "Modifier la catégorie" : "Nouvelle catégorie",
+      titre: mode === "edit" ? "Modifier la catégorie" : kind === "sub" ? "Nouvelle sous-catégorie" : "Nouvelle catégorie",
     })
   );
   V.root = fragment.firstElementChild;
@@ -347,7 +362,7 @@ V.init = function (mode) {
 };
 
 /**
- * Valeur de ?parent= dans l'adresse (lien « Ajouter une sous-catégorie »).
+ * Valeur de ?parent= dans l'adresse (lien « Ajouter une sous-catégorie » d'une catégorie).
  * . aucun paramètre
  * > chaîne, ou null si elle est absente
  *
@@ -376,14 +391,18 @@ V.createLocationFragment = function (state) {
     );
   }
 
+  if (state.kind === "main") {
+    return htmlToFragment(templateMain);
+  }
+
   let fragment = htmlToFragment(templateChoice);
   let select = fragment.querySelector("select");
 
-  select.append(htmlToFragment(genericRenderer(templateOption, { valeur: "", libelle: "Aucune : catégorie principale" })));
+  select.append(htmlToFragment(genericRenderer(templateOption, { valeur: "", libelle: "Choisir une catégorie principale" })));
   for (let i = 0; i < state.categories.length; i++) {
     select.append(
       htmlToFragment(
-        genericRenderer(templateOption, { valeur: state.categories[i].id, libelle: `Sous-catégorie de ${state.categories[i].nom}` })
+        genericRenderer(templateOption, { valeur: state.categories[i].id, libelle: state.categories[i].nom })
       )
     );
   }
@@ -405,7 +424,7 @@ V.createFormFragment = function (state) {
       nom: state.values.nom,
       description: state.values.description,
       urlListe: routeUrl("/admin/categories"),
-      libelleBouton: V.formatOneButtonLabel(state.mode),
+      libelleBouton: V.formatOneButtonLabel(state.mode, state.kind),
     })
   );
 
@@ -415,14 +434,18 @@ V.createFormFragment = function (state) {
 
 /**
  * Libellé du bouton d'enregistrement.
- * . mode : "create" | "edit"
+ * . mode : "create" | "edit" ; kind : "main" | "sub"
  * > chaîne
  *
  * @param {string} mode
+ * @param {string} kind
  * @returns {string}
  */
-V.formatOneButtonLabel = function (mode) {
-  return mode === "edit" ? "Enregistrer les modifications" : "Créer la catégorie";
+V.formatOneButtonLabel = function (mode, kind) {
+  if (mode === "edit") {
+    return "Enregistrer les modifications";
+  }
+  return kind === "sub" ? "Créer la sous-catégorie" : "Créer la catégorie";
 };
 
 /**
@@ -486,7 +509,7 @@ V.renderBusy = function (state) {
     button.textContent = "Enregistrement…";
   } else {
     button.removeAttribute("aria-disabled");
-    button.textContent = V.formatOneButtonLabel(state.mode);
+    button.textContent = V.formatOneButtonLabel(state.mode, state.kind);
   }
 };
 
@@ -520,7 +543,7 @@ V.renderSubmitError = function (state) {
  * Le routeur affiche la page de l'adresse courante à chaque événement
  * popstate : on change l'adresse, puis on le prévient, comme le ferait le
  * bouton Précédent du navigateur.
- * . noticeKey : « cree » ou « modifie »
+ * . noticeKey : « cree », « cree-sous-categorie » ou « modifie »
  * > aucune valeur de retour
  *
  * @param {string} noticeKey
@@ -532,12 +555,21 @@ V.goToList = function (noticeKey) {
 };
 
 /**
- * Page appelée par le routeur sur « /admin/categories/nouveau » (sans id) et
- * « /admin/categories/:id/modifier ».
+ * Page appelée par le routeur sur « /admin/categories/nouveau » (catégorie
+ * principale, sans id) et « /admin/categories/:id/modifier ».
  *
  * @param {{id?: string}} params - Paramètres de l'adresse.
  * @returns {DocumentFragment}
  */
 export function AdminCategoryFormPage(params) {
-  return C.init(params.id);
+  return C.init(params.id, "main");
+}
+
+/**
+ * Page appelée par le routeur sur « /admin/categories/nouvelle-sous-categorie ».
+ *
+ * @returns {DocumentFragment}
+ */
+export function AdminSubCategoryFormPage() {
+  return C.init(undefined, "sub");
 }

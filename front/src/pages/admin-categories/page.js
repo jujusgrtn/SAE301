@@ -22,13 +22,14 @@ import templateConfirm from "./confirmation-suppression.html?raw";
  * que la catégorie contient des bijoux ou des sous-catégories.
  *
  * Après une création ou une modification, la page du formulaire revient ici
- * avec ?notice=cree ou ?notice=modifie : seules ces valeurs connues sont
+ * avec ?notice=cree, cree-sous-categorie ou modifie : seules ces valeurs connues sont
  * traduites en message, jamais un texte tiré de l'adresse.
  */
 
 // Messages d'annonce, indexés par la valeur de ?notice= (liste blanche).
 const NOTICES = {
   cree: "La catégorie a été créée.",
+  "cree-sous-categorie": "La sous-catégorie a été créée.",
   modifie: "La catégorie a été modifiée.",
   supprime: "La catégorie a été supprimée.",
 };
@@ -397,6 +398,7 @@ V.init = function () {
     genericRenderer(template, {
       urlBackOffice: routeUrl("/admin"),
       urlNouvelle: routeUrl("/admin/categories/nouveau"),
+      urlNouvelleSousCategorie: routeUrl("/admin/categories/nouvelle-sous-categorie"),
     })
   );
   V.root = fragment.firstElementChild;
@@ -492,7 +494,7 @@ V.formatOneCategory = function (category, isBusy) {
       slug: category.slug,
       description: category.description,
       resume: V.formatOneSummary(category),
-      urlNouvelleSousCategorie: routeUrl(`/admin/categories/nouveau?parent=${category.id}`),
+      urlNouvelleSousCategorie: routeUrl(`/admin/categories/nouvelle-sous-categorie?parent=${category.id}`),
     })
   );
 
