@@ -558,6 +558,25 @@ INSERT INTO image_produit (produit_id, fichier, alt, ordre) VALUES
     (19, 'pendentif-hamecon-argent-perle',        'Pendentifs hameçon en argent et perle de Tahiti', 0),
     (20, 'pendentif-rame-spirale-argent-perle',   'Pendentif rame spirale en argent et perle', 0);
 
+-- Deux vues supplémentaires par bijou (ordre 1 et 2), tirées de sa photo
+-- principale : un recadrage serré sur le bijou (« -rapproche ») et un zoom sur
+-- la perle ou la pièce centrale (« -detail »). Chaque fichier existe en deux
+-- tailles, comme les photos principales. À remplacer par de vraies photos de
+-- la boutique quand elles existent. Rejouable : ne crée que les vues absentes.
+INSERT INTO image_produit (produit_id, fichier, alt, ordre)
+SELECT produit.id, CONCAT(principale.fichier, '-rapproche'), CONCAT(produit.nom, ' : vue rapprochée'), 1
+  FROM produit
+  JOIN image_produit AS principale ON principale.produit_id = produit.id AND principale.ordre = 0
+ WHERE principale.fichier NOT LIKE 'uploads/%'
+   AND NOT EXISTS (SELECT 1 FROM image_produit AS deja WHERE deja.produit_id = produit.id AND deja.ordre = 1);
+
+INSERT INTO image_produit (produit_id, fichier, alt, ordre)
+SELECT produit.id, CONCAT(principale.fichier, '-detail'), CONCAT(produit.nom, ' : détail'), 2
+  FROM produit
+  JOIN image_produit AS principale ON principale.produit_id = produit.id AND principale.ordre = 0
+ WHERE principale.fichier NOT LIKE 'uploads/%'
+   AND NOT EXISTS (SELECT 1 FROM image_produit AS deja WHERE deja.produit_id = produit.id AND deja.ordre = 2);
+
 -- Une variante « Modèle unique » par bijou. Stocks variés (dont un épuisé et
 -- quelques stocks faibles) pour pouvoir tester le panier et les commandes.
 INSERT INTO variante (produit_id, libelle, stock) VALUES
