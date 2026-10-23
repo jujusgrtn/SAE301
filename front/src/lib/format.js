@@ -1,5 +1,7 @@
+import { formatAmount } from "./currency.js";
+
 /**
- * Petites fonctions de mise en forme, sans dépendance.
+ * Petites fonctions de mise en forme.
  */
 
 /**
@@ -24,19 +26,17 @@ export function formaterNote(note) {
 }
 
 /**
- * 14900 -> « 14 900 XPF »
+ * 14900 -> « 14 900 XPF » (ou « 124,86 € » si la personne a choisi l'euro).
  *
- * Le franc pacifique n'a pas de centimes. Les espaces sont insécables (U+00A0) :
- * le prix ne se coupe jamais en fin de ligne, même dans une carte étroite.
+ * Le franc pacifique n'a pas de centimes. Les montants sont convertis à
+ * l'affichage seulement (voir lib/currency.js).
  *
  * @param {number} price - Prix entier en XPF.
+ * @param {boolean} [whole] - Vrai pour arrondir à l'unité (bornes de filtre).
  * @returns {string} - Le prix mis en forme.
  */
-export function formatPrice(price) {
-  const digits = String(Math.round(Number(price)));
-  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-
-  return `${grouped} XPF`;
+export function formatPrice(price, whole = false) {
+  return formatAmount(price, whole);
 }
 
 /**

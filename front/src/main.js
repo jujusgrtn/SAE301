@@ -1,5 +1,7 @@
 import { Router } from "./lib/router.js";
+import { CURRENCY_CHANGED_EVENT } from "./lib/currency.js";
 import { RootLayout } from "./layouts/root/layout.js";
+import { HomePage } from "./pages/accueil/page.js";
 import { CataloguePage } from "./pages/catalogue/page.js";
 import { CategoryPage } from "./pages/categorie/page.js";
 import { ProductPage } from "./pages/produit/page.js";
@@ -15,7 +17,7 @@ import { AdminPage } from "./pages/admin/page.js";
 import { AdminProductsPage } from "./pages/admin-produits/page.js";
 import { AdminProductFormPage } from "./pages/admin-produit/page.js";
 import { AdminCategoriesPage } from "./pages/admin-categories/page.js";
-import { AdminCategoryFormPage } from "./pages/admin-categorie/page.js";
+import { AdminCategoryFormPage, AdminSubCategoryFormPage } from "./pages/admin-categorie/page.js";
 import { AdminOrdersPage } from "./pages/admin-commandes/page.js";
 import { AdminPromoCodesPage } from "./pages/admin-codes-promo/page.js";
 import { AdminJournalPage } from "./pages/admin-journal/page.js";
@@ -28,7 +30,8 @@ const router = new Router("app", { base: import.meta.env.BASE_URL });
 
 router.addLayout("/", RootLayout);
 
-router.addRoute("/", CataloguePage);
+router.addRoute("/", HomePage);
+router.addRoute("/bijoux", CataloguePage);
 router.addRoute("/categorie/:slug", CategoryPage);
 router.addRoute("/produit/:slug", ProductPage);
 router.addRoute("/panier", CartPage);
@@ -45,6 +48,7 @@ router.addRoute("/admin/produits/nouveau", AdminProductFormPage);
 router.addRoute("/admin/produits/:id/modifier", AdminProductFormPage);
 router.addRoute("/admin/categories", AdminCategoriesPage);
 router.addRoute("/admin/categories/nouveau", AdminCategoryFormPage);
+router.addRoute("/admin/categories/nouvelle-sous-categorie", AdminSubCategoryFormPage);
 router.addRoute("/admin/categories/:id/modifier", AdminCategoryFormPage);
 router.addRoute("/admin/statistiques", AdminStatsPage);
 router.addRoute("/admin/journal", AdminJournalPage);
@@ -56,4 +60,9 @@ router.addRoute("/admin/commandes/:numero", AdminOrderPage);
 router.addRoute("*", The404Page);
 
 // Démarrer le routeur
+// Les prix sont écrits à la construction des pages : changer de monnaie les reconstruit.
+document.addEventListener(CURRENCY_CHANGED_EVENT, function () {
+  router.handleRoute();
+});
+
 router.start();
