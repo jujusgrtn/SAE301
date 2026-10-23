@@ -1,6 +1,9 @@
 import { AdminData } from "../../data/admin.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
+import logoWhite from "../../assets/design/logo-blanc.svg";
 import template from "./template.html?raw";
+import templateScreen from "./ecran-connexion.html?raw";
+import templateShell from "./accueil.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
 import templateForm from "./formulaire.html?raw";
@@ -14,6 +17,9 @@ import templateDashboard from "./tableau-de-bord.html?raw";
  * La page ne protège rien : c'est le serveur qui décide de l'accès. Un 401 sur
  * GET /api/admin/compte affiche le formulaire de connexion ; une réponse 200
  * affiche l'accueil du back-office.
+ *
+ * La page se passe du layout de la boutique (en-tête, pied de page) : la
+ * connexion occupe tout l'écran (maquette A1) et l'accueil porte son propre cadre.
  */
 
 // ---------------------------------------------------------------------------
@@ -318,6 +324,43 @@ V.createFormFragment = function (state) {
     state.loginError === null ? null : genericRenderer(templateError, { texte: state.loginError })
   );
 
+  if (state.loginError !== null) {
+    // Comme dans la maquette, le champ du mot de passe porte l'erreur.
+    let password = fragment.querySelector("#admin-mot-de-passe");
+    password.setAttribute("aria-invalid", "true");
+    password.setAttribute("aria-describedby", "erreur-connexion");
+  }
+
+  return fragment;
+};
+
+/**
+ * Écran de connexion plein cadre (panneau de marque et formulaire) autour d'un contenu.
+ * . content : formulaire ou message de chargement
+ * > DocumentFragment
+ *
+ * @param {DocumentFragment} content
+ * @returns {DocumentFragment}
+ */
+V.createLoginScreen = function (content) {
+  let fragment = htmlToFragment(genericRenderer(templateScreen, { logo: logoWhite }));
+
+  fragment.querySelector('slot[name="contenu"]').replaceWith(content);
+  return fragment;
+};
+
+/**
+ * Cadre de l'accueil du back-office (lien vers la boutique, titre) autour d'un contenu.
+ * . content : accueil ou message d'erreur
+ * > DocumentFragment
+ *
+ * @param {DocumentFragment} content
+ * @returns {DocumentFragment}
+ */
+V.createShell = function (content) {
+  let fragment = htmlToFragment(genericRenderer(templateShell, { urlBoutique: routeUrl("/") }));
+
+  fragment.querySelector('slot[name="contenu"]').replaceWith(content);
   return fragment;
 };
 
@@ -332,13 +375,13 @@ V.createFormFragment = function (state) {
  */
 V.createContentFragment = function (state) {
   if (state.status === "loading") {
-    return htmlToFragment(templateLoading);
+    return V.createLoginScreen(htmlToFragment(templateLoading));
   }
   if (state.status === "error") {
-    return htmlToFragment(genericRenderer(templateLoadError, { texte: state.loadError }));
+    return V.createShell(htmlToFragment(genericRenderer(templateLoadError, { texte: state.loadError })));
   }
   if (state.status === "ready") {
-    return htmlToFragment(genericRenderer(templateDashboard, {
+    return V.createShell(htmlToFragment(genericRenderer(templateDashboard, {
         identifiant: state.admin.identifiant,
         urlProduits: routeUrl("/admin/produits"),
         urlCategories: routeUrl("/admin/categories"),
@@ -346,9 +389,9 @@ V.createContentFragment = function (state) {
         urlStatistiques: routeUrl("/admin/statistiques"),
         urlJournal: routeUrl("/admin/journal"),
         urlCodesPromo: routeUrl("/admin/codes-promo"),
-      }));
+      })));
   }
-  return V.createFormFragment(state);
+  return V.createLoginScreen(V.createFormFragment(state));
 };
 
 /**
@@ -360,9 +403,9 @@ V.createContentFragment = function (state) {
  * @returns {void}
  */
 V.renderPage = function (state) {
-  let zone = V.root.querySelector('[data-zone="contenu"]');
-  zone.setAttribute("aria-busy", String(state.status === "loading"));
-  zone.replaceChildren(V.createContentFragment(state));
+  // La racine est la zone elle-même : chaque écran apporte son propre cadre.
+  V.root.setAttribute("aria-busy", String(state.status === "loading"));
+  V.root.replaceChildren(V.createContentFragment(state));
 };
 
 /**

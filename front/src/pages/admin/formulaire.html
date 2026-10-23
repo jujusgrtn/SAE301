@@ -1,22 +1,16 @@
 <slot name="annonce"></slot>
 
-<section aria-labelledby="titre-connexion-admin" class="max-w-md rounded-md border border-line p-5 sm:p-6">
-  <h2 id="titre-connexion-admin" class="text-lg font-semibold">Espace réservé à l'équipe</h2>
-  <p class="mt-1 text-sm text-muted">Connectez-vous avec votre compte administrateur Matira Création.</p>
+<form data-form="connexion-admin" class="flex flex-col gap-[18px]">
+  <div class="flex flex-col gap-1.5">
+    <label for="admin-identifiant" class="text-sm font-semibold">Identifiant</label>
+    <input id="admin-identifiant" name="identifiant" type="text" required maxlength="60" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{identifiant}}" class="h-12 rounded-sm border border-line bg-white px-4 text-base text-ink">
+  </div>
 
-  <form data-form="connexion-admin" class="mt-4 flex flex-col gap-4">
+  <div class="flex flex-col gap-1.5">
+    <label for="admin-mot-de-passe" class="text-sm font-semibold">Mot de passe</label>
+    <input id="admin-mot-de-passe" name="motDePasse" type="password" required autocomplete="current-password" class="h-12 rounded-sm border border-line bg-white px-4 text-base text-ink aria-invalid:border-2 aria-invalid:border-danger">
     <slot name="erreur"></slot>
+  </div>
 
-    <div class="flex flex-col gap-1.5">
-      <label for="admin-identifiant" class="text-sm font-medium">Identifiant</label>
-      <input id="admin-identifiant" name="identifiant" type="text" required maxlength="60" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{identifiant}}" class="h-11 rounded-md border border-line bg-transparent px-3">
-    </div>
-
-    <div class="flex flex-col gap-1.5">
-      <label for="admin-mot-de-passe" class="text-sm font-medium">Mot de passe</label>
-      <input id="admin-mot-de-passe" name="motDePasse" type="password" required autocomplete="current-password" class="h-11 rounded-md border border-line bg-transparent px-3">
-    </div>
-
-    <button type="submit" class="h-11 rounded-md bg-button px-6 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60 sm:self-start">Accéder au back-office</button>
-  </form>
-</section>
+  <button type="submit" class="bouton-principal h-12 w-full px-6">Se connecter</button>
+</form>

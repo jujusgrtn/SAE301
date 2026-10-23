@@ -42,7 +42,8 @@ router.addRoute("/compte", AccountHomePage);
 router.addRoute("/compte/profil", ProfilePage);
 router.addRoute("/compte/commandes", OrderHistoryPage);
 router.addRoute("/compte/commandes/:numero", MyOrderPage);
-router.addRoute("/admin", AdminPage);
+// Connexion plein cadre (maquette A1) : pas d'en-tête ni de pied de page de la boutique.
+router.addRoute("/admin", AdminPage, { useLayout: false });
 router.addRoute("/admin/produits", AdminProductsPage);
 router.addRoute("/admin/produits/nouveau", AdminProductFormPage);
 router.addRoute("/admin/produits/:id/modifier", AdminProductFormPage);
