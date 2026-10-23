@@ -1,18 +1,18 @@
 -- ---------------------------------------------------------------------------
 -- Matira Création — click & collect : tables et jeu de données
 --
--- Périmètre : les deux premiers epics.
+-- Fichier unique : il crée TOUTES les tables du projet et leur jeu de données.
 --   - « Découvrir l'offre » (DEC-a, DEC-b, DEC-c) : categorie, produit,
 --     image_produit ;
 --   - « Commander en click & collect » (CMD-a, CMD-b, CMD-c) : variante,
 --     utilisateur, commande, ligne_commande ;
 --   - « Gérer les stocks » (STK-a) : mouvement_stock ;
---   - « Personnaliser » (OPT-c) : option_produit, valeur_option, variante_valeur ;
+--   - « Personnaliser » (OPT-c) : option_produit, valeur_option, variante_valeur,
+--     avec des options d'exemple et la couleur de la perle (blanche ou noire)
+--     de chaque bijou ;
 --   - « Gérer l'offre » (GOF-b) : administrateur ;
 --   - « Piloter » (PIL-b) : journal_admin ;
 --   - « Promouvoir » (PRO-a, PRO-b) : code_promo et colonnes de promotion de commande.
--- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
--- sont pas créées ici.
 --
 -- Ce script ne crée PAS de base : sélectionnez d'abord votre base dans
 -- phpMyAdmin, puis importez ce fichier depuis l'onglet « Importer ».
@@ -668,9 +668,9 @@ INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
 -- Le stock de départ de la variante noire n'est pas inscrit au journal des
 -- mouvements, comme les stocks de départ du jeu de données.
 --
--- Rejouable sans effet : chaque étape ignore ce qui existe déjà. Pour
--- l'exécuter sur une base existante, coller ce fichier dans l'onglet « SQL » de
--- phpMyAdmin (sans réimporter la base).
+-- Rejouable sans effet : chaque étape ignore ce qui existe déjà. Sur une base
+-- qui contient des données à conserver, ne pas réimporter ce fichier : copier
+-- seulement les étapes 1 à 7 ci-dessous dans l'onglet « SQL » de phpMyAdmin.
 -- ---------------------------------------------------------------------------
 
 -- 1. L'option, en dernière position parmi les options du bijou.
