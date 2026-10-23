@@ -1,0 +1,8 @@
+<div role="group" aria-labelledby="titre-suppression-{{id}}" class="w-full rounded-md border border-danger p-3">
+  <p id="titre-suppression-{{id}}" tabindex="-1" data-zone="confirmation-suppression" class="text-sm font-semibold focus:outline-none">Supprimer le code {{code}} ?</p>
+  <p class="mt-1 text-[0.8125rem] text-muted">Les réservations déjà passées gardent leur réduction ; leur utilisation sera comptée sous « codes supprimés ».</p>
+  <div class="mt-2 flex flex-wrap gap-3">
+    <button type="button" data-action="confirmer-suppression" data-id="{{id}}" class="inline-flex h-10 items-center rounded-md bg-danger px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60">Oui, supprimer</button>
+    <button type="button" data-action="annuler" class="inline-flex h-10 items-center rounded-md border border-line px-4 text-sm font-medium transition-colors hover:border-primary">Non, le garder</button>
+  </div>
+</div>

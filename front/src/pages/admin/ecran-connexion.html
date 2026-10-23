@@ -1,0 +1,16 @@
+<!-- Écran de connexion (maquette A1) : panneau de marque, puis formulaire. Sur mobile, le panneau devient un bandeau au-dessus du formulaire. -->
+<main class="grid min-h-dvh lg:grid-cols-2">
+  <div class="flex flex-col items-center justify-center gap-3 bg-brand-dark px-6 py-10 text-white lg:gap-4 lg:py-0">
+    <!-- Logo officiel : le dessin n'occupe qu'une partie de son cadre, d'où les marges négatives. -->
+    <img src="{{logo}}" alt="Matira Création" width="121" height="128" class="-mt-7 -mb-9 h-auto w-36 lg:-mt-10 lg:-mb-14 lg:w-56">
+    <p class="text-lg font-semibold lg:text-[22px] lg:leading-[30px]">Espace administration</p>
+  </div>
+
+  <section aria-labelledby="titre-connexion-admin" class="flex items-center justify-center px-4 py-10 sm:px-6 lg:py-0">
+    <div class="flex w-full max-w-[420px] flex-col gap-[18px]">
+      <h1 id="titre-connexion-admin" class="text-[30px] leading-[38px] font-medium tracking-[-0.3px]">Connexion</h1>
+      <p class="text-muted">Accès réservé à l'équipe de la boutique.</p>
+      <slot name="contenu"></slot>
+    </div>
+  </section>
+</main>

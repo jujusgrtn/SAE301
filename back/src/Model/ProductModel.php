@@ -28,6 +28,9 @@ final class ProductModel
                        produit.slug,
                        produit.prix,
                        produit.description,
+                       produit.date_ajout,
+                       produit.public_cible,
+                       (produit.id = ' . Promotion::PRODUCT_ID_SQL . ') AS en_promotion,
                        (SELECT COALESCE(SUM(variante.stock), 0)
                           FROM variante
                          WHERE variante.produit_id = produit.id) AS stock,
@@ -114,7 +117,7 @@ final class ProductModel
      *
      * @param string $slug Slug déjà validé par le contrôleur.
      * @return array<string, mixed>|null
-     *         { id, nom, slug, prix, description, categorie, sousCategorie, images, variantes },
+     *         { id, nom, slug, prix, description, categorie, sousCategorie, images, options, variantes },
      *         ou null si aucun bijou ne porte ce slug.
      */
     public function findBySlug(string $slug): ?array
@@ -135,35 +138,104 @@ final class ProductModel
         unset($product['image']);
         $product['description'] = $row['description'];
         $product['images']      = $this->findImages($product['id']);
+        $product['options']     = $this->findOptions($product['id']);
         $product['variantes']   = $this->findVariants($product['id']);
 
         return $product;
     }
 
     /**
-     * Les variantes d'un bijou (« Modèle unique » pour un bijou sans option),
-     * que la fiche propose d'ajouter au panier (US CMD-b).
-     *
-     * Chaque variante porte son propre stock (STK-b) : la fiche affiche la
-     * disponibilité de l'option choisie.
+     * Les options d'un bijou et leurs valeurs (US OPT-c), dans l'ordre voulu.
+     * Un bijou sans option donne une liste vide.
      *
      * @param int $productId Identifiant du bijou.
-     * @return array<int, array{id: int, libelle: string, stock: int, disponibilite: string}>
+     * @return array<int, array{id: int, nom: string, valeurs: array<int, array{id: int, valeur: string, supplement: int}>}>
      */
-    private function findVariants(int $productId): array
+    private function findOptions(int $productId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, libelle, stock
-               FROM variante
-              WHERE produit_id = :produit_id
-           ORDER BY id'
+            'SELECT option_produit.id AS option_id, option_produit.nom,
+                    valeur_option.id AS valeur_id, valeur_option.valeur, valeur_option.supplement
+               FROM option_produit
+         INNER JOIN valeur_option ON valeur_option.option_id = option_produit.id
+              WHERE option_produit.produit_id = :produit_id
+           ORDER BY option_produit.ordre, valeur_option.ordre, valeur_option.id'
         );
         $statement->bindValue(':produit_id', $productId, PDO::PARAM_INT);
         $statement->execute();
 
-        return array_map(function (array $row): array {
-            return ['id' => (int) $row['id'], 'libelle' => $row['libelle']] + Stock::describe((int) $row['stock']);
-        }, $statement->fetchAll());
+        $rows    = $statement->fetchAll();
+        $options = [];
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $optionId = (int) $rows[$i]['option_id'];
+
+            if (!isset($options[$optionId])) {
+                $options[$optionId] = ['id' => $optionId, 'nom' => $rows[$i]['nom'], 'valeurs' => []];
+            }
+            $options[$optionId]['valeurs'][] = [
+                'id'         => (int) $rows[$i]['valeur_id'],
+                'valeur'     => $rows[$i]['valeur'],
+                'supplement' => (int) $rows[$i]['supplement'],
+            ];
+        }
+
+        return array_values($options);
+    }
+
+    /**
+     * Les variantes d'un bijou (« Modèle unique » pour un bijou sans option),
+     * que la fiche propose d'ajouter au panier (US CMD-b).
+     *
+     * Une variante est une combinaison d'options (US OPT-c) : elle porte son
+     * prix (celui du bijou plus les suppléments de ses valeurs), son stock
+     * (STK-b) et la liste des valeurs qui la composent, pour que la fiche
+     * retrouve la variante qui correspond aux choix du client.
+     *
+     * @param int $productId Identifiant du bijou.
+     * @return array<int, array{id: int, libelle: string, prix: int, prixInitial: int, valeurs: array<int, int>, stock: int, disponibilite: string}>
+     */
+    private function findVariants(int $productId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT variante.id, variante.libelle, variante.stock, ' . VariantModel::priceSql() . ' AS prix,
+                    ' . VariantModel::INITIAL_PRICE_SQL . ' AS prix_initial
+               FROM variante
+         INNER JOIN produit ON produit.id = variante.produit_id
+              WHERE variante.produit_id = :produit_id
+           ORDER BY variante.id'
+        );
+        $statement->bindValue(':produit_id', $productId, PDO::PARAM_INT);
+        $statement->execute();
+        $rows = $statement->fetchAll();
+
+        $statement = $this->pdo->prepare(
+            'SELECT variante_valeur.variante_id, variante_valeur.valeur_id
+               FROM variante_valeur
+         INNER JOIN variante ON variante.id = variante_valeur.variante_id
+              WHERE variante.produit_id = :produit_id
+           ORDER BY variante_valeur.option_id'
+        );
+        $statement->bindValue(':produit_id', $productId, PDO::PARAM_INT);
+        $statement->execute();
+        $links = $statement->fetchAll();
+
+        $valuesByVariant = [];
+        for ($i = 0; $i < count($links); $i++) {
+            $valuesByVariant[(int) $links[$i]['variante_id']][] = (int) $links[$i]['valeur_id'];
+        }
+
+        return array_map(function (array $row) use ($valuesByVariant): array {
+            $id = (int) $row['id'];
+
+            return [
+                'id'      => $id,
+                'libelle' => $row['libelle'],
+                'prix'    => (int) $row['prix'],
+                'prixInitial' => (int) $row['prix_initial'],
+                'valeurs' => $valuesByVariant[$id] ?? [],
+            ] + Stock::describe((int) $row['stock']);
+        }, $rows);
     }
 
     /**
@@ -194,7 +266,8 @@ final class ProductModel
      * MySQL renvoie les nombres sous forme de chaînes : ils sont convertis ici.
      *
      * @param array<string, mixed> $row Ligne renvoyée par findAll().
-     * @return array<string, mixed> { id, nom, slug, prix, stock, disponibilite, categorie, sousCategorie, image }
+     * @return array<string, mixed> { id, nom, slug, prix, dateAjout, publicCible, prixPromo, promotion, stock, disponibilite, categorie, sousCategorie, image }
+     *         prix est le prix du bijou avant promotion ; prixPromo le prix en promotion automatique (US PRO-c), ou null.
      */
     private static function formatProduct(array $row): array
     {
@@ -212,6 +285,10 @@ final class ProductModel
             'nom'           => $row['nom'],
             'slug'          => $row['slug'],
             'prix'          => (int) $row['prix'],
+            'dateAjout'     => $row['date_ajout'],
+            'publicCible'   => $row['public_cible'],
+            'prixPromo'     => (int) $row['en_promotion'] === 1 ? Promotion::discounted((int) $row['prix']) : null,
+            'promotion'     => (int) $row['en_promotion'] === 1 ? ['pourcentage' => Promotion::PERCENT] : null,
         ] + Stock::describe((int) $row['stock']) + [
             'categorie'     => [
                 'nom'  => $row['categorie_nom'],

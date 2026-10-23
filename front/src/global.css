@@ -1,12 +1,37 @@
 @import "tailwindcss";
 
 /*
-  Le thème sombre s'active par la classe theme-dark posée sur <html> (voir
-  index.html et lib/theme.js), et non par le réglage du système : c'est ce que
-  déclare cette variante. Une classe préfixée par dark: s'applique donc dès que
-  la page est en thème sombre.
+  Variante dark: dormante : le thème sombre n'est plus proposé (la maquette Figma
+  n'a qu'un thème clair), la classe theme-dark n'est jamais posée sur <html>.
+  Les classes dark: encore présentes dans certains gabarits n'ont donc aucun effet.
 */
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
+/*
+  Police de la charte : Raleway (variable, tous les poids), hébergée avec le
+  site (public/fonts) plutôt que chargée depuis un service tiers. Les deux
+  fichiers se partagent les caractères par unicode-range : le navigateur ne
+  télécharge que celui dont la page a besoin.
+*/
+@font-face {
+  font-family: "Raleway";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/raleway-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Raleway";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/raleway-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /*
   Charte Matira Création. Les classes Tailwind (text-primary-text, bg-surface-soft…)
@@ -14,6 +39,8 @@
   primitifs : changer de thème ne fait que réassigner les sémantiques.
 */
 @theme inline {
+  --font-sans: "Raleway", ui-sans-serif, system-ui, sans-serif;
+
   --color-primary: var(--clr-primary);
   --color-primary-text: var(--clr-primary-text);
   --color-surface-soft: var(--clr-surface-soft);
@@ -24,6 +51,163 @@
   --color-button: var(--clr-button);
   --color-success: var(--clr-success);
   --color-danger: var(--clr-danger);
+
+  /* Jetons de la maquette Figma (page « Design system ») */
+  --color-ink: var(--clr-ink);
+  --color-brand-dark: var(--clr-brand-dark);
+  --color-soft: var(--clr-soft);
+  --color-pearl: var(--clr-pearl);
+  --color-grey-soft: var(--clr-grey-soft);
+  --color-success-soft: var(--clr-success-soft);
+  --color-warning: var(--clr-warning);
+  --color-warning-soft: var(--clr-warning-soft);
+  --color-danger-soft: var(--clr-danger-soft);
+  --color-info: var(--clr-info);
+  --color-info-soft: var(--clr-info-soft);
+  --color-disabled: var(--clr-disabled);
+
+}
+
+/*
+  Styles de texte de la maquette Figma (Design system > Typographie). Les
+  interlettrages de Figma sont en pourcentage de la taille du texte.
+*/
+@utility texte-display {
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  @media (min-width: 1024px) {
+    font-size: 44px;
+    line-height: 52px;
+  }
+}
+
+@utility titre-h1 {
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+@utility titre-h2 {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+}
+
+@utility titre-h3 {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+@utility texte-surtitre {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@utility texte-bouton {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@utility texte-legende {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+@utility prix-normal {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+@utility prix-grand {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+/*
+  Boutons de la maquette (Design system > Bouton). Le gabarit (hauteur,
+  marges intérieures, largeur) reste dans le gabarit HTML : ces utilitaires
+  ne portent que le style. Rayon 4 px (rounded-sm), texte « Bouton ».
+  - principal : fond turquoise, texte sombre ; au survol fond foncé, texte blanc ;
+    désactivé (aria-disabled="true") : gris.
+  - secondaire : contour turquoise foncé ; au survol fond doux.
+  - texte : lien turquoise foncé, sans fond.
+*/
+@utility bouton-principal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background-color: var(--clr-primary);
+  color: var(--clr-ink);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background-color 150ms, color 150ms;
+
+  &:hover {
+    background-color: var(--clr-brand-dark);
+    color: #fff;
+  }
+
+  &[aria-disabled="true"] {
+    background-color: var(--clr-disabled);
+    color: var(--clr-muted);
+    cursor: not-allowed;
+  }
+}
+
+@utility bouton-secondaire {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1.5px solid var(--clr-primary-text);
+  color: var(--clr-primary-text);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background-color 150ms;
+
+  &:hover {
+    background-color: var(--clr-soft);
+  }
+
+  &[aria-disabled="true"] {
+    border-color: var(--clr-line);
+    color: var(--clr-muted);
+    cursor: not-allowed;
+  }
+}
+
+@utility bouton-texte {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--clr-primary-text);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 /*
@@ -62,6 +246,8 @@
     --clr-gris-300: #d5dcdc;
     --clr-vert-700: #23683a;
     --clr-rouge-700: #a3261e;
+    --clr-ambre-700: #7a4d00;
+    --clr-bleu-700: #22507a;
 
     /* Tokens sémantiques (ils disent à quoi ils servent) */
     --clr-primary: var(--clr-turquoise-500);
@@ -75,6 +261,20 @@
     --clr-button: var(--clr-turquoise-700);
     --clr-success: var(--clr-vert-700);
     --clr-danger: var(--clr-rouge-700);
+
+    /* Jetons de la maquette Figma */
+    --clr-ink: var(--clr-gris-900); /* texte/principal */
+    --clr-brand-dark: var(--clr-turquoise-700); /* fond/sombre : bandeau et pied de page */
+    --clr-soft: var(--clr-turquoise-50); /* fond/doux */
+    --clr-pearl: var(--clr-nacre-100); /* fond/nacre */
+    --clr-grey-soft: #f3f5f5; /* fond/gris et etat/neutre-fond */
+    --clr-success-soft: #e1f2e6;
+    --clr-warning: var(--clr-ambre-700);
+    --clr-warning-soft: #fff0cc;
+    --clr-danger-soft: #fbe3e1;
+    --clr-info: var(--clr-bleu-700);
+    --clr-info-soft: #e3eef8;
+    --clr-disabled: var(--clr-gris-300);
   }
 
   /* Menus déroulants et barres de défilement natifs, eux aussi en sombre. */
@@ -91,11 +291,19 @@
     --clr-danger: var(--color-red-400);
   }
 
-  /* Un seul anneau de focus pour toute l'application, visible uniquement au
-     clavier : :focus-visible ne se déclenche pas sur un clic de souris. */
-  :where(a, button, select, input):focus-visible {
-    outline: 2px solid var(--color-zinc-400);
+  /* Un seul anneau de focus pour toute l'application (bordure/focus de la
+     maquette), visible uniquement au clavier : :focus-visible ne se déclenche
+     pas sur un clic de souris. */
+  :where(a, button, select, input, textarea):focus-visible {
+    outline: 2px solid var(--clr-turquoise-700);
     outline-offset: 2px;
+  }
+
+  body {
+    font-family: "Raleway", ui-sans-serif, system-ui, sans-serif;
+    color: var(--clr-ink);
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
   }
 
   button:not(:disabled) {

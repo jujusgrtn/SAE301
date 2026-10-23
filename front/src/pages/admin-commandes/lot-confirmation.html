@@ -1,0 +1,8 @@
+<div role="group" aria-labelledby="titre-confirmation-lot" class="mb-4 rounded-md border border-danger p-4">
+  <p id="titre-confirmation-lot" tabindex="-1" data-zone="confirmation-lot" class="text-sm font-semibold focus:outline-none">Annuler {{nombre}} ?</p>
+  <p class="mt-1 text-sm text-muted">Le stock des exemplaires réservés sera remis en vente. Une réservation déjà retirée ou annulée sera refusée.</p>
+  <div class="mt-3 flex flex-wrap gap-3">
+    <button type="button" data-action="lot-confirmer" class="inline-flex h-10 items-center rounded-md bg-danger px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-wait aria-disabled:opacity-60">Oui, annuler</button>
+    <button type="button" data-action="lot-abandonner" class="inline-flex h-10 items-center rounded-md border border-line px-4 text-sm font-medium transition-colors hover:border-primary">Non, les garder</button>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+<div class="grid gap-6 lg:grid-cols-[240px_1fr] lg:gap-10">
+  <!-- Filtres : colonne sur desktop, pastilles de catégories sur mobile. -->
+  <aside aria-label="Filtres" class="hidden lg:flex lg:flex-col lg:gap-6">
+    <slot name="filtres"></slot>
+  </aside>
+
+  <div class="min-w-0">
+    <div class="mb-5 lg:hidden"><slot name="puces"></slot></div>
+
+    <div class="flex items-center justify-between gap-4 text-sm">
+      <p role="status" class="text-muted">{{total}}</p>
+      <label class="flex items-center gap-1.5 font-semibold text-primary-text">
+        <span>Trier :</span>
+        <select data-filter="tri" aria-label="Trier les bijoux" class="cursor-pointer rounded-sm bg-transparent py-1 font-semibold">
+          <slot name="tris"></slot>
+        </select>
+      </label>
+    </div>
+
+    <div class="mt-6"><slot name="liste"></slot></div>
+    <slot name="pagination"></slot>
+  </div>
+</div>

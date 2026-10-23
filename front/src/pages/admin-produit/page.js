@@ -10,6 +10,9 @@ import templateUnauthorized from "./non-connecte.html?raw";
 import templateNotFound from "./introuvable.html?raw";
 import templateLoadError from "./erreur-chargement.html?raw";
 import templateForm from "./formulaire.html?raw";
+import templateSingleStock from "./stock-unique.html?raw";
+import templateVariantStocks from "./stock-variantes.html?raw";
+import templateVariantStock from "./stock-variante.html?raw";
 import templateCurrentPhoto from "./photo-actuelle.html?raw";
 import templatePreview from "./apercu.html?raw";
 import templatePreviewError from "./apercu-erreur.html?raw";
@@ -155,7 +158,7 @@ M.startSubmit = function () {
  * Envoie le formulaire au serveur : création ou modification selon le mode.
  * . formData : champs du formulaire (et photo éventuelle)
  * > Promise<{isCurrent, noticeKey}> : noticeKey vaut « cree » ou « modifie » en cas
- *   de succès, null sinon ; isCurrent est faux si l'utilisatrice a quitté la page
+ *   de succès, null sinon ; isCurrent est faux si la page a été quittée pendant l'envoi
  *
  * @param {FormData} formData
  * @returns {Promise<{isCurrent: boolean, noticeKey: string|null}>}
@@ -190,7 +193,8 @@ M.submit = async function (formData) {
  * Photographie de l'état, transmise à la Vue. Les valeurs du formulaire sont
  * celles du bijou en modification, ou vides pour une création.
  * . aucun paramètre
- * > { mode, status, categories, loadError, values, currentImage, isSubmitting, submitError }
+ * > { mode, status, categories, loadError, values, variants, currentImage, isSubmitting, submitError }
+ *   variants : les combinaisons { id, libelle, stock } d'un bijou à options (vide sinon : un seul stock)
  *
  * @returns {Object}
  */
@@ -209,8 +213,10 @@ M.getState = function () {
       prix: product === null ? "" : String(product.prix),
       stock: product === null ? "" : String(product.stock),
       sousCategorie: product === null ? "" : product.sousCategorie.slug,
+      publicCible: product === null ? "femme" : product.publicCible,
       altPhoto: product === null || product.image === null ? "" : product.image.alt,
     },
+    variants: product !== null && product.nombreVariantes > 1 ? product.variantes : [],
     currentImage: product === null ? null : product.image,
     isSubmitting: M.isSubmitting,
     submitError: M.submitError,
@@ -396,6 +402,37 @@ V.formatOnePhotoLabel = function (state) {
 };
 
 /**
+ * Champ de stock du bijou, ou un champ par combinaison s'il a des options
+ * (US OPT-b) : chaque combinaison a son propre stock.
+ * . fragment : le formulaire, state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {DocumentFragment} fragment
+ * @param {Object} state
+ * @returns {void}
+ */
+V.fillStock = function (fragment, state) {
+  let singleSlot = fragment.querySelector('slot[name="stock-unique"]');
+  let variantsSlot = fragment.querySelector('slot[name="stock-variantes"]');
+
+  if (state.variants.length === 0) {
+    singleSlot.replaceWith(htmlToFragment(genericRenderer(templateSingleStock, { stock: state.values.stock })));
+    variantsSlot.remove();
+    return;
+  }
+
+  singleSlot.remove();
+  let group = htmlToFragment(templateVariantStocks);
+  let fields = state.variants.map(function (variant) {
+    return htmlToFragment(
+      genericRenderer(templateVariantStock, { id: variant.id, libelle: variant.libelle, stock: String(variant.stock) })
+    );
+  });
+  group.querySelector('slot[name="variantes"]').replaceWith(...fields);
+  variantsSlot.replaceWith(group);
+};
+
+/**
  * Formulaire complet, prérempli avec les valeurs de l'état.
  * . state : état renvoyé par M.getState()
  * > DocumentFragment
@@ -419,6 +456,8 @@ V.createFormFragment = function (state) {
   );
 
   V.fillCategories(fragment.querySelector('select[name="sousCategorie"]'), state.categories, state.values.sousCategorie);
+  V.fillStock(fragment, state);
+  fragment.querySelector(`input[name="publicCible"][value="${state.values.publicCible}"]`).checked = true;
 
   let slot = fragment.querySelector('slot[name="photo-actuelle"]');
   if (state.currentImage === null) {

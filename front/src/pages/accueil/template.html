@@ -1,0 +1,87 @@
+<!-- Héro : photo pleine largeur, texte sur un voile sombre. -->
+<section aria-labelledby="titre-hero" class="relative flex min-h-[440px] items-end bg-pearl lg:h-[560px] lg:items-center">
+  <img src="{{photoHero}}" alt="" width="1440" height="560" fetchpriority="high" class="absolute inset-0 size-full object-cover">
+  <div class="relative w-full px-5 pb-8 lg:px-16 lg:pb-0">
+    <div class="flex w-full flex-col items-start gap-3 rounded-lg bg-[rgba(28,28,28,0.55)] p-5 text-white lg:w-[520px] lg:gap-4 lg:p-9">
+      <p class="texte-surtitre">Nouvelle collection</p>
+      <h1 id="titre-hero" class="texte-display">Collection Plaqué or</h1>
+      <p class="text-sm leading-5 lg:text-base lg:leading-6">
+        <span class="lg:hidden">Réservez en ligne, essayez et retirez en boutique au centre Vaima.</span>
+        <span class="hidden lg:inline">Réservez vos bijoux en ligne, essayez-les et retirez-les gratuitement à la boutique du centre Vaima.</span>
+      </p>
+      <a href="{{urlBijoux}}" data-link class="bouton-principal h-11 px-6">
+        <span class="lg:hidden">Découvrir</span>
+        <span class="hidden lg:inline">Découvrir la collection</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Comment ça marche : une carte sur mobile, un bandeau pleine largeur sur desktop. -->
+<section aria-labelledby="titre-etapes" class="mx-4 mt-7 rounded-lg bg-soft p-4 lg:mx-0 lg:mt-0 lg:rounded-none lg:px-16 lg:py-10">
+  <div class="mx-auto max-w-[1440px]">
+    <h2 id="titre-etapes" class="titre-h3 lg:sr-only">Le click &amp; collect Matira</h2>
+    <ol class="mt-4 flex flex-col gap-3 lg:mt-0 lg:flex-row lg:gap-12">
+      <li class="flex flex-1 items-start gap-3 lg:gap-4">
+        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-ink lg:size-11 lg:text-lg">1</span>
+        <div>
+          <p class="text-sm font-semibold lg:titre-h3">Réservez en ligne</p>
+          <p class="texte-legende text-muted lg:text-sm lg:font-normal lg:leading-5">Choisissez vos bijoux et validez votre panier en quelques clics.</p>
+        </div>
+      </li>
+      <li class="flex flex-1 items-start gap-3 lg:gap-4">
+        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-ink lg:size-11 lg:text-lg">2</span>
+        <div>
+          <p class="text-sm font-semibold lg:titre-h3">Nous préparons</p>
+          <p class="texte-legende text-muted lg:text-sm lg:font-normal lg:leading-5">Votre commande est mise de côté sous 24 h et vous êtes prévenu(e).</p>
+        </div>
+      </li>
+      <li class="flex flex-1 items-start gap-3 lg:gap-4">
+        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-ink lg:size-11 lg:text-lg">3</span>
+        <div>
+          <p class="text-sm font-semibold lg:titre-h3">Retirez en boutique</p>
+          <p class="texte-legende text-muted lg:text-sm lg:font-normal lg:leading-5">Essayez et récupérez vos bijoux au centre Vaima, du lundi au samedi.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<div class="mx-auto flex max-w-[1440px] flex-col gap-8 px-4 pt-8 pb-10 lg:gap-14 lg:px-16 lg:pt-14 lg:pb-[72px]">
+  <section aria-labelledby="titre-collections">
+    <h2 id="titre-collections" class="titre-h2 lg:titre-h1">Nos collections</h2>
+    <div data-zone="collections" aria-live="polite" class="mt-4 lg:mt-6"></div>
+  </section>
+
+  <section aria-labelledby="titre-nouveautes">
+    <div class="flex items-center justify-between gap-4">
+      <h2 id="titre-nouveautes" class="titre-h2 lg:titre-h1">Nouveautés</h2>
+      <a href="{{urlBijoux}}" data-link class="bouton-texte px-1 py-3 text-sm lg:text-[15px]">
+        <span class="lg:hidden">Tout voir</span>
+        <span class="hidden lg:inline">Voir tous les bijoux</span>
+      </a>
+    </div>
+    <div data-zone="nouveautes" aria-live="polite" class="mt-4 lg:mt-6"></div>
+  </section>
+
+  <!-- Mobile : un encart sur les perles. Desktop : la boutique, avec sa photo. -->
+  <section aria-labelledby="titre-perles" class="rounded-lg bg-pearl p-4 lg:hidden">
+    <p class="texte-surtitre text-primary-text">Perles de Tahiti</p>
+    <h2 id="titre-perles" class="sr-only">Les perles de Tahiti</h2>
+    <p class="mt-2 text-sm leading-5">Chaque perle est unique : forme, lustre et couleur varient. Venez les découvrir en boutique.</p>
+    <a href="{{urlBijoux}}" data-link class="bouton-texte -ml-1 px-1 py-3">Découvrir les bijoux</a>
+  </section>
+
+  <section aria-labelledby="titre-boutique" class="hidden items-center gap-12 lg:grid lg:grid-cols-[600px_1fr]">
+    <img src="{{photoBoutique}}" alt="La boutique Matira Création au centre Vaima, à Papeete" width="600" height="380" loading="lazy" class="h-[380px] w-full rounded-sm object-cover">
+    <div class="flex flex-col items-start gap-4">
+      <p class="texte-surtitre text-primary-text">Notre boutique</p>
+      <h2 id="titre-boutique" class="titre-h1">Venez essayer vos bijoux au centre Vaima</h2>
+      <p class="text-base leading-6 text-muted">Chaque perle de Tahiti est unique : forme, lustre et couleur varient. Notre équipe vous conseille et ajuste vos bijoux lors du retrait.</p>
+      <ul class="flex flex-col gap-2 text-sm font-semibold">
+        <li class="flex items-center gap-2"><img src="{{iconePin}}" alt="" width="20" height="20" class="size-5">Centre Vaima, Papeete</li>
+        <li class="flex items-center gap-2"><img src="{{iconeHorloge}}" alt="" width="20" height="20" class="size-5">Lun. au sam., 8 h 30 à 17 h</li>
+      </ul>
+    </div>
+  </section>
+</div>

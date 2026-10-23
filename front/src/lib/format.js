@@ -1,5 +1,7 @@
+import { formatAmount } from "./currency.js";
+
 /**
- * Petites fonctions de mise en forme, sans dépendance.
+ * Petites fonctions de mise en forme.
  */
 
 /**
@@ -24,19 +26,17 @@ export function formaterNote(note) {
 }
 
 /**
- * 14900 -> « 14 900 XPF »
+ * 14900 -> « 14 900 XPF » (ou « 124,86 € » si la personne a choisi l'euro).
  *
- * Le franc pacifique n'a pas de centimes. Les espaces sont insécables (U+00A0) :
- * le prix ne se coupe jamais en fin de ligne, même dans une carte étroite.
+ * Le franc pacifique n'a pas de centimes. Les montants sont convertis à
+ * l'affichage seulement (voir lib/currency.js).
  *
  * @param {number} price - Prix entier en XPF.
+ * @param {boolean} [whole] - Vrai pour arrondir à l'unité (bornes de filtre).
  * @returns {string} - Le prix mis en forme.
  */
-export function formatPrice(price) {
-  const digits = String(Math.round(Number(price)));
-  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-
-  return `${grouped} XPF`;
+export function formatPrice(price, whole = false) {
+  return formatAmount(price, whole);
 }
 
 /**
@@ -96,4 +96,53 @@ export function teinteDepuisTexte(texte) {
   }
 
   return somme % 360;
+}
+
+/**
+ * Options choisies, écrites option par option.
+ * [{ nom: "Taille", valeur: "54" }, { nom: "Perle", valeur: "Keishi blanc" }] -> « Taille : 54 · Perle : Keishi blanc »
+ *
+ * @param {Array<{nom: string, valeur: string}>} options - Options d'une ligne du panier.
+ * @returns {string} Le texte, vide pour un bijou sans option.
+ */
+export function formatOptions(options) {
+  return options
+    .map(function (option) {
+      return `${option.nom} : ${option.valeur}`;
+    })
+    .join(" · ");
+}
+
+/**
+ * Sépare le nom d'une ligne de réservation en bijou et options. Le nom, figé à
+ * la réservation, s'écrit « Bague Rangiroa — Taille 54 · Perle de Tahiti » : les
+ * options suivent le dernier « — ».
+ *
+ * @param {string} lineName - Nom figé de la ligne (ligne_commande.nom_produit).
+ * @returns {{nom: string, options: string}} Les options sont vides pour un bijou sans option.
+ */
+export function splitLineName(lineName) {
+  let separator = " — ";
+  let position = lineName.lastIndexOf(separator);
+
+  if (position === -1) {
+    return { nom: lineName, options: "" };
+  }
+  return { nom: lineName.slice(0, position), options: lineName.slice(position + separator.length) };
+}
+
+/**
+ * « 2026-10-22 » -> « jeu. 22 »
+ *
+ * @param {string} day - Jour au format AAAA-MM-JJ.
+ * @returns {string} Jour de la semaine abrégé et numéro du jour, ou la valeur reçue si elle est illisible.
+ */
+export function formatDay(day) {
+  const date = new Date(`${day}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(day);
+  }
+
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date);
 }

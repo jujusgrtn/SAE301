@@ -1,4 +1,5 @@
-<li class="flex gap-4 py-4">
+<li class="py-4">
+<div class="flex gap-4">
   <div class="size-20 shrink-0 overflow-hidden rounded-md bg-surface-soft sm:size-24">
     <slot name="image"></slot>
   </div>
@@ -6,7 +7,8 @@
   <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="min-w-0">
       <h2 class="text-sm font-medium sm:text-[0.9375rem]"><a href="{{href}}" data-link class="underline-offset-2 hover:text-primary-text hover:underline">{{nom}}</a></h2>
-      <p class="mt-0.5 text-[0.8125rem] text-muted">{{libelle}} · {{prixUnitaire}} l'unité</p>
+      <slot name="options"></slot>
+      <p class="mt-0.5 text-[0.8125rem] text-muted"><slot name="prix"></slot> l'unité</p>
       <slot name="alerte"></slot>
       <button type="button" data-action="retirer" data-variant-id="{{variantId}}" class="mt-2 text-[0.8125rem] text-muted underline underline-offset-2 hover:text-danger aria-disabled:cursor-wait">Retirer<span class="sr-only"> {{nom}} du panier</span></button>
     </div>
@@ -20,4 +22,7 @@
       <p class="text-sm font-semibold">{{sousTotal}}</p>
     </div>
   </div>
+</div>
+
+  <slot name="editeur"></slot>
 </li>

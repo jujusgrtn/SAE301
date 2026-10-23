@@ -1,0 +1,6 @@
+<!-- Panneau ouvert au survol ou au focus clavier de la catégorie ; Échap le referme (voir index.js). Le liseré invisible du ::before comble l'espace entre le lien et le panneau pour que la souris ne le quitte pas en descendant. -->
+<div class="absolute inset-x-0 top-full z-30 hidden border-b border-line bg-white shadow-md group-hover:block group-focus-within:block group-data-[ferme=true]:hidden! before:absolute before:inset-x-0 before:-top-4 before:h-4 before:content-['']">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap gap-x-24 gap-y-8 px-16 py-8">
+    <slot name="colonnes"></slot>
+  </div>
+</div>

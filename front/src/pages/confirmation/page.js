@@ -1,6 +1,7 @@
 import { OrderData } from "../../data/commande.js";
-import { formatDate, formatPrice } from "../../lib/format.js";
+import { formatDate, formatPrice, splitLineName } from "../../lib/format.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
+import { TotalsView } from "../../ui/lignes-totaux/index.js";
 import template from "./template.html?raw";
 import templateLoading from "./chargement.html?raw";
 import templateError from "./erreur.html?raw";
@@ -186,14 +187,16 @@ V.createOrderFragment = function (state) {
       date: formatDate(order.date),
       statut: state.statusLabel,
       total: formatPrice(order.total),
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
+      urlCommandes: routeUrl("/compte/commandes"),
     })
   );
 
   let lines = order.lignes.map(function (line) {
     return htmlToFragment(
       genericRenderer(templateLine, {
-        nom: line.nomProduit,
+        nom: splitLineName(line.nomProduit).nom,
+        options: splitLineName(line.nomProduit).options,
         quantite: line.quantite,
         prixUnitaire: formatPrice(line.prixUnitaire),
         sousTotal: formatPrice(line.sousTotal),
@@ -201,6 +204,7 @@ V.createOrderFragment = function (state) {
     );
   });
   fragment.querySelector('slot[name="lignes"]').replaceWith(...lines);
+  fragment.querySelector('slot[name="reduction"]').replaceWith(TotalsView.dom(order));
 
   return fragment;
 };

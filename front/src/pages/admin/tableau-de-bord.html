@@ -20,9 +20,24 @@
     <p class="text-sm text-muted">Organiser les catégories et sous-catégories du catalogue.</p>
     <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les catégories →</p>
   </li>
-  <li class="flex flex-col gap-2 rounded-md border border-line p-5">
-    <h3 class="font-semibold">Commandes</h3>
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlCommandes}}" data-link class="after:absolute after:inset-0 after:content-['']">Commandes</a></h3>
     <p class="text-sm text-muted">Suivre les réservations et préparer les retraits au centre Vaima.</p>
-    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Bientôt disponible</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les réservations →</p>
+  </li>
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlStatistiques}}" data-link class="after:absolute after:inset-0 after:content-['']">Statistiques</a></h3>
+    <p class="text-sm text-muted">Stocks, revenus des 7 derniers jours, bijoux les plus réservés et alertes.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les statistiques →</p>
+  </li>
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlJournal}}" data-link class="after:absolute after:inset-0 after:content-['']">Journal</a></h3>
+    <p class="text-sm text-muted">Retrouver qui a modifié quelle réservation, et quand.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir le journal →</p>
+  </li>
+  <li class="relative flex flex-col gap-2 rounded-md border border-line p-5 transition-colors hover:border-primary">
+    <h3 class="font-semibold"><a href="{{urlCodesPromo}}" data-link class="after:absolute after:inset-0 after:content-['']">Codes promo</a></h3>
+    <p class="text-sm text-muted">Créer des codes de réduction et suivre leur utilisation.</p>
+    <p class="mt-auto pt-2 text-[0.8125rem] font-medium text-primary-text">Voir les codes →</p>
   </li>
 </ul>

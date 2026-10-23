@@ -1,22 +1,49 @@
-<header class="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-  <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-6 px-6 py-3">
-    <a href="/" data-link class="text-[0.95rem] font-semibold tracking-tight">SAE301-Starter</a>
-
-    <!-- Le routeur pose aria-current="page" sur le lien de la page affichée. -->
-    <nav class="mr-auto flex gap-5 text-sm">
-      <a href="/" data-link class="text-zinc-500 transition-colors hover:text-zinc-950 aria-[current=page]:font-medium aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:aria-[current=page]:text-zinc-50">Catalogue</a>
-      <a href="/admin" data-link class="text-zinc-500 transition-colors hover:text-zinc-950 aria-[current=page]:font-medium aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:aria-[current=page]:text-zinc-50">Administration</a>
-      <!-- Libellé « Connexion » ou « Bonjour, Marie » : posé par le layout. -->
-      <a href="/connexion" data-link data-zone="compte" class="text-zinc-500 transition-colors hover:text-zinc-950 aria-[current=page]:font-medium aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:aria-[current=page]:text-zinc-50">Connexion</a>
-      <!-- Compteur d'articles : rempli par le layout (voir layouts/root/layout.js). -->
-      <a href="/panier" data-link class="inline-flex items-center gap-1.5 text-zinc-500 transition-colors hover:text-zinc-950 aria-[current=page]:font-medium aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:aria-[current=page]:text-zinc-50">Panier<span data-zone="compteur-panier"></span></a>
-    </nav>
-
-    <button type="button" data-action="theme" aria-label="Changer de thème" class="h-8 rounded-md border border-zinc-200 px-3 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800">
-      Thème
-    </button>
+<header class="relative z-20 bg-white">
+  <!-- Bandeau : le message court sur mobile, le message complet avec les horaires sur desktop. -->
+  <div class="bg-brand-dark py-1.5 text-center text-white lg:py-2">
+    <p class="texte-legende lg:hidden">Retrait gratuit à la boutique du centre Vaima</p>
+    <p class="texte-legende hidden items-center justify-center gap-6 lg:flex">
+      <span>Réservez en ligne, retirez gratuitement à la boutique du centre Vaima</span>
+      <span>Lun. au sam., 8 h 30 à 17 h</span>
+    </p>
   </div>
 
-  <!-- Menu des catégories : rempli par le layout (voir layouts/root/layout.js). -->
-  <div data-zone="menu" class="min-h-11 border-t border-zinc-200 dark:border-zinc-800"></div>
+  <div class="border-b border-line">
+    <div class="mx-auto grid max-w-[1440px] grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-2 lg:px-16 lg:py-3">
+      <button type="button" data-action="menu" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu" class="-ml-2.5 grid size-11 justify-self-start place-items-center lg:hidden">
+        <img src="{{iconeMenu}}" alt="" width="24" height="24" class="size-6">
+      </button>
+
+      <!-- Le routeur pose aria-current="page" sur le logo quand l'accueil est affiché. -->
+      <a href="/" data-link aria-label="Matira Création, accueil" class="justify-self-center lg:justify-self-start">
+        <img src="{{logo}}" alt="" width="106" height="105" class="h-14 w-auto lg:h-[105px]">
+      </a>
+
+      <!-- Catégories : rempli par le layout (voir layouts/root/layout.js). -->
+      <div data-zone="menu" class="hidden lg:block lg:self-stretch"></div>
+
+      <div class="flex items-center justify-self-end lg:gap-2">
+        <!-- Choix de la monnaie : rempli par le layout. -->
+        <div data-zone="monnaie" class="hidden lg:block"></div>
+        <!-- Libellé « Connexion » ou « Bonjour, Marie » : posé par le layout, lu par les lecteurs d'écran. -->
+        <a href="/connexion" data-link class="hidden size-11 place-items-center lg:grid">
+          <img src="{{iconeCompte}}" alt="" width="22" height="22" class="size-[22px]">
+          <span data-zone="compte" class="sr-only">Connexion</span>
+        </a>
+        <!-- Compteur d'articles : rempli par le layout. -->
+        <a href="/panier" data-link class="inline-flex min-h-11 items-center gap-0.5 px-1">
+          <img src="{{iconePanier}}" alt="" width="24" height="24" class="size-6">
+          <span data-zone="compteur-panier"></span>
+          <span class="sr-only">Panier</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu mobile : ouvert par le bouton de l'en-tête (voir ui/header/index.js). -->
+  <div id="menu-mobile" hidden class="border-b border-line bg-white px-4 pb-2 lg:hidden">
+    <div data-zone="menu-mobile"></div>
+    <div data-zone="monnaie-mobile" class="border-t border-line py-3"></div>
+    <a href="/connexion" data-link class="block border-t border-line py-3 text-sm font-semibold text-ink transition-colors hover:text-primary-text">Mon compte</a>
+  </div>
 </header>

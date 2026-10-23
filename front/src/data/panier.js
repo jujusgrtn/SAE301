@@ -51,6 +51,41 @@ CartData.update = async function (variantId, quantity) {
 };
 
 /**
+ * Remplace la combinaison d'options d'une ligne : POST /api/panier/changer-options
+ * La quantité est conservée ; si la nouvelle combinaison est déjà dans le panier,
+ * les deux lignes fusionnent. Un stock insuffisant lève une ErreurApi 409, une
+ * combinaison d'un autre bijou une ErreurApi 400.
+ *
+ * @param {number} variantId - Variante actuelle de la ligne.
+ * @param {number} newVariantId - Variante choisie à la place.
+ * @returns {Promise<Object>}
+ */
+CartData.changeOptions = async function (variantId, newVariantId) {
+  return postRequest("panier/changer-options", { variantId: variantId, nouvelleVariantId: newVariantId });
+};
+
+/**
+ * Applique un code promotionnel : POST /api/panier/code
+ * Le panier renvoyé contient codePromo { code, pourcentage, reduction }, reduction et
+ * totalAPayer. Un code inconnu ou désactivé lève une ErreurApi 400.
+ *
+ * @param {string} code - Code saisi (le serveur ignore la casse).
+ * @returns {Promise<Object>}
+ */
+CartData.applyCode = async function (code) {
+  return postRequest("panier/code", { code: code });
+};
+
+/**
+ * Retire le code promotionnel : POST /api/panier/code/retirer
+ *
+ * @returns {Promise<Object>}
+ */
+CartData.removeCode = async function () {
+  return postRequest("panier/code/retirer");
+};
+
+/**
  * Retire une ligne : POST /api/panier/retirer
  *
  * @param {number} variantId - Identifiant de la variante.

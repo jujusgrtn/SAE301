@@ -69,6 +69,61 @@ final class StockModel
     }
 
     /**
+     * Rend au stock ce qu'une réservation en avait retiré (annulation, US PIL-b).
+     *
+     * Ce qui est rendu est lu dans le **journal** : la somme des sorties
+     * « reservation » enregistrées pour cette réservation, variante par
+     * variante. Une réservation antérieure au journal n'a jamais retiré de
+     * stock, donc elle n'en rend pas : rendre « ce que dit la réservation »
+     * ferait gonfler le stock. Une variante supprimée depuis est ignorée.
+     *
+     * Appelable une seule fois par réservation : si une entrée « annulation »
+     * existe déjà pour elle, rien n'est rendu une seconde fois.
+     *
+     * @param int $orderId Réservation annulée.
+     * @return int Nombre d'exemplaires remis en stock, tous bijoux confondus.
+     */
+    public function refundOrder(int $orderId): int
+    {
+        $already = $this->pdo->prepare('SELECT COUNT(*) FROM mouvement_stock WHERE commande_id = :id AND motif = :motif');
+        $already->bindValue(':id', $orderId, PDO::PARAM_INT);
+        $already->bindValue(':motif', self::REASON_CANCELLATION, PDO::PARAM_STR);
+        $already->execute();
+
+        if ((int) $already->fetchColumn() > 0) {
+            return 0;
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT variante_id, -SUM(quantite) AS rendu
+               FROM mouvement_stock
+              WHERE commande_id = :id AND motif = :motif AND variante_id IS NOT NULL
+           GROUP BY variante_id
+             HAVING rendu > 0'
+        );
+        $statement->bindValue(':id', $orderId, PDO::PARAM_INT);
+        $statement->bindValue(':motif', self::REASON_RESERVATION, PDO::PARAM_STR);
+        $statement->execute();
+        $rows = $statement->fetchAll();
+
+        $update = $this->pdo->prepare('UPDATE variante SET stock = stock + :quantite WHERE id = :id');
+        $total  = 0;
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $quantity = (int) $rows[$i]['rendu'];
+
+            $update->bindValue(':quantite', $quantity, PDO::PARAM_INT);
+            $update->bindValue(':id', (int) $rows[$i]['variante_id'], PDO::PARAM_INT);
+            $update->execute();
+
+            $this->log((int) $rows[$i]['variante_id'], $quantity, $orderId, self::REASON_CANCELLATION);
+            $total += $quantity;
+        }
+
+        return $total;
+    }
+
+    /**
      * Fixe le stock d'une variante à une valeur donnée (ajustement manuel du
      * back-office, US GOF-a) et journalise la différence.
      *

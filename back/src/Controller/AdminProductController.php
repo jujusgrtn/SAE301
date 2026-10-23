@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Model\AdminModel;
 use App\Model\AdminProductModel;
+use App\Model\Audience;
 use App\Model\CategoryModel;
 use App\Model\ProductImageStorage;
 use App\Model\ProductModel;
@@ -71,7 +72,7 @@ final class AdminProductController extends AdminAreaController
     /**
      * GET /api/admin/produits : tous les bijoux, dans l'ordre du catalogue.
      *
-     * Réponse : { produits: [{ id, nom, slug, prix, stock, disponibilite,
+     * Réponse : { produits: [{ id, nom, slug, prix, publicCible, stock, disponibilite,
      *             categorie, sousCategorie, image }], total }
      * Erreur : 401 sans connexion administrateur.
      */
@@ -87,8 +88,8 @@ final class AdminProductController extends AdminAreaController
     /**
      * GET /api/admin/produit?id=… : un bijou, pour le formulaire de modification.
      *
-     * Réponse : { produit: { id, nom, slug, description, prix, stock,
-     *             sousCategorie: { nom, slug }, nombreVariantes, image } }
+     * Réponse : { produit: { id, nom, slug, description, prix, publicCible, stock,
+     *             sousCategorie: { nom, slug }, nombreVariantes, variantes: [{ id, libelle, stock }], image } }
      * Erreurs : 401 sans connexion administrateur, 400 si id est invalide, 404 si le bijou n'existe pas.
      *
      * @param Request $request Requête entrante.
@@ -117,8 +118,9 @@ final class AdminProductController extends AdminAreaController
     /**
      * POST /api/admin/produits/creer : crée un bijou.
      *
-     * Champs : nom, description, prix, sousCategorie (slug), stock, et
-     * facultativement photo (fichier) et altPhoto.
+     * Champs : nom, description, prix, publicCible (femme, homme ou unisexe), sousCategorie (slug), stock, et
+     * facultativement photo (fichier) et altPhoto. Un bijou naît avec une seule
+     * variante : les options se rattachent ensuite.
      *
      * Réponse 201 : { produit: { id, slug } }
      * Erreurs : 401 sans connexion administrateur, 400 si un champ ou la photo est refusé.
@@ -130,6 +132,11 @@ final class AdminProductController extends AdminAreaController
         $this->requireAdmin();
 
         $form = $this->readForm($request);
+
+        if ($form['data']['stock'] === null) {
+            Response::erreur('Saisissez un stock entier, de 0 à ' . self::STOCK_MAX . '.', 400);
+            return;
+        }
 
         $image = $this->storeUploadedPhoto($request, $form['slug'], $form['altPhoto'] ?? $form['data']['nom']);
 
@@ -148,10 +155,12 @@ final class AdminProductController extends AdminAreaController
      *
      * Champs : id, puis les mêmes que pour la création. Sans nouvelle photo,
      * la photo actuelle est conservée (seul son texte alternatif peut changer).
+     * Un bijou à options (OPT-b) n'a pas de champ `stock` : il envoie `stocks[<id de la
+     * variante>]` pour chacune de ses combinaisons, et chaque changement est journalisé.
      *
      * Réponse : { produit: { … } } (le bijou à jour, comme GET /api/admin/produit)
      * Erreurs : 401 sans connexion administrateur, 400 si un champ ou la photo est refusé,
-     * 404 si le bijou n'existe pas, 409 s'il a plusieurs options.
+     * 404 si le bijou n'existe pas, 409 si le stock envoyé ne correspond pas à ses variantes.
      *
      * @param Request $request Requête entrante.
      */
@@ -237,7 +246,8 @@ final class AdminProductController extends AdminAreaController
      * Répond 400 et termine le script au premier champ refusé.
      *
      * @param Request $request Requête entrante.
-     * @return array{data: array{nom: string, description: string, prix: int, categorieId: int, stock: int},
+     * @return array{data: array{nom: string, description: string, prix: int, publicCible: string, categorieId: int, stock: int|null,
+     *                           variantStocks: array<int, int>|null},
      *               slug: string, altPhoto: string|null}
      */
     private function readForm(Request $request): array
@@ -251,7 +261,9 @@ final class AdminProductController extends AdminAreaController
         $description = is_string($body['description'] ?? null) ? trim($body['description']) : '';
         $price       = self::readInt($body['prix'] ?? null);
         $stock       = self::readInt($body['stock'] ?? null);
+        $variantStocks = self::readVariantStocks($body['stocks'] ?? null);
         $categorySlug = is_string($body['sousCategorie'] ?? null) ? $body['sousCategorie'] : '';
+        $audience    = $body['publicCible'] ?? null;
         $alt         = self::cleanLine($body['altPhoto'] ?? null);
 
         $error = null;
@@ -264,8 +276,10 @@ final class AdminProductController extends AdminAreaController
             $error = 'La description est trop longue (' . self::DESCRIPTION_MAX_LENGTH . ' caractères au plus).';
         } elseif ($price === null || $price < 1 || $price > self::PRICE_MAX) {
             $error = 'Saisissez un prix entier en XPF, de 1 à ' . self::PRICE_MAX . '.';
-        } elseif ($stock === null || $stock > self::STOCK_MAX) {
-            $error = 'Saisissez un stock entier, de 0 à ' . self::STOCK_MAX . '.';
+        } elseif (!Audience::isValid($audience)) {
+            $error = 'Choisissez pour qui est ce bijou : femme, homme ou unisexe.';
+        } elseif ($variantStocks === false || ($variantStocks === null && ($stock === null || $stock > self::STOCK_MAX))) {
+            $error = 'Saisissez un stock entier, de 0 à ' . self::STOCK_MAX . ', pour le bijou ou pour chaque combinaison.';
         } elseif (mb_strlen($alt) > self::ALT_MAX_LENGTH) {
             $error = 'Le texte alternatif de la photo est trop long (' . self::ALT_MAX_LENGTH . ' caractères au plus).';
         }
@@ -292,12 +306,42 @@ final class AdminProductController extends AdminAreaController
                 'nom'         => $name,
                 'description' => $description,
                 'prix'        => (int) $price,
+                'publicCible' => (string) $audience,
                 'categorieId' => $category['id'],
-                'stock'       => (int) $stock,
+                'stock'       => $stock === null || $stock > self::STOCK_MAX ? null : $stock,
+                'variantStocks' => $variantStocks === false ? null : $variantStocks,
             ],
             'slug'     => Slug::fromText($name),
             'altPhoto' => $alt === '' ? null : $alt,
         ];
+    }
+
+    /**
+     * Lit les stocks par combinaison d'un bijou à options : `stocks[<id>]` = entier.
+     *
+     * @param mixed $value Valeur du champ `stocks`.
+     * @return array<int, int>|false|null Les stocks ({ variante => stock }), null si le champ est absent,
+     *         false si une valeur est refusée.
+     */
+    private static function readVariantStocks(mixed $value): array|false|null
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $stocks = [];
+        $keys   = array_keys($value);
+
+        for ($i = 0; $i < count($keys); $i++) {
+            $stock = self::readInt($value[$keys[$i]]);
+
+            if (preg_match('/^[1-9]\d{0,5}$/', (string) $keys[$i]) !== 1 || $stock === null || $stock > self::STOCK_MAX) {
+                return false;
+            }
+            $stocks[(int) $keys[$i]] = $stock;
+        }
+
+        return count($stocks) === 0 ? false : $stocks;
     }
 
     /**

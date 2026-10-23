@@ -9,8 +9,8 @@ use App\Core\Response;
 use App\Model\UserModel;
 
 /**
- * Compte client : état de connexion, connexion, inscription et déconnexion
- * (US CMD-c).
+ * Compte client : état de connexion, connexion, inscription, déconnexion
+ * (US CMD-c), modification du profil et du mot de passe (US SUI-b).
  *
  * Seul l'identifiant du client est rangé en session ($_SESSION['clientId']) :
  * son identité est relue en base à chaque demande, et le client ne détient
@@ -149,6 +149,88 @@ final class AccountController
     }
 
     /**
+     * POST /api/compte/modifier : { prenom, nom, email } met à jour le profil.
+     *
+     * Réponse : l'état de connexion à jour (le nouveau prénom s'affiche dans l'en-tête).
+     * Erreurs : 401 si le client n'est pas connecté, 400 si un champ est invalide,
+     * 409 si l'e-mail appartient à un autre compte.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function update(Request $request): void
+    {
+        $clientId = $this->requireClientId();
+
+        $body      = $request->corps();
+        $firstName = self::normalizeName($body['prenom'] ?? null);
+        $lastName  = self::normalizeName($body['nom'] ?? null);
+        $email     = self::normalizeEmail($body['email'] ?? null);
+
+        $error = self::validateIdentity($firstName, $lastName, $email);
+
+        if ($error !== null) {
+            Response::erreur($error, 400);
+            return;
+        }
+
+        if (!$this->users->updateProfile($clientId, $firstName, $lastName, $email)) {
+            Response::erreur('Cette adresse e-mail est déjà utilisée par un autre compte.', 409);
+            return;
+        }
+
+        $this->respond($this->users->findById($clientId));
+    }
+
+    /**
+     * POST /api/compte/mot-de-passe : { motDePasseActuel, nouveauMotDePasse }.
+     *
+     * Le mot de passe actuel est exigé : une session laissée ouverte sur un
+     * poste partagé ne suffit pas pour changer l'accès au compte. L'identifiant
+     * de session est renouvelé après le changement.
+     *
+     * Erreurs : 401 si le client n'est pas connecté, 400 si un champ manque, si le
+     * mot de passe actuel est faux, si le nouveau est invalide ou identique à l'ancien.
+     *
+     * @param Request $request Requête entrante.
+     */
+    public function changePassword(Request $request): void
+    {
+        $clientId = $this->requireClientId();
+
+        $body    = $request->corps();
+        $current = $body['motDePasseActuel'] ?? null;
+        $new     = $body['nouveauMotDePasse'] ?? null;
+
+        if (!is_string($current) || $current === '') {
+            Response::erreur('Saisissez votre mot de passe actuel.', 400);
+            return;
+        }
+
+        $hash = $this->users->findPasswordHash($clientId);
+
+        if ($hash === null || !password_verify($current, $hash)) {
+            Response::erreur('Le mot de passe actuel est incorrect.', 400);
+            return;
+        }
+
+        $error = self::validatePassword($new);
+
+        if ($error !== null) {
+            Response::erreur($error, 400);
+            return;
+        }
+        if ($new === $current) {
+            Response::erreur('Le nouveau mot de passe doit être différent de l\'actuel.', 400);
+            return;
+        }
+
+        $this->users->updatePassword($clientId, password_hash($new, PASSWORD_BCRYPT));
+        session_regenerate_id(true);
+
+        $this->respond($this->users->findById($clientId));
+    }
+
+    /**
      * POST /api/compte/deconnexion : ferme la session.
      *
      * Toute la session est détruite, panier compris : sur un poste partagé, le
@@ -166,6 +248,22 @@ final class AccountController
         session_destroy();
 
         $this->respond(null);
+    }
+
+    /**
+     * Identifiant du client connecté ; sinon, répond 401 et termine.
+     *
+     * @return int
+     */
+    private function requireClientId(): int
+    {
+        $clientId = $_SESSION[self::SESSION_KEY] ?? null;
+
+        if (!is_int($clientId) || $this->users->findById($clientId) === null) {
+            Response::erreur('Connectez-vous pour accéder à votre compte.', 401);
+        }
+
+        return $clientId;
     }
 
     /**
@@ -207,6 +305,19 @@ final class AccountController
      */
     private static function validateRegistration(string $firstName, string $lastName, string $email, mixed $password): ?string
     {
+        return self::validateIdentity($firstName, $lastName, $email) ?? self::validatePassword($password);
+    }
+
+    /**
+     * Vérifie le prénom, le nom et l'e-mail (inscription et modification du profil).
+     *
+     * @param string $firstName Prénom normalisé.
+     * @param string $lastName  Nom normalisé.
+     * @param string $email     E-mail normalisé.
+     * @return string|null Message d'erreur pour l'utilisateur, ou null si tout est valide.
+     */
+    private static function validateIdentity(string $firstName, string $lastName, string $email): ?string
+    {
         if ($firstName === '' || mb_strlen($firstName) > self::NAME_MAX_LENGTH) {
             return 'Saisissez votre prénom (' . self::NAME_MAX_LENGTH . ' caractères au plus).';
         }
@@ -216,6 +327,18 @@ final class AccountController
         if (strlen($email) > self::EMAIL_MAX_LENGTH || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             return 'Saisissez une adresse e-mail valide.';
         }
+
+        return null;
+    }
+
+    /**
+     * Vérifie un nouveau mot de passe (inscription et changement).
+     *
+     * @param mixed $password Mot de passe reçu.
+     * @return string|null Message d'erreur pour l'utilisateur, ou null s'il est valide.
+     */
+    private static function validatePassword(mixed $password): ?string
+    {
         if (!is_string($password) || mb_strlen($password) < self::PASSWORD_MIN_LENGTH) {
             return 'Le mot de passe doit contenir au moins ' . self::PASSWORD_MIN_LENGTH . ' caractères.';
         }

@@ -11,6 +11,10 @@ use App\Controller\OrderController;
 use App\Controller\AdminController;
 use App\Controller\AdminProductController;
 use App\Controller\AdminCategoryController;
+use App\Controller\AdminOrderController;
+use App\Controller\AdminStatsController;
+use App\Controller\AdminJournalController;
+use App\Controller\AdminPromoController;
 
 /**
  * Table des routes de l'API.
@@ -31,11 +35,18 @@ return [
     'POST /api/panier/ajouter'  => [CartController::class, 'add'],
     'POST /api/panier/modifier' => [CartController::class, 'update'],
     'POST /api/panier/retirer'  => [CartController::class, 'remove'],
+    'POST /api/panier/code'     => [CartController::class, 'applyCode'],
+    'POST /api/panier/code/retirer' => [CartController::class, 'removeCode'],
+    'POST /api/panier/changer-options' => [CartController::class, 'changeOptions'],
     'GET  /api/compte'              => [AccountController::class, 'show'],
     'POST /api/compte/connexion'    => [AccountController::class, 'login'],
     'POST /api/compte/inscription'  => [AccountController::class, 'register'],
     'POST /api/compte/deconnexion'  => [AccountController::class, 'logout'],
+    'POST /api/compte/modifier'     => [AccountController::class, 'update'],
+    'POST /api/compte/mot-de-passe' => [AccountController::class, 'changePassword'],
+    'GET  /api/commandes'           => [OrderController::class, 'index'],
     'POST /api/commandes'           => [OrderController::class, 'create'],
+    'POST /api/commandes/reutiliser' => [OrderController::class, 'reorder'],
     'GET  /api/commande'            => [OrderController::class, 'show'],
     'GET  /api/admin/compte'        => [AdminController::class, 'show'],
     'POST /api/admin/connexion'     => [AdminController::class, 'login'],
@@ -50,4 +61,15 @@ return [
     'POST /api/admin/categories/modifier'  => [AdminCategoryController::class, 'update'],
     'POST /api/admin/categories/deplacer'  => [AdminCategoryController::class, 'move'],
     'POST /api/admin/categories/supprimer' => [AdminCategoryController::class, 'remove'],
+    'GET  /api/admin/commandes'            => [AdminOrderController::class, 'index'],
+    'GET  /api/admin/commande'             => [AdminOrderController::class, 'show'],
+    'POST /api/admin/commandes/statut'     => [AdminOrderController::class, 'changeStatus'],
+    'POST /api/admin/commandes/lot'        => [AdminOrderController::class, 'changeStatusBatch'],
+    'GET  /api/admin/journal'              => [AdminJournalController::class, 'index'],
+    'GET  /api/admin/codes-promo'          => [AdminPromoController::class, 'index'],
+    'POST /api/admin/codes-promo/creer'    => [AdminPromoController::class, 'create'],
+    'POST /api/admin/codes-promo/modifier' => [AdminPromoController::class, 'update'],
+    'POST /api/admin/codes-promo/supprimer' => [AdminPromoController::class, 'remove'],
+    'GET  /api/admin/statistiques'         => [AdminStatsController::class, 'index'],
+    'GET  /api/admin/statistiques/export'  => [AdminStatsController::class, 'export'],
 ];

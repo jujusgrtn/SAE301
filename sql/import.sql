@@ -1,15 +1,18 @@
 -- ---------------------------------------------------------------------------
 -- Matira Création — click & collect : tables et jeu de données
 --
--- Périmètre : les deux premiers epics.
+-- Fichier unique : il crée TOUTES les tables du projet et leur jeu de données.
 --   - « Découvrir l'offre » (DEC-a, DEC-b, DEC-c) : categorie, produit,
 --     image_produit ;
 --   - « Commander en click & collect » (CMD-a, CMD-b, CMD-c) : variante,
 --     utilisateur, commande, ligne_commande ;
 --   - « Gérer les stocks » (STK-a) : mouvement_stock ;
---   - « Gérer l'offre » (GOF-b) : administrateur.
--- Les options (taille, coloris…) relèvent de l'epic « Personnaliser » et ne
--- sont pas créées ici.
+--   - « Personnaliser » (OPT-c) : option_produit, valeur_option, variante_valeur,
+--     avec des options d'exemple et la couleur de la perle (blanche ou noire)
+--     de chaque bijou ;
+--   - « Gérer l'offre » (GOF-b) : administrateur ;
+--   - « Piloter » (PIL-b) : journal_admin ;
+--   - « Promouvoir » (PRO-a, PRO-b) : code_promo et colonnes de promotion de commande.
 --
 -- Ce script ne crée PAS de base : sélectionnez d'abord votre base dans
 -- phpMyAdmin, puis importez ce fichier depuis l'onglet « Importer ».
@@ -22,11 +25,16 @@
 SET NAMES utf8mb4;
 
 -- Suppression dans l'ordre inverse des dépendances (clés étrangères).
+DROP TABLE IF EXISTS journal_admin;
 DROP TABLE IF EXISTS administrateur;
 DROP TABLE IF EXISTS mouvement_stock;
 DROP TABLE IF EXISTS ligne_commande;
 DROP TABLE IF EXISTS commande;
+DROP TABLE IF EXISTS code_promo;
 DROP TABLE IF EXISTS utilisateur;
+DROP TABLE IF EXISTS variante_valeur;
+DROP TABLE IF EXISTS valeur_option;
+DROP TABLE IF EXISTS option_produit;
 DROP TABLE IF EXISTS variante;
 DROP TABLE IF EXISTS image_produit;
 DROP TABLE IF EXISTS produit;
@@ -77,6 +85,7 @@ CREATE TABLE produit (
     slug         VARCHAR(120)      NOT NULL,
     description  TEXT              NOT NULL,
     prix         INT UNSIGNED      NOT NULL,
+    public_cible ENUM('femme', 'homme', 'unisexe') NOT NULL DEFAULT 'femme',
     date_ajout   DATE              NOT NULL,
 
     PRIMARY KEY (id),
@@ -144,6 +153,82 @@ CREATE TABLE variante (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Options des bijoux (OPT-c)
+--
+-- Les options sont définies PAR PRODUIT : une bague a une « Taille », un
+-- bracelet des « Coloris ». Chaque valeur peut ajouter un supplément au prix
+-- du bijou (en XPF, 0 le plus souvent).
+--
+--   option_produit   une option d'un bijou (« Taille »)
+--   valeur_option    ses valeurs (« 52 », « 54 »…) et leur supplément
+--   variante_valeur  la valeur choisie, par option, pour chaque variante
+--
+-- Une variante est une combinaison complète (« Taille 54 · Perle de Tahiti ») :
+-- elle porte le stock, le panier et les commandes la désignent. Son prix est
+-- celui du bijou plus les suppléments de ses valeurs. Le couple
+-- (variante_id, option_id) est la clé : une variante a exactement une valeur
+-- par option, et la clé étrangère composite garantit que cette valeur
+-- appartient bien à cette option.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS option_produit (
+    id         SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    produit_id SMALLINT UNSIGNED NOT NULL,
+    nom        VARCHAR(40)       NOT NULL,
+    ordre      TINYINT UNSIGNED  NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_option_produit_nom (produit_id, nom),
+    UNIQUE KEY uq_option_produit_ordre (produit_id, ordre),
+
+    CONSTRAINT fk_option_produit
+        FOREIGN KEY (produit_id) REFERENCES produit (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS valeur_option (
+    id         SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    option_id  SMALLINT UNSIGNED NOT NULL,
+    valeur     VARCHAR(60)       NOT NULL,
+    supplement INT UNSIGNED      NOT NULL DEFAULT 0,
+    ordre      TINYINT UNSIGNED  NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_valeur_option_valeur (option_id, valeur),
+    UNIQUE KEY uq_valeur_option_cle (id, option_id),
+
+    CONSTRAINT fk_valeur_option
+        FOREIGN KEY (option_id) REFERENCES option_produit (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS variante_valeur (
+    variante_id SMALLINT UNSIGNED NOT NULL,
+    option_id   SMALLINT UNSIGNED NOT NULL,
+    valeur_id   SMALLINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (variante_id, option_id),
+    KEY idx_variante_valeur_valeur (valeur_id),
+
+    CONSTRAINT fk_variante_valeur_variante
+        FOREIGN KEY (variante_id) REFERENCES variante (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_variante_valeur_valeur
+        FOREIGN KEY (valeur_id, option_id) REFERENCES valeur_option (id, option_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Clients (CMD-c)
 --
 -- mot_de_passe : empreinte bcrypt produite par password_hash(), jamais le mot
@@ -184,6 +269,68 @@ CREATE TABLE administrateur (
   COLLATE = utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Journal des modifications des administrateurs (PIL-b)
+--
+-- Une ligne par modification faite depuis le back-office : ici, chaque changement
+-- de statut d'une réservation (seul ou dans une action en lot). Elle est écrite
+-- dans la même transaction que la modification : l'une n'existe pas sans l'autre.
+--
+--   identifiant   nom de l'administrateur au moment de l'action, recopié : le
+--                 journal reste lisible si le compte est supprimé ensuite
+--   cible         numéro de la réservation (MC-2026-00042)
+--   statut_avant  statut avant la modification, statut_apres après : on retrouve
+--                 ainsi la date réelle d'un retrait
+--   detail        phrase lisible, par exemple « stock rendu : 2 exemplaires »
+--   lot           repère commun aux réservations traitées par une même action en lot
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS journal_admin (
+    id               INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    administrateur_id INT UNSIGNED NULL,
+    identifiant      VARCHAR(60)   NOT NULL,
+    action           VARCHAR(40)   NOT NULL,
+    cible            VARCHAR(60)   NOT NULL,
+    statut_avant     VARCHAR(20)   NULL,
+    statut_apres     VARCHAR(20)   NULL,
+    detail           VARCHAR(255)  NOT NULL DEFAULT '',
+    lot              CHAR(16)      NULL,
+    date_action      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_journal_date (date_action),
+    KEY idx_journal_cible (cible),
+
+    CONSTRAINT fk_journal_administrateur
+        FOREIGN KEY (administrateur_id) REFERENCES administrateur (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Codes promotionnels (PRO-a, PRO-b)
+--
+-- code : saisi par le client, comparé sans tenir compte des majuscules (stocké en
+--        majuscules). pourcentage : réduction sur le total de la réservation, de 1 à 100.
+-- actif : un code désactivé reste dans la base (et dans les statistiques) mais
+--        n'est plus accepté.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS code_promo (
+    id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code          VARCHAR(30)       NOT NULL,
+    pourcentage   TINYINT UNSIGNED  NOT NULL,
+    actif         TINYINT(1)        NOT NULL DEFAULT 1,
+    date_creation DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_code_promo_code (code),
+
+    CONSTRAINT ck_code_promo_pourcentage CHECK (pourcentage BETWEEN 1 AND 100)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Commandes (CMD-a)
 --
 -- numero : identifiant unique montré au client, par exemple MC-2026-00042.
@@ -198,15 +345,28 @@ CREATE TABLE commande (
     statut         ENUM('en cours', 'disponible', 'retirée', 'annulée')
                                  NOT NULL DEFAULT 'en cours',
     total          INT UNSIGNED  NOT NULL,
+    -- Code promo utilisé (PRO-a) : le code et le pourcentage sont recopiés, la réduction
+    -- accordée est en XPF. total est le montant après réduction ; la somme des lignes
+    -- vaut total + reduction. code_promo_id passe à NULL si le code est supprimé.
+    code_promo_id  SMALLINT UNSIGNED NULL,
+    code_promo     VARCHAR(30)   NULL,
+    pourcentage_promo TINYINT UNSIGNED NULL,
+    reduction      INT UNSIGNED  NOT NULL DEFAULT 0,
     date_commande  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_commande_numero (numero),
     KEY idx_commande_utilisateur (utilisateur_id),
+    KEY idx_commande_code_promo (code_promo_id),
 
     CONSTRAINT fk_commande_utilisateur
         FOREIGN KEY (utilisateur_id) REFERENCES utilisateur (id)
         ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_commande_code_promo
+        FOREIGN KEY (code_promo_id) REFERENCES code_promo (id)
+        ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -301,9 +461,7 @@ INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
     (3, NULL, 'Bracelets', 'bracelets',
         'Bracelets fins à porter seuls ou à accumuler.', 3),
     (4, NULL, 'Boucles d''oreilles', 'boucles-oreilles',
-        'Boucles d''oreilles pendantes et anneaux ornés de perles de Tahiti.', 4),
-    (5, NULL, 'Homme', 'homme',
-        'Cuir, argent et pierres naturelles : des bijoux masculins autour de la perle de Tahiti.', 5);
+        'Boucles d''oreilles pendantes et anneaux ornés de perles de Tahiti.', 4);
 
 -- Sous-menus.
 INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
@@ -322,63 +480,60 @@ INSERT INTO categorie (id, parent_id, nom, slug, description, ordre) VALUES
     (12, 4, 'Plaqué or 18 cts', 'boucles-oreilles-plaque-or',
         'Boucles d''oreilles en plaqué or 18 carats.', 1),
     (13, 4, 'Acier inoxydable', 'boucles-oreilles-acier',
-        'Boucles d''oreilles en acier inoxydable, inspirées du lagon et du tiare.', 2),
-    (14, 5, 'Bracelets', 'homme-bracelets',
-        'Bracelets homme en cuir et pierres naturelles.', 1),
-    (15, 5, 'Pendentifs', 'homme-pendentifs',
-        'Pendentifs homme en argent, symboles polynésiens et perle de Tahiti.', 2);
+        'Boucles d''oreilles en acier inoxydable, inspirées du lagon et du tiare.', 2);
 
--- 4 bijoux par catégorie principale, rattachés à leur sous-catégorie.
-INSERT INTO produit (id, categorie_id, nom, slug, description, prix, date_ajout) VALUES
+-- Bijoux rattachés à leur sous-catégorie (la matière). public_cible dit à qui
+-- ils s'adressent : femme, homme ou unisexe (filtre « Pour qui » du catalogue).
+INSERT INTO produit (id, categorie_id, nom, slug, description, prix, public_cible, date_ajout) VALUES
     -- Colliers
     (1,  6,  'Collier chaîne boulette et perle', 'collier-chaine-boulette-perle',
-        'Fine chaîne boulette en plaqué or 18 carats, ponctuée d''une perle de Tahiti en pendentif.', 14900, '2026-09-28'),
+        'Fine chaîne boulette en plaqué or 18 carats, ponctuée d''une perle de Tahiti en pendentif.', 14900, 'femme', '2026-09-28'),
     (2,  6,  'Collier double Palms et perle', 'collier-double-palms-perle',
-        'Double rang en plaqué or 18 carats, médaille feuille de palmier et perle de Tahiti.', 14500, '2026-08-30'),
+        'Double rang en plaqué or 18 carats, médaille feuille de palmier et perle de Tahiti.', 14500, 'femme', '2026-08-30'),
     (3,  7,  'Sautoir Tiare minimaliste', 'sautoir-tiare-minimaliste',
-        'Long sautoir en acier inoxydable rythmé de fleurs de tiare et de perles.', 12500, '2026-09-24'),
+        'Long sautoir en acier inoxydable rythmé de fleurs de tiare et de perles.', 12500, 'unisexe', '2026-09-24'),
     (4,  7,  'Sautoir Oursin gris', 'sautoir-oursin-gris',
-        'Sautoir en acier inoxydable aux perles grises, inspiré des oursins du lagon.', 14000, '2026-09-10'),
+        'Sautoir en acier inoxydable aux perles grises, inspiré des oursins du lagon.', 14000, 'femme', '2026-09-10'),
 
     -- Bagues
     (5,  8,  'Bague Toi et Moi 2 perles', 'bague-toi-et-moi-2-perles',
-        'Bague ouverte en plaqué or 18 carats, deux perles de Tahiti face à face.', 16000, '2026-10-02'),
+        'Bague ouverte en plaqué or 18 carats, deux perles de Tahiti face à face.', 16000, 'femme', '2026-10-02'),
     (6,  8,  'Bague Ginkgo et keishi', 'bague-ginkgo-keishi',
-        'Bague ouverte en plaqué or 18 carats, feuille de ginkgo et keishi.', 5900, '2026-09-20'),
+        'Bague ouverte en plaqué or 18 carats, feuille de ginkgo et keishi.', 5900, 'femme', '2026-09-20'),
     (7,  8,  'Bague martelée Toi et Moi keishis', 'bague-martelee-toi-et-moi-keishis',
-        'Anneau martelé en plaqué or 18 carats, terminé par deux keishis.', 7900, '2026-09-14'),
+        'Anneau martelé en plaqué or 18 carats, terminé par deux keishis.', 7900, 'femme', '2026-09-14'),
     (8,  9,  'Bague Rangiroa acier doré et perle', 'bague-rangiroa-acier-dore-perle',
-        'Bague ouverte en acier doré, deux anneaux entrelacés autour d''une perle de Tahiti.', 14900, '2026-08-20'),
+        'Bague ouverte en acier doré, deux anneaux entrelacés autour d''une perle de Tahiti.', 14900, 'femme', '2026-08-20'),
 
     -- Bracelets
     (9,  10, 'Bracelet pastilles et keishi blanc', 'bracelet-pastilles-keishi-blanc',
-        'Bracelet en plaqué or 18 carats bordé de pastilles rondes, avec un keishi blanc en breloque.', 5900, '2026-09-26'),
+        'Bracelet en plaqué or 18 carats bordé de pastilles rondes, avec un keishi blanc en breloque.', 5900, 'femme', '2026-09-26'),
     (10, 10, 'Bracelet chaîne serpent et perle de Tahiti', 'bracelet-chaine-serpent-perle-tahiti',
-        'Chaîne serpent en plaqué or 18 carats, centrée sur une perle de Tahiti.', 9900, '2026-09-12'),
+        'Chaîne serpent en plaqué or 18 carats, centrée sur une perle de Tahiti.', 9900, 'femme', '2026-09-12'),
     (11, 11, 'Bracelet Ape minimaliste', 'bracelet-ape-minimaliste-acier',
-        'Chaîne fine en acier inoxydable, feuille de ape ciselée et perle de Tahiti.', 4500, '2026-09-08'),
+        'Chaîne fine en acier inoxydable, feuille de ape ciselée et perle de Tahiti.', 4500, 'unisexe', '2026-09-08'),
     (12, 11, 'Bracelet chaîne et keishis', 'bracelet-keishis-chaine-acier',
-        'Chaîne en acier inoxydable ponctuée de keishis aux reflets argentés.', 6900, '2026-08-28'),
+        'Chaîne en acier inoxydable ponctuée de keishis aux reflets argentés.', 6900, 'unisexe', '2026-08-28'),
 
     -- Boucles d'oreilles
     (13, 12, 'Boucles d''oreilles chaîne serpent et perle', 'boucles-oreilles-chaine-serpent-perle',
-        'Pendantes en chaîne serpent plaquée or 18 carats, terminées par une perle de Tahiti.', 9500, '2026-09-12'),
+        'Pendantes en chaîne serpent plaquée or 18 carats, terminées par une perle de Tahiti.', 9500, 'femme', '2026-09-12'),
     (14, 13, 'Boucles d''oreilles Tiare et perle de Tahiti', 'boucles-oreilles-tiare-perle-tahiti',
-        'Fleur de tiare en acier inoxydable et perle de Tahiti, sur crochet.', 7000, '2026-09-24'),
+        'Fleur de tiare en acier inoxydable et perle de Tahiti, sur crochet.', 7000, 'femme', '2026-09-24'),
     (15, 13, 'Boucles d''oreilles serpent acier et perle', 'boucles-oreilles-serpent-acier-perle',
-        'Chaîne serpent en acier inoxydable terminée par une perle de Tahiti.', 7000, '2026-09-05'),
+        'Chaîne serpent en acier inoxydable terminée par une perle de Tahiti.', 7000, 'unisexe', '2026-09-05'),
     (16, 13, 'Boucles d''oreilles Rangiroa acier et perle', 'boucles-oreilles-rangiroa-acier-perle',
-        'Anneau en acier inoxydable habité d''une perle de Tahiti, comme un atoll.', 19900, '2026-08-20'),
+        'Anneau en acier inoxydable habité d''une perle de Tahiti, comme un atoll.', 19900, 'femme', '2026-08-20'),
 
-    -- Homme
-    (17, 14, 'Bracelet cuir tressé et perle de Tahiti', 'bracelet-cuir-tresse-perle-tahiti',
-        'Cuir fin tressé, fermoir aimanté en acier et perle de Tahiti.', 9000, '2026-09-18'),
-    (18, 14, 'Bracelet 3 tours noir et vert', 'bracelet-homme-3-tours-noir-vert',
-        'Trois tours de pierres naturelles noires et vertes autour d''une perle de Tahiti.', 10500, '2026-09-02'),
-    (19, 15, 'Pendentif hameçon argent et perle', 'pendentif-hamecon-argent-perle',
-        'Hameçon polynésien en argent, porte-bonheur des pêcheurs, avec sa perle de Tahiti.', 11900, '2026-08-25'),
-    (20, 15, 'Pendentif rame spirale argent et perle', 'pendentif-rame-spirale-argent-perle',
-        'Rame de pirogue en argent gravée d''une spirale, perle de Tahiti sertie.', 13900, '2026-08-25');
+    -- Bijoux pour homme, rangés par matière (acier) dans Bracelets et Colliers
+    (17, 11, 'Bracelet cuir tressé et perle de Tahiti', 'bracelet-cuir-tresse-perle-tahiti',
+        'Cuir fin tressé, fermoir aimanté en acier et perle de Tahiti.', 9000, 'homme', '2026-09-18'),
+    (18, 11, 'Bracelet 3 tours noir et vert', 'bracelet-homme-3-tours-noir-vert',
+        'Trois tours de pierres naturelles noires et vertes autour d''une perle de Tahiti.', 10500, 'homme', '2026-09-02'),
+    (19, 7,  'Pendentif hameçon argent et perle', 'pendentif-hamecon-argent-perle',
+        'Hameçon polynésien en argent, porte-bonheur des pêcheurs, avec sa perle de Tahiti.', 11900, 'homme', '2026-08-25'),
+    (20, 7,  'Pendentif rame spirale argent et perle', 'pendentif-rame-spirale-argent-perle',
+        'Rame de pirogue en argent gravée d''une spirale, perle de Tahiti sertie.', 13900, 'homme', '2026-08-25');
 
 -- Image principale de chaque bijou (ordre 0).
 INSERT INTO image_produit (produit_id, fichier, alt, ordre) VALUES
@@ -403,6 +558,25 @@ INSERT INTO image_produit (produit_id, fichier, alt, ordre) VALUES
     (19, 'pendentif-hamecon-argent-perle',        'Pendentifs hameçon en argent et perle de Tahiti', 0),
     (20, 'pendentif-rame-spirale-argent-perle',   'Pendentif rame spirale en argent et perle', 0);
 
+-- Deux vues supplémentaires par bijou (ordre 1 et 2), tirées de sa photo
+-- principale : un recadrage serré sur le bijou (« -rapproche ») et un zoom sur
+-- la perle ou la pièce centrale (« -detail »). Chaque fichier existe en deux
+-- tailles, comme les photos principales. À remplacer par de vraies photos de
+-- la boutique quand elles existent. Rejouable : ne crée que les vues absentes.
+INSERT INTO image_produit (produit_id, fichier, alt, ordre)
+SELECT produit.id, CONCAT(principale.fichier, '-rapproche'), CONCAT(produit.nom, ' : vue rapprochée'), 1
+  FROM produit
+  JOIN image_produit AS principale ON principale.produit_id = produit.id AND principale.ordre = 0
+ WHERE principale.fichier NOT LIKE 'uploads/%'
+   AND NOT EXISTS (SELECT 1 FROM image_produit AS deja WHERE deja.produit_id = produit.id AND deja.ordre = 1);
+
+INSERT INTO image_produit (produit_id, fichier, alt, ordre)
+SELECT produit.id, CONCAT(principale.fichier, '-detail'), CONCAT(produit.nom, ' : détail'), 2
+  FROM produit
+  JOIN image_produit AS principale ON principale.produit_id = produit.id AND principale.ordre = 0
+ WHERE principale.fichier NOT LIKE 'uploads/%'
+   AND NOT EXISTS (SELECT 1 FROM image_produit AS deja WHERE deja.produit_id = produit.id AND deja.ordre = 2);
+
 -- Une variante « Modèle unique » par bijou. Stocks variés (dont un épuisé et
 -- quelques stocks faibles) pour pouvoir tester le panier et les commandes.
 INSERT INTO variante (produit_id, libelle, stock) VALUES
@@ -416,6 +590,197 @@ INSERT INTO variante (produit_id, libelle, stock) VALUES
     (15, 'Modèle unique', 8),  (16, 'Modèle unique', 4),
     (17, 'Modèle unique', 7),  (18, 'Modèle unique', 5),
     (19, 'Modèle unique', 2),  (20, 'Modèle unique', 6);
+
+-- ---------------------------------------------------------------------------
+-- Options d'exemple (OPT-c) : trois bijoux avec des choix
+--
+--   Bague Ginkgo et keishi      Taille 52 / 54 / 56
+--   Bague Rangiroa acier doré   Taille 52 / 54 / 56  ×  Perle (keishi blanc,
+--                               ou perle de Tahiti à +3 000 XPF) ; la taille 56
+--                               en perle de Tahiti est épuisée, pour l'exemple
+--   Bracelet cuir tressé        Coloris noir / marron / vert
+--
+-- La variante « Modèle unique » existante devient la première combinaison
+-- (son identifiant, donc les paniers et les commandes qui la citent, ne change
+-- pas) ; les autres combinaisons sont ajoutées. Le stock du bijou est réparti
+-- entre ses combinaisons.
+-- À exécuter UNE SEULE FOIS : la deuxième exécution s'arrête sur la première
+-- option, déjà présente, sans rien modifier.
+-- ---------------------------------------------------------------------------
+
+-- Bague Ginkgo et keishi : Taille
+SET @p = (SELECT id FROM produit WHERE slug = 'bague-ginkgo-keishi');
+INSERT INTO option_produit (produit_id, nom, ordre) VALUES (@p, 'Taille', 1);
+SET @taille = LAST_INSERT_ID();
+INSERT INTO valeur_option (option_id, valeur, supplement, ordre) VALUES
+    (@taille, '52', 0, 1), (@taille, '54', 0, 2), (@taille, '56', 0, 3);
+UPDATE variante SET libelle = 'Taille 52', stock = 4 WHERE produit_id = @p AND libelle = 'Modèle unique';
+INSERT INTO variante (produit_id, libelle, stock) VALUES (@p, 'Taille 54', 4), (@p, 'Taille 56', 2);
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+    SELECT variante.id, valeur_option.option_id, valeur_option.id
+      FROM variante
+      JOIN valeur_option ON valeur_option.option_id = @taille
+                        AND variante.libelle = CONCAT('Taille ', valeur_option.valeur)
+     WHERE variante.produit_id = @p;
+
+-- Bracelet cuir tressé et perle de Tahiti : Coloris
+SET @p = (SELECT id FROM produit WHERE slug = 'bracelet-cuir-tresse-perle-tahiti');
+INSERT INTO option_produit (produit_id, nom, ordre) VALUES (@p, 'Coloris', 1);
+SET @coloris = LAST_INSERT_ID();
+INSERT INTO valeur_option (option_id, valeur, supplement, ordre) VALUES
+    (@coloris, 'Noir', 0, 1), (@coloris, 'Marron', 0, 2), (@coloris, 'Vert', 0, 3);
+UPDATE variante SET libelle = 'Coloris Noir', stock = 3 WHERE produit_id = @p AND libelle = 'Modèle unique';
+INSERT INTO variante (produit_id, libelle, stock) VALUES (@p, 'Coloris Marron', 2), (@p, 'Coloris Vert', 2);
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+    SELECT variante.id, valeur_option.option_id, valeur_option.id
+      FROM variante
+      JOIN valeur_option ON valeur_option.option_id = @coloris
+                        AND variante.libelle = CONCAT('Coloris ', valeur_option.valeur)
+     WHERE variante.produit_id = @p;
+
+-- Bague Rangiroa acier doré et perle : Taille × Perle
+SET @p = (SELECT id FROM produit WHERE slug = 'bague-rangiroa-acier-dore-perle');
+INSERT INTO option_produit (produit_id, nom, ordre) VALUES (@p, 'Taille', 1);
+SET @taille = LAST_INSERT_ID();
+INSERT INTO option_produit (produit_id, nom, ordre) VALUES (@p, 'Perle', 2);
+SET @perle = LAST_INSERT_ID();
+INSERT INTO valeur_option (option_id, valeur, supplement, ordre) VALUES
+    (@taille, '52', 0, 1), (@taille, '54', 0, 2), (@taille, '56', 0, 3),
+    (@perle, 'Keishi blanc', 0, 1), (@perle, 'Perle de Tahiti', 3000, 2);
+UPDATE variante SET libelle = 'Taille 52 · Keishi blanc', stock = 1 WHERE produit_id = @p AND libelle = 'Modèle unique';
+INSERT INTO variante (produit_id, libelle, stock) VALUES
+    (@p, 'Taille 54 · Keishi blanc', 2),     (@p, 'Taille 56 · Keishi blanc', 2),
+    (@p, 'Taille 52 · Perle de Tahiti', 1),  (@p, 'Taille 54 · Perle de Tahiti', 2),
+    (@p, 'Taille 56 · Perle de Tahiti', 0);
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+    SELECT variante.id, valeur_option.option_id, valeur_option.id
+      FROM variante
+      JOIN valeur_option ON valeur_option.option_id = @taille
+                        AND variante.libelle LIKE CONCAT('Taille ', valeur_option.valeur, ' · %')
+     WHERE variante.produit_id = @p;
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+    SELECT variante.id, valeur_option.option_id, valeur_option.id
+      FROM variante
+      JOIN valeur_option ON valeur_option.option_id = @perle
+                        AND variante.libelle LIKE CONCAT('% · ', valeur_option.valeur)
+     WHERE variante.produit_id = @p;
+
+-- ---------------------------------------------------------------------------
+-- Couleur de la perle (blanche ou noire) pour chaque bijou
+--
+-- Ajoute à CHAQUE bijou l'option « Couleur de la perle » avec deux valeurs,
+-- « Blanche » et « Noire », sans supplément de prix.
+--
+-- Pour chaque variante existante :
+--   - la variante elle-même devient la combinaison « blanche » : elle garde
+--     son identifiant, donc les paniers et les réservations qui la citent ne
+--     changent pas, et son stock ne bouge pas ;
+--   - une variante « noire » est créée à côté, avec le même stock de départ
+--     (à ajuster ensuite depuis le back-office, page Modifier du bijou).
+-- Un bijou qui avait déjà des options (taille, coloris, perle) les garde : la
+-- couleur de la perle s'ajoute à elles, et chaque combinaison est doublée.
+--
+-- Le stock de départ de la variante noire n'est pas inscrit au journal des
+-- mouvements, comme les stocks de départ du jeu de données.
+--
+-- Rejouable sans effet : chaque étape ignore ce qui existe déjà. Sur une base
+-- qui contient des données à conserver, ne pas réimporter ce fichier : copier
+-- seulement les étapes 1 à 7 ci-dessous dans l'onglet « SQL » de phpMyAdmin.
+-- ---------------------------------------------------------------------------
+
+-- 1. L'option, en dernière position parmi les options du bijou.
+INSERT INTO option_produit (produit_id, nom, ordre)
+SELECT produit.id,
+       'Couleur de la perle',
+       COALESCE((SELECT MAX(existante.ordre) FROM option_produit AS existante WHERE existante.produit_id = produit.id), 0) + 1
+  FROM produit
+ WHERE NOT EXISTS (
+        SELECT 1 FROM option_produit AS deja
+         WHERE deja.produit_id = produit.id AND deja.nom = 'Couleur de la perle'
+       );
+
+-- 2. Ses deux valeurs.
+INSERT INTO valeur_option (option_id, valeur, supplement, ordre)
+SELECT option_produit.id, choix.valeur, 0, choix.ordre
+  FROM option_produit
+  JOIN (SELECT 'Blanche' AS valeur, 1 AS ordre UNION ALL SELECT 'Noire', 2) AS choix
+ WHERE option_produit.nom = 'Couleur de la perle'
+   AND NOT EXISTS (
+        SELECT 1 FROM valeur_option AS deja
+         WHERE deja.option_id = option_produit.id AND deja.valeur = choix.valeur
+       );
+
+-- 3. Une variante « noire » par variante qui n'a pas encore de couleur.
+INSERT INTO variante (produit_id, libelle, stock)
+SELECT variante.produit_id,
+       CASE WHEN variante.libelle = 'Modèle unique' THEN 'Perle noire' ELSE CONCAT(variante.libelle, ' · Perle noire') END,
+       variante.stock
+  FROM variante
+ WHERE NOT EXISTS (
+        SELECT 1
+          FROM variante_valeur
+          JOIN option_produit ON option_produit.id = variante_valeur.option_id
+         WHERE variante_valeur.variante_id = variante.id
+           AND option_produit.nom = 'Couleur de la perle'
+       );
+
+-- 4. Les variantes qu'on vient de créer prennent la valeur « Noire ».
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+SELECT variante.id, valeur_option.option_id, valeur_option.id
+  FROM variante
+  JOIN option_produit ON option_produit.produit_id = variante.produit_id AND option_produit.nom = 'Couleur de la perle'
+  JOIN valeur_option ON valeur_option.option_id = option_produit.id AND valeur_option.valeur = 'Noire'
+ WHERE (variante.libelle = 'Perle noire' OR variante.libelle LIKE '% · Perle noire')
+   AND NOT EXISTS (
+        SELECT 1 FROM variante_valeur AS deja
+         WHERE deja.variante_id = variante.id AND deja.option_id = option_produit.id
+       );
+
+-- 5. Une variante « noire » reprend les autres choix (taille, perle, coloris…)
+--    de la variante dont elle est la copie. Sa jumelle est la variante du même
+--    bijou dont le libellé, suivi de « · Perle noire », donne le sien (ou, une
+--    fois la jumelle renommée à l'étape 7, « … · Perle blanche »).
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+SELECT noire.id, reprise.option_id, reprise.valeur_id
+  FROM variante AS noire
+  JOIN variante AS jumelle ON jumelle.produit_id = noire.produit_id AND jumelle.id <> noire.id
+  JOIN variante_valeur AS reprise ON reprise.variante_id = jumelle.id
+  JOIN option_produit ON option_produit.id = reprise.option_id AND option_produit.nom <> 'Couleur de la perle'
+ WHERE noire.libelle LIKE '% · Perle noire'
+   AND (CONCAT(jumelle.libelle, ' · Perle noire') = noire.libelle
+        OR CONCAT(REPLACE(jumelle.libelle, ' · Perle blanche', ''), ' · Perle noire') = noire.libelle)
+   AND NOT EXISTS (
+        SELECT 1 FROM variante_valeur AS deja
+         WHERE deja.variante_id = noire.id AND deja.option_id = reprise.option_id
+       );
+
+-- 6. Toutes les autres variantes (les anciennes) prennent la valeur « Blanche ».
+INSERT INTO variante_valeur (variante_id, option_id, valeur_id)
+SELECT variante.id, valeur_option.option_id, valeur_option.id
+  FROM variante
+  JOIN option_produit ON option_produit.produit_id = variante.produit_id AND option_produit.nom = 'Couleur de la perle'
+  JOIN valeur_option ON valeur_option.option_id = option_produit.id AND valeur_option.valeur = 'Blanche'
+ WHERE NOT EXISTS (
+        SELECT 1 FROM variante_valeur AS deja
+         WHERE deja.variante_id = variante.id AND deja.option_id = option_produit.id
+       );
+
+-- 7. Le libellé des variantes « blanches » le dit.
+UPDATE variante
+  JOIN variante_valeur ON variante_valeur.variante_id = variante.id
+  JOIN valeur_option ON valeur_option.id = variante_valeur.valeur_id AND valeur_option.valeur = 'Blanche'
+  JOIN option_produit ON option_produit.id = valeur_option.option_id AND option_produit.nom = 'Couleur de la perle'
+   SET variante.libelle = CASE
+        WHEN variante.libelle = 'Modèle unique' THEN 'Perle blanche'
+        ELSE CONCAT(variante.libelle, ' · Perle blanche')
+       END
+ WHERE variante.libelle <> 'Perle blanche' AND variante.libelle NOT LIKE '% · Perle blanche';
+
+-- Codes d'exemple (PRO-a) : un code actif à 10 %, un à 15 %, un désactivé.
+INSERT INTO code_promo (code, pourcentage, actif) VALUES
+    ('BIENVENUE10', 10, 1),
+    ('TAHITI15', 15, 1),
+    ('ARCHIVE5', 5, 0);
 
 -- Compte client de test (CMD-c) : client@matira.test / Matira2026!
 -- L'empreinte a été produite par password_hash('Matira2026!', PASSWORD_BCRYPT).

@@ -2,6 +2,8 @@ import { ProductData } from "../../data/produit.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { productImageUrl } from "../../lib/image.js";
 import { formatPrice } from "../../lib/format.js";
+import { findVariant, formatValueLabel, getInitialPrice, getPrice, getSelection, getValueStatuses } from "../../lib/options.js";
+import { PriceView } from "../../ui/prix/index.js";
 import { StockBadgeView } from "../../ui/badge-stock/index.js";
 import { genericRenderer, htmlToFragment, routeUrl } from "../../lib/utils.js";
 import template from "./template.html?raw";
@@ -12,8 +14,9 @@ import templatePhoto from "./photo.html?raw";
 import templateNoPhoto from "./sans-photo.html?raw";
 import templateThumbnails from "./miniatures.html?raw";
 import templateThumbnail from "./miniature.html?raw";
+import templateOptions from "./options.html?raw";
 import templateOption from "./option.html?raw";
-import templateOptionItem from "./option-item.html?raw";
+import templateValue from "./valeur.html?raw";
 import templateAddButton from "./bouton-ajout.html?raw";
 import templateAddSuccess from "./ajout-succes.html?raw";
 import templateAddError from "./ajout-erreur.html?raw";
@@ -26,8 +29,12 @@ import templateAddError from "./ajout-erreur.html?raw";
  * permettent de changer la photo affichée.
  *
  * Le bouton « Ajouter au panier » (US CMD-b) réserve un exemplaire de la
- * variante choisie ; une liste d'options n'apparaît que si le bijou en a
- * plusieurs.
+ * variante choisie. Un bijou à options (US OPT-c : taille, coloris…) propose
+ * un groupe de choix par option : la variante qui correspond à la combinaison
+ * choisie est retrouvée, et le prix, la disponibilité et le bouton suivent
+ * chaque choix. Une valeur dont la combinaison (avec les autres choix en cours)
+ * est épuisée ou n'existe pas est signalée dans son libellé (US OPT-b). Le prix affiché est une aide : c'est le serveur qui calcule
+ * le prix de la variante ajoutée au panier.
  */
 
 // ---------------------------------------------------------------------------
@@ -40,10 +47,15 @@ let M = {
   product: null, // { nom, slug, prix, description, categorie, sousCategorie, images }
   imageIndex: 0, // position de la photo affichée dans product.images
   message: null, // { titre, texte } en cas d'erreur
-  selectedVariantId: null, // variante proposée à l'ajout au panier
+  selectedValues: {}, // valeur choisie pour chaque option : { optionId: valeurId }
+  selectedVariantId: null, // variante qui correspond à la combinaison choisie, null si elle n'existe pas
   cartStatus: "idle", // "idle" | "adding" | "added" | "error"
   cartError: null, // message de l'API si l'ajout a échoué
+  cartQuantities: {}, // exemplaires déjà au panier : { variantId: quantité }
 };
+
+// Message affiché quand tous les exemplaires en stock sont déjà dans le panier.
+const SOLD_OUT_MESSAGE = "Épuisé : tous les exemplaires disponibles sont déjà dans votre panier.";
 
 /**
  * Remet l'état à zéro pour un nouveau bijou.
@@ -59,9 +71,29 @@ M.reset = function (slug) {
   M.product = null;
   M.imageIndex = 0;
   M.message = null;
+  M.selectedValues = {};
   M.selectedVariantId = null;
   M.cartStatus = "idle";
   M.cartError = null;
+  M.cartQuantities = {};
+};
+
+/**
+ * Range les quantités du panier reçu : elles servent à savoir si le stock est
+ * déjà entièrement réservé par la personne.
+ * . cart : panier renvoyé par l'API, { lignes: [{ variantId, quantite }] }
+ * > aucune valeur de retour
+ *
+ * @param {{lignes: Array<{variantId: number, quantite: number}>}} cart
+ * @returns {void}
+ */
+M.setCartQuantities = function (cart) {
+  let quantities = {};
+
+  for (let i = 0; i < cart.lignes.length; i++) {
+    quantities[cart.lignes[i].variantId] = cart.lignes[i].quantite;
+  }
+  M.cartQuantities = quantities;
 };
 
 /**
@@ -99,36 +131,121 @@ M.fetchProduct = async function (slug) {
     return true;
   }
 
+  try {
+    M.setCartQuantities(await CartData.fetch());
+  } catch (error) {
+    // Sans le panier, la fiche reste utilisable : le serveur refusera un ajout au-delà du stock.
+    M.cartQuantities = {};
+  }
+
+  if (slug !== M.slug) {
+    return false;
+  }
+
   M.product = response.produit;
   M.imageIndex = 0;
-  M.selectedVariantId = M.product.variantes.length > 0 ? M.product.variantes[0].id : null;
+  M.selectedValues = M.getDefaultValues();
+  M.selectedVariantId = M.findVariantId(M.selectedValues);
   M.status = "success";
   return true;
 };
 
 /**
- * Choisit la variante à ajouter au panier. Une variante qui n'appartient pas
- * au bijou est refusée.
- * . variantId : identifiant de la variante choisie
+ * Combinaison proposée au départ : celle de la première variante en stock,
+ * ou de la première variante si toutes sont épuisées.
+ * . aucun paramètre
+ * > { optionId: valeurId } (vide pour un bijou sans option)
+ *
+ * @returns {Object}
+ */
+M.getDefaultValues = function () {
+  let variants = M.product.variantes;
+  let variant = variants.find(function (candidate) {
+    return candidate.stock > 0;
+  });
+
+  return getSelection(M.product, variant === undefined ? variants[0] : variant);
+};
+
+/**
+ * Retrouve la variante qui correspond à une combinaison de valeurs : celle
+ * dont les valeurs sont exactement les valeurs choisies.
+ * . selected : { optionId: valeurId }
+ * > identifiant de la variante, ou null si cette combinaison n'est pas proposée
+ *
+ * @param {Object} selected
+ * @returns {number|null}
+ */
+M.findVariantId = function (selected) {
+  let variant = findVariant(M.product, selected);
+  return variant === null ? null : variant.id;
+};
+
+/**
+ * Choisit la valeur d'une option. Une option ou une valeur qui n'appartient
+ * pas au bijou est refusée.
+ * . optionId : option modifiée, valueId : valeur choisie
  * > booléen : vrai si le choix a été retenu
  *
- * @param {number} variantId
+ * @param {number} optionId
+ * @param {number} valueId
  * @returns {boolean}
  */
-M.selectVariant = function (variantId) {
+M.selectOption = function (optionId, valueId) {
   if (M.product === null) {
     return false;
   }
 
-  let exists = M.product.variantes.some(function (variant) {
-    return variant.id === variantId;
+  let option = M.product.options.find(function (candidate) {
+    return candidate.id === optionId;
   });
+  let exists =
+    option !== undefined &&
+    option.valeurs.some(function (value) {
+      return value.id === valueId;
+    });
 
   if (exists) {
-    M.selectedVariantId = variantId;
+    M.selectedValues = Object.assign({}, M.selectedValues, { [optionId]: valueId });
+    M.selectedVariantId = M.findVariantId(M.selectedValues);
     M.cartStatus = "idle";
   }
   return exists;
+};
+
+/**
+ * Disponibilité de chaque valeur d'option, selon les autres choix en cours :
+ * la combinaison obtenue en choisissant cette valeur existe-t-elle, a-t-elle du stock ?
+ * . aucun paramètre
+ * > { valeurId: "disponible" | "epuise" | "absente" }
+ *
+ * @returns {Object}
+ */
+M.getValueStatuses = function () {
+  return getValueStatuses(M.product, M.selectedValues);
+};
+
+/**
+ * Prix de la combinaison choisie : le prix du bijou plus le supplément de
+ * chaque valeur choisie. Le serveur applique la même règle (VariantModel::PRICE_SQL).
+ * . aucun paramètre
+ * > prix en XPF
+ *
+ * @returns {number}
+ */
+M.getPrice = function () {
+  return getPrice(M.product, M.selectedValues);
+};
+
+/**
+ * Prix de la combinaison choisie avant promotion automatique (US PRO-c).
+ * . aucun paramètre
+ * > prix en XPF
+ *
+ * @returns {number}
+ */
+M.getInitialPrice = function () {
+  return getInitialPrice(M.product, M.selectedValues);
 };
 
 /**
@@ -144,9 +261,22 @@ M.canAddToCart = function () {
 };
 
 /**
- * Indique si la variante choisie est épuisée (US STK-c). Le serveur refuse de
- * toute façon l'ajout ; le front l'évite pour ne pas proposer une action vouée
- * à l'échec.
+ * Indique si le panier contient déjà tous les exemplaires en stock de la
+ * variante choisie (le maximum atteint).
+ * . aucun paramètre
+ * > booléen
+ *
+ * @returns {boolean}
+ */
+M.isMaxInCart = function () {
+  let variant = M.getSelectedVariant();
+  return variant !== null && variant.stock > 0 && (M.cartQuantities[variant.id] ?? 0) >= variant.stock;
+};
+
+/**
+ * Indique si la variante choisie ne peut plus être ajoutée (US STK-c) : stock
+ * nul, ou maximum déjà au panier. Le serveur refuse de toute façon l'ajout ; le
+ * front l'évite pour ne pas proposer une action vouée à l'échec.
  * . aucun paramètre
  * > booléen
  *
@@ -154,7 +284,7 @@ M.canAddToCart = function () {
  */
 M.isSoldOut = function () {
   let variant = M.getSelectedVariant();
-  return variant !== null && variant.stock <= 0;
+  return variant !== null && (variant.stock <= 0 || M.isMaxInCart());
 };
 
 /**
@@ -188,8 +318,15 @@ M.addToCart = async function () {
   try {
     let cart = await CartData.add(M.selectedVariantId, 1);
     cartCount = cart.nombreArticles;
+    M.setCartQuantities(cart);
   } catch (error) {
-    errorMessage = `Impossible d'ajouter ce bijou au panier : ${error.message}`;
+    if (error.statut === 409) {
+      // Le serveur refuse parce que le panier contient déjà tout le stock : on le retient.
+      M.cartQuantities[M.selectedVariantId] = M.getSelectedVariant().stock;
+      errorMessage = SOLD_OUT_MESSAGE;
+    } else {
+      errorMessage = `Impossible d'ajouter ce bijou au panier : ${error.message}`;
+    }
   }
 
   if (slug !== M.slug) {
@@ -242,8 +379,8 @@ M.getSelectedVariant = function () {
 /**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, product, images, imageIndex, image, message, variants,
- *     selectedVariantId, selectedVariant, cartStatus, cartError, canAddToCart }
+ * > { status, product, images, imageIndex, image, message, options, selectedValues, valueStatuses, price, initialPrice,
+ *     selectedVariantId, selectedVariant, isUnavailable, isSoldOut, cartStatus, cartError, canAddToCart }
  *
  * @returns {Object}
  */
@@ -257,10 +394,17 @@ M.getState = function () {
     imageIndex: M.imageIndex,
     image: images.length > 0 ? images[M.imageIndex] : null,
     message: M.message,
-    variants: M.product === null ? [] : M.product.variantes,
+    options: M.product === null ? [] : M.product.options,
+    selectedValues: M.selectedValues,
+    valueStatuses: M.product === null ? {} : M.getValueStatuses(),
+    price: M.product === null ? 0 : M.getPrice(),
+    initialPrice: M.product === null ? 0 : M.getInitialPrice(),
     selectedVariantId: M.selectedVariantId,
     selectedVariant: M.getSelectedVariant(),
+    isUnavailable: M.product !== null && M.product.options.length > 0 && M.selectedVariantId === null,
     isSoldOut: M.isSoldOut(),
+    isMaxInCart: M.isMaxInCart(),
+    soldOutMessage: SOLD_OUT_MESSAGE,
     cartStatus: M.cartStatus,
     cartError: M.cartError,
     canAddToCart: M.canAddToCart(),
@@ -337,19 +481,25 @@ C.handler_clickOnAddToCart = async function (ev) {
 };
 
 /**
- * Changement de l'option choisie dans la liste des variantes.
+ * Choix d'une valeur d'option : retrouve la combinaison, puis met à jour le
+ * prix, la disponibilité et le bouton sans reconstruire la fiche (le focus
+ * reste sur le choix, au clavier).
  * . ev : événement change, délégué depuis la racine de la page
  * > aucune valeur de retour
  *
  * @param {Event} ev
  * @returns {void}
  */
-C.handler_changeVariant = function (ev) {
-  if (ev.target.closest('[data-zone="variante"]') === null) {
+C.handler_changeOption = function (ev) {
+  let input = ev.target.closest("[data-option]");
+
+  if (input === null) {
     return;
   }
 
-  if (M.selectVariant(Number(ev.target.value))) {
+  if (M.selectOption(Number(input.dataset.option), Number(input.value))) {
+    V.renderPrice(M.getState());
+    V.renderValueStatuses(M.getState());
     V.renderStock(M.getState());
     V.renderAddToCart(M.getState());
   }
@@ -394,13 +544,77 @@ V.init = function () {
   V.root = fragment.firstElementChild;
   V.root.addEventListener("click", C.handler_clickOnThumbnail);
   V.root.addEventListener("click", C.handler_clickOnAddToCart);
-  V.root.addEventListener("change", C.handler_changeVariant);
+  V.root.addEventListener("change", C.handler_changeOption);
   return fragment;
 };
 
 /**
- * Liste des options et bouton d'ajout. La liste n'apparaît que si le bijou a
- * plusieurs variantes : pour un « Modèle unique », le bouton suffit.
+ * Libellé d'une valeur d'option, avec son supplément s'il y en a un et sa
+ * disponibilité si la combinaison n'est pas commandable (le texte porte
+ * l'information : la couleur ne fait que la souligner).
+ * . value : { valeur, supplement }, status : « disponible », « epuise » ou « absente »
+ * > chaîne, par exemple « Perle de Tahiti (+3 000 XPF) — épuisé »
+ *
+ * @param {{valeur: string, supplement: number}} value
+ * @param {string} status
+ * @returns {string}
+ */
+V.formatOneValueLabel = function (value, status) {
+  return formatValueLabel(value, status);
+};
+
+/**
+ * Écrit le libellé d'une valeur et grise celles qui ne sont pas commandables.
+ * Elles restent sélectionnables : on peut changer les options dans n'importe
+ * quel ordre, et la fiche explique ce qui manque.
+ * . span : l'élément du libellé, value : la valeur, status : sa disponibilité
+ * > aucune valeur de retour
+ *
+ * @param {HTMLElement} span
+ * @param {{valeur: string, supplement: number}} value
+ * @param {string} status
+ * @returns {void}
+ */
+V.applyValueStatus = function (span, value, status) {
+  span.textContent = V.formatOneValueLabel(value, status);
+  span.classList.toggle("text-muted", status !== "disponible");
+  span.classList.toggle("border-dashed", status !== "disponible");
+};
+
+/**
+ * Groupe de choix d'une option : un bouton radio par valeur, celui de la
+ * valeur choisie est coché.
+ * . option : { id, nom, valeurs }, selectedValueId : valeur choisie,
+ *   statuses : disponibilité de chaque valeur
+ * > DocumentFragment
+ *
+ * @param {Object} option
+ * @param {number|undefined} selectedValueId
+ * @param {Object} statuses
+ * @returns {DocumentFragment}
+ */
+V.createOptionFragment = function (option, selectedValueId, statuses) {
+  let fragment = htmlToFragment(genericRenderer(templateOption, { nom: option.nom }));
+
+  let items = option.valeurs.map(function (value) {
+    let item = htmlToFragment(
+      genericRenderer(templateValue, {
+        optionId: option.id,
+        valeurId: value.id,
+        libelle: "",
+      })
+    );
+    V.applyValueStatus(item.querySelector("span"), value, statuses[value.id]);
+    item.querySelector("input").checked = value.id === selectedValueId;
+    return item;
+  });
+  fragment.querySelector('slot[name="valeurs"]').replaceWith(...items);
+  return fragment;
+};
+
+/**
+ * Groupes de choix des options (aucun pour un bijou sans option) et bouton
+ * d'ajout.
  * . state : état renvoyé par M.getState()
  * > DocumentFragment
  *
@@ -410,15 +624,13 @@ V.init = function () {
 V.createAddToCartFragment = function (state) {
   let fragment = new DocumentFragment();
 
-  if (state.variants.length > 1) {
-    let option = htmlToFragment(templateOption);
-    let items = state.variants.map(function (variant) {
-      return htmlToFragment(genericRenderer(templateOptionItem, { id: variant.id, libelle: variant.libelle }));
+  if (state.options.length > 0) {
+    let container = htmlToFragment(templateOptions);
+    let groups = state.options.map(function (option) {
+      return V.createOptionFragment(option, state.selectedValues[option.id], state.valueStatuses);
     });
-    let select = option.querySelector('[data-zone="variante"]');
-    select.replaceChildren(...items);
-    select.value = String(state.selectedVariantId);
-    fragment.append(option);
+    container.querySelector('slot[name="options"]').replaceWith(...groups);
+    fragment.append(container);
   }
 
   fragment.append(htmlToFragment(templateAddButton));
@@ -440,9 +652,22 @@ V.renderAddToCart = function (state) {
   let button = V.root.querySelector('[data-action="ajouter"]');
   let feedback = V.root.querySelector('[data-zone="retour-panier"]');
 
-  let labels = { adding: "Ajout en cours…", soldOut: "Épuisé", ready: "Ajouter au panier" };
-  let labelKey = state.cartStatus === "adding" ? "adding" : state.isSoldOut ? "soldOut" : "ready";
+  let labels = {
+    adding: "Ajout en cours…",
+    soldOut: "Épuisé",
+    unavailable: "Combinaison indisponible",
+    ready: "Ajouter au panier",
+  };
+  let labelKey = "ready";
+  if (state.cartStatus === "adding") {
+    labelKey = "adding";
+  } else if (state.isUnavailable) {
+    labelKey = "unavailable";
+  } else if (state.isSoldOut) {
+    labelKey = "soldOut";
+  }
   button.textContent = labels[labelKey];
+  button.dataset.epuise = String(labelKey === "soldOut" || labelKey === "unavailable");
   if (state.canAddToCart) {
     button.removeAttribute("aria-disabled");
   } else {
@@ -453,10 +678,13 @@ V.renderAddToCart = function (state) {
     feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddSuccess, { urlPanier: routeUrl("/panier") })));
   } else if (state.cartStatus === "error") {
     feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddError, { texte: state.cartError })));
+  } else if (state.cartStatus === "idle" && state.isMaxInCart) {
+    feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddError, { texte: state.soldOutMessage })));
   } else if (state.cartStatus === "idle" && state.selectedVariantId === null) {
-    feedback.replaceChildren(
-      htmlToFragment(genericRenderer(templateAddError, { texte: "Ce bijou n'est pas disponible à la réservation." }))
-    );
+    let text = state.isUnavailable
+      ? "Cette combinaison d'options n'est pas proposée. Choisissez-en une autre."
+      : "Ce bijou n'est pas disponible à la réservation.";
+    feedback.replaceChildren(htmlToFragment(genericRenderer(templateAddError, { texte: text })));
   } else {
     feedback.replaceChildren();
   }
@@ -552,13 +780,12 @@ V.createProductFragment = function (state) {
 
   let fragment = htmlToFragment(
     genericRenderer(templateSheet, {
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
       urlCategorie: routeUrl(`/categorie/${encodeURIComponent(product.categorie.slug)}`),
       urlSousCategorie: routeUrl(`/categorie/${encodeURIComponent(product.sousCategorie.slug)}`),
       categorie: product.categorie.nom,
       sousCategorie: product.sousCategorie.nom,
       nom: product.nom,
-      prix: formatPrice(product.prix),
       description: product.description,
     })
   );
@@ -585,7 +812,7 @@ V.createErrorFragment = function (message) {
     genericRenderer(templateError, {
       titre: message.titre,
       texte: message.texte,
-      urlCatalogue: routeUrl("/"),
+      urlCatalogue: routeUrl("/bijoux"),
     })
   );
 };
@@ -614,9 +841,40 @@ V.renderPage = function (state) {
   zone.replaceChildren(content);
 
   if (state.status === "success") {
+    V.renderPrice(state);
     V.renderStock(state);
     V.renderAddToCart(state);
   }
+};
+
+/**
+ * Met à jour le libellé de chaque valeur d'option après un choix, sans
+ * reconstruire les groupes : le focus clavier reste sur le bouton choisi.
+ * . state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {Object} state
+ * @returns {void}
+ */
+V.renderValueStatuses = function (state) {
+  state.options.forEach(function (option) {
+    option.valeurs.forEach(function (value) {
+      let input = V.root.querySelector(`input[data-option="${option.id}"][value="${value.id}"]`);
+      V.applyValueStatus(input.nextElementSibling, value, state.valueStatuses[value.id]);
+    });
+  });
+};
+
+/**
+ * Affiche le prix de la combinaison choisie.
+ * . state : état renvoyé par M.getState()
+ * > aucune valeur de retour
+ *
+ * @param {Object} state
+ * @returns {void}
+ */
+V.renderPrice = function (state) {
+  V.root.querySelector('[data-zone="prix"]').replaceChildren(PriceView.dom({ prix: state.price, prixInitial: state.initialPrice }));
 };
 
 /**

@@ -1,0 +1,11 @@
+<div role="group" aria-label="Modifier les options de {{nom}}" class="mt-3 rounded-md bg-surface-soft p-4">
+  <div class="grid gap-3 sm:grid-cols-2">
+    <slot name="champs"></slot>
+  </div>
+  <p data-zone="apercu-options" aria-live="polite" class="mt-3 text-sm {{couleur}}">{{apercu}}</p>
+  <slot name="erreur"></slot>
+  <div class="mt-3 flex flex-wrap gap-3">
+    <button type="button" data-action="valider-options" data-variant-id="{{variantId}}" class="inline-flex h-10 items-center rounded-md bg-button px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 aria-disabled:cursor-not-allowed aria-disabled:opacity-60">Valider</button>
+    <button type="button" data-action="annuler-options" data-variant-id="{{variantId}}" class="inline-flex h-10 items-center rounded-md border border-line px-5 text-sm font-medium transition-colors hover:border-primary">Annuler</button>
+  </div>
+</div>

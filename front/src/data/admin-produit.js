@@ -38,7 +38,7 @@ AdminProductData.fetchOne = async function (id) {
 /**
  * Crée un bijou : POST /api/admin/produits/creer
  *
- * @param {FormData} formData - Champs nom, description, prix, stock, sousCategorie,
+ * @param {FormData} formData - Champs nom, description, prix, publicCible, stock, sousCategorie,
  *   et facultativement photo (fichier) et altPhoto.
  * @returns {Promise<{produit: {id: number, slug: string}}>}
  */
@@ -49,7 +49,8 @@ AdminProductData.create = async function (formData) {
 /**
  * Modifie un bijou : POST /api/admin/produits/modifier
  *
- * @param {FormData} formData - Les mêmes champs que pour la création, plus id.
+ * @param {FormData} formData - Les mêmes champs que pour la création, plus id. Un bijou à options
+ *   envoie `stocks[<id de la variante>]` pour chaque combinaison, au lieu de `stock` (US OPT-b).
  * @returns {Promise<{produit: Object}>} Le bijou à jour.
  */
 AdminProductData.update = async function (formData) {

@@ -114,6 +114,73 @@ final class UserModel
     }
 
     /**
+     * Modifie le prénom, le nom et l'e-mail d'un compte (US SUI-b).
+     *
+     * L'unicité de l'e-mail reste garantie par la contrainte uq_utilisateur_email :
+     * si une autre personne l'utilise déjà, rien n'est modifié.
+     *
+     * @param int    $id        Identifiant du compte connecté.
+     * @param string $firstName Prénom validé.
+     * @param string $lastName  Nom validé.
+     * @param string $email     E-mail validé et normalisé.
+     * @return bool Faux si l'e-mail est déjà utilisé par un autre compte.
+     */
+    public function updateProfile(int $id, string $firstName, string $lastName, string $email): bool
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE utilisateur
+                SET prenom = :prenom, nom = :nom, email = :email
+              WHERE id = :id'
+        );
+        $statement->bindValue(':prenom', $firstName, PDO::PARAM_STR);
+        $statement->bindValue(':nom', $lastName, PDO::PARAM_STR);
+        $statement->bindValue(':email', $email, PDO::PARAM_STR);
+        $statement->bindValue(':id', $id, PDO::PARAM_INT);
+
+        try {
+            $statement->execute();
+        } catch (PDOException $e) {
+            if ($e->getCode() === self::DUPLICATE_KEY) {
+                return false;
+            }
+            throw $e;
+        }
+
+        return true;
+    }
+
+    /**
+     * L'empreinte du mot de passe d'un compte, pour vérifier le mot de passe actuel.
+     *
+     * @param int $id Identifiant du compte connecté.
+     * @return string|null Null si le compte n'existe plus.
+     */
+    public function findPasswordHash(int $id): ?string
+    {
+        $statement = $this->pdo->prepare('SELECT mot_de_passe FROM utilisateur WHERE id = :id');
+        $statement->bindValue(':id', $id, PDO::PARAM_INT);
+        $statement->execute();
+
+        $hash = $statement->fetchColumn();
+
+        return $hash === false ? null : (string) $hash;
+    }
+
+    /**
+     * Remplace l'empreinte du mot de passe d'un compte.
+     *
+     * @param int    $id           Identifiant du compte connecté.
+     * @param string $passwordHash Empreinte produite par password_hash().
+     */
+    public function updatePassword(int $id, string $passwordHash): void
+    {
+        $statement = $this->pdo->prepare('UPDATE utilisateur SET mot_de_passe = :mot_de_passe WHERE id = :id');
+        $statement->bindValue(':mot_de_passe', $passwordHash, PDO::PARAM_STR);
+        $statement->bindValue(':id', $id, PDO::PARAM_INT);
+        $statement->execute();
+    }
+
+    /**
      * Ligne SQL -> compte publiable.
      *
      * @param array<string, mixed> $row Ligne de la table utilisateur.

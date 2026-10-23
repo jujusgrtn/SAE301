@@ -2,9 +2,13 @@ import { CategoryData } from "../../data/categorie.js";
 import { CartData, CART_CHANGED_EVENT } from "../../data/panier.js";
 import { AccountData, ACCOUNT_CHANGED_EVENT } from "../../data/compte.js";
 import { htmlToFragment } from "../../lib/utils.js";
+import { PRICE_RANGES, describePriceRange } from "../../lib/catalogue.js";
+import { CURRENCIES, CURRENCY_CHANGED_EVENT, getCurrency, isCurrencyLocked, setCurrency } from "../../lib/currency.js";
 import { HeaderView } from "../../ui/header/index.js";
+import { FooterView } from "../../ui/pied-de-page/index.js";
 import { CategoryMenuView } from "../../ui/menu-categories/index.js";
 import { CartBadgeView } from "../../ui/compteur-panier/index.js";
+import { CurrencySelectView } from "../../ui/selecteur-monnaie/index.js";
 import template from "./template.html?raw";
 
 /**
@@ -174,11 +178,52 @@ M.shouldFetch = function () {
 };
 
 /**
+ * Tranches de prix proposées dans le panneau de chaque catégorie, écrites dans
+ * la monnaie choisie.
+ * . aucun paramètre
+ * > [{ valeur, libelle }]
+ *
+ * @returns {Array<{valeur: string, libelle: string}>}
+ */
+M.getPriceLinks = function () {
+  return PRICE_RANGES.map(function (range) {
+    return { valeur: range.valeur, libelle: describePriceRange(range) };
+  });
+};
+
+/**
+ * Mémorise la monnaie choisie.
+ * . code : « XPF », « EUR » ou « USD »
+ * > aucune valeur de retour
+ *
+ * @param {string} code
+ * @returns {void}
+ */
+M.setCurrency = function (code) {
+  setCurrency(code);
+};
+
+/**
+ * Monnaies proposées et monnaie courante ; rien sur les pages d'administration,
+ * qui restent en XPF.
+ * . aucun paramètre
+ * > { currencies, current } ou null
+ *
+ * @returns {{currencies: Array<Object>, current: string}|null}
+ */
+M.getCurrencyChoice = function () {
+  if (isCurrencyLocked()) {
+    return null;
+  }
+  return { currencies: Object.values(CURRENCIES), current: getCurrency() };
+};
+
+/**
  * Photographie de l'état, transmise à la Vue.
  * . aucun paramètre
- * > { status, categories, cartCount, accountLabel }
+ * > { status, categories, cartCount, accountLabel, currency }
  *
- * @returns {{status: string, categories: Array<Object>, cartCount: number|null, accountLabel: string}}
+ * @returns {Object}
  */
 M.getState = function () {
   return {
@@ -186,6 +231,8 @@ M.getState = function () {
     categories: M.categories,
     cartCount: M.cartCount,
     accountLabel: M.getAccountLabel(),
+    currency: M.getCurrencyChoice(),
+    priceLinks: M.getPriceLinks(),
   };
 };
 
@@ -258,6 +305,20 @@ C.handler_accountChanged = function (ev) {
 };
 
 /**
+ * La personne a choisi une autre monnaie : on la mémorise, puis on prévient la
+ * page affichée (main.js la reconstruit) pour que tous les prix suivent.
+ * . code : monnaie choisie
+ * > aucune valeur de retour
+ *
+ * @param {string} code
+ * @returns {void}
+ */
+C.handler_changeCurrency = function (code) {
+  M.setCurrency(code);
+  document.dispatchEvent(new CustomEvent(CURRENCY_CHANGED_EVENT));
+};
+
+/**
  * Construit le layout, affiche le menu, le compte et le compteur connus, et
  * les charge si besoin.
  * . aucun paramètre
@@ -270,6 +331,7 @@ C.init = function () {
   V.renderMenu(M.getState());
   V.renderCartCount(M.getState());
   V.renderAccount(M.getState());
+  V.renderCurrency(M.getState(), C.handler_changeCurrency);
 
   if (M.shouldFetch()) {
     C.loadMenu();
@@ -290,9 +352,12 @@ C.init = function () {
 
 let V = {};
 
-V.menuZone = null; // zone du menu dans le dernier layout construit
+V.menuZone = null; // zone du menu (desktop) dans le dernier layout construit
+V.mobileMenuZone = null; // zone du menu mobile
 V.cartCountZone = null; // zone du compteur dans le dernier layout construit
 V.accountLink = null; // lien de compte dans le dernier layout construit
+V.currencyZone = null; // choix de la monnaie (desktop)
+V.mobileCurrencyZone = null; // choix de la monnaie (menu mobile)
 V.isListening = false; // les écouteurs sur document ne sont posés qu'une fois
 
 /**
@@ -310,9 +375,13 @@ V.isListening = false; // les écouteurs sur document ne sont posés qu'une fois
 V.init = function () {
   let layout = htmlToFragment(template);
   layout.querySelector('slot[name="header"]').replaceWith(HeaderView.dom());
+  layout.querySelector('slot[name="footer"]').replaceWith(FooterView.dom());
   V.menuZone = layout.querySelector('[data-zone="menu"]');
+  V.mobileMenuZone = layout.querySelector('[data-zone="menu-mobile"]');
   V.cartCountZone = layout.querySelector('[data-zone="compteur-panier"]');
   V.accountLink = layout.querySelector('[data-zone="compte"]');
+  V.currencyZone = layout.querySelector('[data-zone="monnaie"]');
+  V.mobileCurrencyZone = layout.querySelector('[data-zone="monnaie-mobile"]');
 
   if (!V.isListening) {
     document.addEventListener(CART_CHANGED_EVENT, C.handler_cartChanged);
@@ -321,6 +390,24 @@ V.init = function () {
   }
 
   return layout;
+};
+
+/**
+ * Affiche le choix de la monnaie, desktop et menu mobile (rien en administration).
+ * . state : { currency } ; onChange : callback de C
+ * > aucune valeur de retour
+ *
+ * @param {{currency: Object|null}} state
+ * @param {function(string): void} onChange
+ * @returns {void}
+ */
+V.renderCurrency = function (state, onChange) {
+  if (state.currency === null) {
+    V.mobileCurrencyZone.remove();
+    return;
+  }
+  V.currencyZone.replaceChildren(CurrencySelectView.dom({ ...state.currency, visibleLabel: false }, onChange));
+  V.mobileCurrencyZone.replaceChildren(CurrencySelectView.dom({ ...state.currency, visibleLabel: true }, onChange));
 };
 
 /**
@@ -350,20 +437,22 @@ V.renderCartCount = function (state) {
 /**
  * Affiche le menu selon l'état : rien pendant le chargement (la zone garde sa
  * hauteur), les liens en cas de succès, un message en cas d'erreur.
- * . state : { status, categories }
+ * . state : { status, categories, priceLinks }
  * > aucune valeur de retour
  *
- * @param {{status: string, categories: Array<Object>}} state
+ * @param {{status: string, categories: Array<Object>, priceLinks: Array<Object>}} state
  * @returns {void}
  */
 V.renderMenu = function (state) {
   if (state.status === "loading") {
     V.menuZone.replaceChildren();
+    V.mobileMenuZone.replaceChildren();
     return;
   }
 
   let categories = state.status === "success" ? state.categories : null;
-  V.menuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname));
+  V.menuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname, false, state.priceLinks));
+  V.mobileMenuZone.replaceChildren(CategoryMenuView.dom(categories, window.location.pathname, true));
 };
 
 /**
