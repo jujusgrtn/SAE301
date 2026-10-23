@@ -7,6 +7,7 @@ import photoBoutique from "../../assets/design/photo-boutique.jpg";
 import photoHero from "../../assets/design/photo-hero.jpg";
 import photoCollier from "../../assets/design/categorie-1.jpg";
 import photoBoucles from "../../assets/design/categorie-2.jpg";
+import photoBracelets from "../../assets/design/categorie-4.jpg";
 import iconeHorloge from "../../assets/design/icone-horloge.svg";
 import iconePin from "../../assets/design/icone-pin.svg";
 import template from "./template.html?raw";
@@ -33,6 +34,7 @@ const LATEST_COUNT = 4;
 // reprennent la photo de leur premier bijou.
 const COLLECTION_PHOTOS = {
   colliers: photoCollier,
+  bracelets: photoBracelets,
   "boucles-oreilles": photoBoucles,
 };
 
