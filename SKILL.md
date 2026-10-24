@@ -22,7 +22,6 @@ la racine du dépôt (`~/public_html/SAE301-Starter/`).
 
 ### 2.1 Check-list de démarrage
 
-- [ ] `MEMOIRE.md` lu en entier (décisions, préférences, points en attente) : `AGENTS.md` §12
 - [ ] La personne qui développe a demandé cette US (« on continue », « US 7 »…). La numérotation compte
       les US dans l'ordre de `AGENTS.md` §8, **sans** les fondations : US 1 = DEC-b, US 4 = CMD-b,
       US 7 = STK-b.
@@ -509,7 +508,7 @@ git push -u origin feature/<CODE>-<sujet>
 - [ ] `php -l`, `npm run build`, `check-mvc.js` passés (ou absence signalée)
 - [ ] API testée en session réelle ; front testé (jsdom ou navigateur) ; données de test nettoyées
 - [ ] À vérifier par la personne qui développe : 320 / 768 / 1440 px et validateur W3C
-- [ ] `MEMOIRE.md` mis à jour : avancement, décisions, pièges, points en attente, date (`AGENTS.md` §12)
+- [ ] Compte rendu : ce qu'il faudrait ajouter à `AGENTS.md` et `SKILL.md`, sans les modifier (`AGENTS.md` §11.6)
 - [ ] Compte rendu complet avec les commandes Git
 
 ## Annexe — US déjà réalisées

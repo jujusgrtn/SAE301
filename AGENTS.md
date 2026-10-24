@@ -91,7 +91,6 @@ endroits seulement et doit y rester identique : `BASE` dans
 SAE301-Starter/                 racine du dépôt = racine déployée sur le serveur
 ├── AGENTS.md                   règles du projet (ce document)
 ├── SKILL.md                    méthode de réalisation d'une US, avec exemples
-├── MEMOIRE.md                  mémoire du projet : décisions, préférences, avancement, pièges (voir §12)
 ├── README.md                   présentation du starter d'origine (films), en partie obsolète
 ├── .htaccess                   point d'entrée HTTP
 ├── .gitignore                  node_modules, dist, config.php et uploads/produits exclus de Git
@@ -643,7 +642,13 @@ Toujours à la fin de chaque requête, vérifier le découpage :
 ## 10. Documentation et compte rendu
 
 Toute documentation générée doit être pédagogique : sections numérotées,
-tableaux récapitulatifs, check-lists et diagnostic.
+tableaux récapitulatifs, check-lists et diagnostic. Elle respecte aussi ces règles :
+
+- **aucun secret** (mot de passe, jeton, identifiant réel) : le dépôt est sur GitHub ; seuls les comptes de
+  démonstration du jeu de données peuvent y figurer ;
+- des **dates absolues** (2026-10-24), jamais « hier » ou « la semaine dernière » ;
+- la personne qui développe n'est jamais désignée par un pronom genré : écrire « la personne qui développe »
+  ou « l'équipe ».
 
 ## 11. Après chaque modification
 
@@ -655,31 +660,6 @@ Fournis un résumé clair et expliqué avec :
    respectant toujours l'ordre qui doit être suivi ;
 4. les éventuels impacts sur le reste de l'application.
 5. Les commandes a exécuter pour add, commit et push les modifications.
-6. Ce qu'il faudrait ajouter dans `AGENTS.md`, `SKILL.md` et `MEMOIRE.md` (§12), sans les modifier : la personne qui développe les met à jour elle-même, sur `main`.
-
-## 12. Mémoire du projet (`MEMOIRE.md`)
-
-`MEMOIRE.md`, à la racine, est la mémoire du projet : tout ce qu'un agent doit savoir pour reprendre le
-travail sans tout redécouvrir. Il est versionné avec le code. Il ne remplace ni ce document (les règles)
-ni `SKILL.md` (la méthode).
-
-| Quand | Obligation |
-| --- | --- |
-| Début de session, avant toute tâche non triviale | lire `MEMOIRE.md` en entier |
-| Fin de chaque tâche, avec le compte rendu du §11 | **ne pas modifier** `MEMOIRE.md` (ni `AGENTS.md`, ni `SKILL.md`) pendant une US : ils vivent sur `main`, pas sur les branches d'US ; lister dans le compte rendu ce qui servira plus tard (décision, préférence, piège, point en attente, avancement). Les mettre à jour seulement sur demande, avec la date en tête |
-
-Règles de contenu :
-
-- Chaque entrée est courte, vérifiable et datée par une **date absolue** (jamais « hier », « la semaine dernière »).
-- Pas de doublon avec `AGENTS.md` ou `SKILL.md` : renvoyer vers eux.
-- **Aucun secret** : ni mot de passe, ni jeton, ni identifiant réel. Le dépôt est sur GitHub.
-- Une entrée devenue fausse est corrigée ou supprimée, jamais laissée. En cas de contradiction avec le code, le code fait foi.
-- La personne qui développe n'est jamais désignée par un pronom genré : écrire « la personne qui développe » ou « l'équipe ».
-- Le commit de `MEMOIRE.md` suit la règle du §1 : l'agent ne commite pas, il donne la commande.
-
-Check-list de fin de tâche :
-
-- [ ] une décision, une préférence ou un piège nouveau → listé dans le compte rendu (et ajouté à la bonne section de `MEMOIRE.md` seulement sur demande)
-- [ ] l'avancement (§5) et les points en attente (§7) reflètent l'état réel
-- [ ] la date « Dernière mise à jour » est celle du jour
-- [ ] `MEMOIRE.md` ne contient aucun secret
+6. Ce qu'il faudrait ajouter dans `AGENTS.md` et `SKILL.md`, sans les modifier pendant une US : ils vivent sur `main`, et
+   les modifier sur une branche d'US crée des conflits à la fusion. La personne qui développe les met à jour
+   elle-même, ou les fait mettre à jour sur demande.
