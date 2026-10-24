@@ -17,7 +17,6 @@ API JSON en PHP 8 (PDO, MySQL), sans framework.
 | Prototypes Figma (maquettes mobile, desktop et back-office) | <https://www.figma.com/design/CLkGxGjmg44XF2VdkiA001/segrestan_justine?node-id=0-1> |
 | Rapport d'audit Lighthouse | [docs/rapport_lighthouse.pdf](docs/rapport_lighthouse.pdf) |
 | Graphe des dépendances entre user stories et ordre de réalisation (FigJam) | <https://www.figma.com/board/LaA5KK4QRThJ8CV25L3z8F/SA%C3%89-3.01-%E2%80%93-D%C3%A9pendances-entre-user-stories?node-id=0-1> |
-| Graphe des dépendances et ordre de réalisation (PDF) | [docs/graphe-dependances-user-stories.pdf](docs/graphe-dependances-user-stories.pdf) |
 
 L'application hébergée est construite depuis la branche `main` du dépôt.
 
@@ -37,7 +36,7 @@ donnée réelle.
 
 | Document | Contenu |
 | --- | --- |
-| Graphe des dépendances et ordre de réalisation : [PDF](docs/graphe-dependances-user-stories.pdf) · [FigJam](https://www.figma.com/board/LaA5KK4QRThJ8CV25L3z8F/SA%C3%89-3.01-%E2%80%93-D%C3%A9pendances-entre-user-stories?node-id=0-1) | dépendances entre les user stories, regroupées par epic ; le numéro de chaque US est son rang dans l'ordre de réalisation |
+| Graphe des dépendances et ordre de réalisation : [FigJam](https://www.figma.com/board/LaA5KK4QRThJ8CV25L3z8F/SA%C3%89-3.01-%E2%80%93-D%C3%A9pendances-entre-user-stories?node-id=0-1) | dépendances entre les user stories, regroupées par epic ; le numéro de chaque US est son rang dans l'ordre de réalisation |
 | [Rapport d'audit Lighthouse](docs/rapport_lighthouse.pdf) | performance, accessibilité, bonnes pratiques et SEO de l'application hébergée |
 
 La justification de l'ordre retenu est détaillée ci-dessous (section 4).
